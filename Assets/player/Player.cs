@@ -9,7 +9,7 @@ public class Player : MonoBehaviour
     [Header("player state")]
     public Vector3 playerposition;
     public int exp;
-
+    
     private bool isInvincible = false;
 
     public System.Action OnDeath;

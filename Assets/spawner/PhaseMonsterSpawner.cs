@@ -1,79 +1,104 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
+[System.Serializable]
+public class SpawnPhase
+{
+    public string phaseName = "Phase";
+    public int spawnCount = 5;
+    public int nextPhaseWhenDeadCount = 4;
+}
+
 public class PhaseMonsterSpawner : MonoBehaviour
 {
-    [Header("phase setting")]
-    public string phaseName = "Phase 1";
+    [Header("Phase Setting")]
+    public SpawnPhase[] phases;
 
-    [Header("monster prefab")]
+    private int currentPhaseIndex = 0;
+    private int deadCountInPhase = 0;
+    private bool allPhaseFinished = false;
+
+    public event Action<int> OnPhaseChanged;
+    public event Action OnAllPhasesFinished;
+
+    [Header("Monster Prefab")]
     public GameObject[] monsterPrefabs;
 
-    [Header("spawn points")]
+    [Header("Spawn Points")]
     public MonsterSpawnPoint[] spawnPoints;
 
-    [Header("spawn count")]
-    public int maxMonsterCount = 10;
-    public int respawnWhenBelow = 3;
-    public int spawnAmount = 5;
-
-    [Header("spawn condition")]
+    [Header("Spawn Condition")]
     public Transform player;
     public float minDistanceFromPlayer = 5f;
     public float spawnCheckRadius = 1f;
 
-    [Header("spawn timing")]
-    public float checkInterval = 2f;
-
-    private float nextCheckTime;
     private List<GameObject> aliveMonsters = new List<GameObject>();
 
     private void Start()
     {
         FindPlayer();
-        SpawnInitialMonsters();
+        StartPhase(0);
     }
 
-    private void Update()
+    private void StartPhase(int phaseIndex)
     {
-        if (Time.time < nextCheckTime) return;
-
-        nextCheckTime = Time.time + checkInterval;
-
-        RemoveDeadMonsters();
-
-        if (aliveMonsters.Count <= respawnWhenBelow)
+        if (phaseIndex >= phases.Length)
         {
-            SpawnMonsters(spawnAmount);
+            FinishAllPhases();
+            return;
         }
+
+        currentPhaseIndex = phaseIndex;
+        deadCountInPhase = 0;
+
+        SpawnPhase phase = phases[currentPhaseIndex];
+
+        Debug.Log($"[{phase.phaseName}] 시작");
+
+        OnPhaseChanged?.Invoke(currentPhaseIndex);
+
+        SpawnMonsters(phase.spawnCount);
     }
 
-    private void FindPlayer()
+    private void StartNextPhase()
     {
-        if (player != null) return;
+        if (allPhaseFinished) return;
 
-        GameObject p = GameObject.FindGameObjectWithTag("Player");
-
-        if (p != null)
-            player = p.transform;
+        StartPhase(currentPhaseIndex + 1);
     }
 
-    private void SpawnInitialMonsters()
+    private void FinishAllPhases()
     {
-        SpawnMonsters(maxMonsterCount);
+        if (allPhaseFinished) return;
+
+        allPhaseFinished = true;
+
+        Debug.Log("모든 페이즈 종료");
+
+        OnAllPhasesFinished?.Invoke();
     }
 
     private void SpawnMonsters(int amount)
     {
-        if (monsterPrefabs == null || monsterPrefabs.Length == 0) return;
-        if (spawnPoints == null || spawnPoints.Length == 0) return;
+        if (monsterPrefabs == null || monsterPrefabs.Length == 0)
+        {
+            Debug.LogWarning("몬스터 프리팹이 없음");
+            return;
+        }
+
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            Debug.LogWarning("스폰 포인트가 없음");
+            return;
+        }
 
         int spawnCount = 0;
         int tryCount = 0;
         int maxTry = amount * 10;
 
-        while (spawnCount < amount && aliveMonsters.Count < maxMonsterCount && tryCount < maxTry)
+        while (spawnCount < amount && tryCount < maxTry)
         {
             tryCount++;
 
@@ -84,30 +109,56 @@ public class PhaseMonsterSpawner : MonoBehaviour
 
             GameObject prefab = GetRandomMonsterPrefab();
 
-            GameObject monster = Instantiate(
+            GameObject monsterObj = Instantiate(
                 prefab,
                 point.transform.position,
                 point.transform.rotation
             );
 
-            aliveMonsters.Add(monster);
+            MonsterAI monsterAI = monsterObj.GetComponent<MonsterAI>();
+
+            if (monsterAI != null)
+            {
+                monsterAI.OnMonsterDead += HandleMonsterDead;
+            }
+
+            aliveMonsters.Add(monsterObj);
             spawnCount++;
         }
 
-        Debug.Log($"[{phaseName}] 몬스터 {spawnCount}마리 생성 / 현재 {aliveMonsters.Count}마리");
+        Debug.Log($"몬스터 {spawnCount}마리 생성");
+    }
+
+    private void HandleMonsterDead(MonsterAI monster)
+    {
+        if (monster == null) return;
+        if (allPhaseFinished) return;
+
+        monster.OnMonsterDead -= HandleMonsterDead;
+
+        aliveMonsters.Remove(monster.gameObject);
+
+        deadCountInPhase++;
+
+        Debug.Log($"[{phases[currentPhaseIndex].phaseName}] 죽은 몬스터 수: {deadCountInPhase}");
+
+        if (deadCountInPhase >= phases[currentPhaseIndex].nextPhaseWhenDeadCount)
+        {
+            StartNextPhase();
+        }
     }
 
     private MonsterSpawnPoint GetRandomSpawnPoint()
     {
-        if (spawnPoints.Length == 0) return null;
+        if (spawnPoints == null || spawnPoints.Length == 0) return null;
 
-        int index = Random.Range(0, spawnPoints.Length);
+        int index = UnityEngine.Random.Range(0, spawnPoints.Length);
         return spawnPoints[index];
     }
 
     private GameObject GetRandomMonsterPrefab()
     {
-        int index = Random.Range(0, monsterPrefabs.Length);
+        int index = UnityEngine.Random.Range(0, monsterPrefabs.Length);
         return monsterPrefabs[index];
     }
 
@@ -137,22 +188,13 @@ public class PhaseMonsterSpawner : MonoBehaviour
         return true;
     }
 
-    private void RemoveDeadMonsters()
+    private void FindPlayer()
     {
-        for (int i = aliveMonsters.Count - 1; i >= 0; i--)
-        {
-            if (aliveMonsters[i] == null)
-            {
-                aliveMonsters.RemoveAt(i);
-                continue;
-            }
+        if (player != null) return;
 
-            MonsterAI monsterAI = aliveMonsters[i].GetComponent<MonsterAI>();
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
 
-            if (monsterAI != null && !monsterAI.IsAlive())
-            {
-                aliveMonsters.RemoveAt(i);
-            }
-        }
+        if (p != null)
+            player = p.transform;
     }
 }
