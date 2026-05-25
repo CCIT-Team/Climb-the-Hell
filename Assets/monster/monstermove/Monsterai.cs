@@ -1,66 +1,83 @@
+using System;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class MonsterAI : MonoBehaviour
+public class MonsterAI : MonsterStats
 {
-    public enum State // 상태
+    public enum State
     {
         Idle,
         Chase,
-        Attack
+        Attack,
+        Dead
     }
 
     public State currentState = State.Idle;
 
-    [Header("attack target")]
+    [Header("reward")]
+    public int rewardExp;
+    public int rewardGold;
+    public float rewardflowerleaf;
+    public string MonsterName;
+
+    [Header("monster setting")]
+    public int AttackSpeed = 1000;
+    public float moverange = 10f;
+
+    [Header("target")]
     public Transform player;
-
-    [Header("range")]
-    public float detectRange = 10f;
-    public float attackRange = 2f;
-
-    [Header("attack")]
-    public float attackCooldown = 1.5f;
-    public float attackOffset = 1f;
-    public float attackRadius = 1f;
 
     [Header("monster body")]
     public float monsterCheckRadius = 0.8f;
-    public float surroundDistance = 1.5f;
     public float separationWeight = 0.4f;
 
     [Header("ai rate")]
     public float aiTickRate = 0.2f;
     public float pathUpdateRate = 0.5f;
 
+    [Header("dead")]
+    public bool isDead = false;
+
+    public event Action<MonsterAI> OnMonsterDead;
+
     private NavMeshAgent agent;
+    private float attackCooldown;
     private float lastAttackTime;
     private float nextAITick;
     private float nextPathTick;
     private float currentDistance;
 
-    void Start() // 
+    public MonsterAttackHitbox attackVisual;
+
+    protected override void Awake()
     {
+        base.Awake();
+
         agent = GetComponent<NavMeshAgent>();
+        attackVisual = GetComponent<MonsterAttackHitbox>();
 
-        if (agent != null)
-        {
-            agent.obstacleAvoidanceType =
-                ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+        ApplyMonsterStatsToAI();
+    }
 
-            agent.avoidancePriority =
-                Random.Range(30, 70);
-
-            // 너무 멀리서 멈추지 않게
-            agent.stoppingDistance = 0.3f;
-        }
+    void Start()
+    {
+        FindPlayer();
     }
 
     void Update()
     {
-        if (player == null) return;
+        if (currentState == State.Dead) return;
+
+        if (player == null)
+        {
+            FindPlayer();
+            if (player == null) return;
+        }
+
         if (agent == null) return;
         if (!agent.isOnNavMesh) return;
+
+        currentDistance = Vector3.Distance(transform.position, player.position);
 
         if (Time.time >= nextAITick)
         {
@@ -75,38 +92,58 @@ public class MonsterAI : MonoBehaviour
         }
     }
 
+    public void ApplyMonsterStatsToAI()
+    {
+        if (monsterspeed <= 0)
+            monsterspeed = 3f;
+
+        if (moverange <= 0)
+            moverange = 10f;
+
+        if (monsterrange <= 0)
+            monsterrange = 3f;
+
+        if (AttackSpeed <= 0)
+            AttackSpeed = 1000;
+
+        attackCooldown = AttackSpeed / 1000f;
+
+        if (agent != null)
+        {
+            agent.speed = monsterspeed;
+            agent.stoppingDistance = monsterrange * 0.8f;
+            agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+            agent.avoidancePriority = UnityEngine.Random.Range(30, 70);
+        }
+    }
+
+    void FindPlayer()
+    {
+        GameObject p = GameObject.FindWithTag("Player");
+
+        if (p != null)
+            player = p.transform;
+    }
+
     void UpdateAI()
     {
-        currentDistance =
-            Vector3.Distance(
-                transform.position,
-                player.position);
-
         switch (currentState)
         {
             case State.Idle:
-                if (currentDistance <= detectRange)
-                {
+                if (currentDistance <= moverange)
                     ChangeState(State.Chase);
-                }
                 break;
 
             case State.Chase:
-                if (currentDistance <= attackRange)
-                {
+                if (currentDistance <= monsterrange)
                     ChangeState(State.Attack);
-                }
-                else if (currentDistance > detectRange)
-                {
+                else if (currentDistance > moverange)
                     ChangeState(State.Idle);
-                }
                 break;
 
             case State.Attack:
-                if (currentDistance > attackRange)
-                {
+                if (currentDistance > monsterrange)
                     ChangeState(State.Chase);
-                }
                 break;
         }
     }
@@ -116,28 +153,21 @@ public class MonsterAI : MonoBehaviour
         switch (currentState)
         {
             case State.Idle:
-                agent.isStopped = true;
-                agent.velocity = Vector3.zero;
+                StopAgent();
                 break;
 
             case State.Chase:
                 agent.isStopped = false;
-
-                Vector3 targetPos =
-                    GetChaseTarget();
-
-                agent.SetDestination(targetPos);
+                agent.SetDestination(GetChaseTarget());
                 break;
 
             case State.Attack:
-                agent.isStopped = true;
-                agent.velocity = Vector3.zero;
-
+                StopAgent();
                 LookAtPlayer();
 
                 if (Time.time >= lastAttackTime + attackCooldown)
                 {
-                    Attack();
+                    TryAttackPlayer();
                     lastAttackTime = Time.time;
                 }
                 break;
@@ -146,164 +176,157 @@ public class MonsterAI : MonoBehaviour
 
     Vector3 GetChaseTarget()
     {
-        Vector3 toPlayer =
-            player.position - transform.position;
-
+        Vector3 toPlayer = player.position - transform.position;
         toPlayer.y = 0;
 
         if (toPlayer == Vector3.zero)
-        {
             return transform.position;
-        }
 
         toPlayer.Normalize();
 
-        // 플레이어 중심보다 살짝 떨어진 곳을 목표로 함
-        // attackRange * 0.6f라서 너무 멀리서 멈추지 않음
-        Vector3 targetPos =
-            player.position -
-            toPlayer * (attackRange * 0.6f);
+        Vector3 targetPos = player.position - toPlayer * (monsterrange * 0.6f);
+        Vector3 separationDir = GetSeparationDirection();
 
-        Vector3 separationDir =
-            GetSeparationDirection();
+        if (currentDistance > monsterrange)
+            targetPos += separationDir * separationWeight;
 
-        // 공격 범위 밖에서만 분산 적용
-        if (currentDistance > attackRange)
-        {
-            targetPos +=
-                separationDir * separationWeight;
-        }
-
-        NavMeshHit hit;
-
-        if (NavMesh.SamplePosition(
-            targetPos,
-            out hit,
-            2f,
-            NavMesh.AllAreas))
-        {
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 2f, NavMesh.AllAreas))
             return hit.position;
-        }
 
         return targetPos;
     }
 
     Vector3 GetSeparationDirection()
     {
-        Collider[] cols =
-            Physics.OverlapSphere(
-                transform.position,
-                monsterCheckRadius);
+        Collider[] cols = Physics.OverlapSphere(transform.position, monsterCheckRadius);
 
-        Vector3 separationDir =
-            Vector3.zero;
-
+        Vector3 separationDir = Vector3.zero;
         int count = 0;
 
         foreach (Collider col in cols)
         {
-            if (col.gameObject == gameObject)
-                continue;
+            if (col.gameObject == gameObject) continue;
 
             if (col.CompareTag("Monster"))
             {
-                Vector3 awayDir =
-                    transform.position - col.transform.position;
-
+                Vector3 awayDir = transform.position - col.transform.position;
                 awayDir.y = 0;
 
-                float distance =
-                    awayDir.magnitude;
+                float distance = awayDir.magnitude;
 
                 if (distance > 0)
                 {
-                    separationDir +=
-                        awayDir.normalized / distance;
-
+                    separationDir += awayDir.normalized / distance;
                     count++;
                 }
             }
         }
 
         if (count > 0)
-        {
             separationDir /= count;
-        }
 
         return separationDir.normalized;
     }
 
-    void Attack()
+    void TryAttackPlayer()
     {
-        Vector3 hitboxPos =
-            transform.position +
-            transform.forward * attackOffset;
+        if (player == null) return;
 
-        Collider[] hits =
-            Physics.OverlapSphere(
-                hitboxPos,
-                attackRadius);
+        float distance = Vector3.Distance(transform.position, player.position);
 
-        foreach (Collider hit in hits)
+        if (distance > monsterrange) return;
+
+        Player playerComponent = player.GetComponent<Player>();
+
+        if (playerComponent == null)
+            playerComponent = player.GetComponentInParent<Player>();
+
+        if (playerComponent == null) return;
+
+        if (attackVisual != null)
+            attackVisual.Attack(playerComponent, monsterattack);
+        else
+            playerComponent.TakeDamage(monsterattack);
+    }
+
+    public override bool TakeDamage(int damage)
+    {
+        if (isDead) return false;
+
+        bool dead = base.TakeDamage(damage);
+
+        Debug.Log($"{MonsterName} HP: {currentHp}/{monsterhp}");
+
+        if (dead)
         {
-            GameObject root =
-                hit.transform.root.gameObject;
-
-            if (root.name == "Player")
-            {
-                Debug.Log("플레이어 공격 성공");
-
-                PlayerHealth hp =
-                    root.GetComponent<PlayerHealth>();
-
-                if (hp != null)
-                {
-                    hp.TakeDamage(10);
-                }
-            }
+            DropReward();
+            Die();
         }
+
+        return dead;
+    }
+
+    public void DropReward()
+    {
+        Debug.Log($"[Monster:{MonsterName}] 골드 {rewardGold}개, 꽃잎 {rewardflowerleaf}개 드랍");
+    }
+
+    public void Die()
+    {
+        if (isDead) return;
+
+        isDead = true;
+        ChangeState(State.Dead);
+        StopAgent();
+
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+            col.enabled = false;
+
+        OnMonsterDead?.Invoke(this);
+
+        Destroy(gameObject, 0.5f);
+    }
+
+    void StopAgent()
+    {
+        if (agent == null) return;
+
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
     }
 
     void LookAtPlayer()
     {
-        Vector3 dir =
-            player.position - transform.position;
+        if (player == null) return;
 
+        Vector3 dir = player.position - transform.position;
         dir.y = 0;
 
         if (dir != Vector3.zero)
-        {
-            transform.rotation =
-                Quaternion.LookRotation(dir);
-        }
+            transform.rotation = Quaternion.LookRotation(dir);
     }
 
     void ChangeState(State newState)
     {
-        if (currentState == newState)
-            return;
-
+        if (currentState == newState) return;
         currentState = newState;
+    }
 
-        Debug.Log("상태 변경 : " + newState);
+    public bool IsAlive()
+    {
+        return !isDead;
     }
 
     void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, monsterCheckRadius);
 
-        Gizmos.DrawWireSphere(
-            transform.position,
-            monsterCheckRadius);
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(transform.position, moverange);
 
         Gizmos.color = Color.red;
-
-        Vector3 hitboxPos =
-            transform.position +
-            transform.forward * attackOffset;
-
-        Gizmos.DrawWireSphere(
-            hitboxPos,
-            attackRadius);
+        Gizmos.DrawWireSphere(transform.position, monsterrange);
     }
 }
