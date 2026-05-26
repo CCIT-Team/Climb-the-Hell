@@ -24,6 +24,7 @@ public class Weapon : MonoBehaviour
         
     }
 
+    //마우스 위치를 월드 좌표로 변환하는 함수
     protected Vector3 GetMouseWorldPosition()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
