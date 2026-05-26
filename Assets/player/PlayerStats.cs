@@ -18,29 +18,29 @@ public class PlayerStats
     [HideInInspector]
     public int currentHp;
 
-    public void Init()
+    public void Init() // 현재 체력
     {
         currentHp = playerhp;
     }
 
-    public bool TakeDamage(int damage)
+    public bool TakeDamage(int damage) // 공격 대미지 받기
     {
         currentHp -= damage;
         currentHp = Mathf.Max(currentHp, 0);
         return currentHp <= 0;
     }
 
-    public void Heal(int amount)
+    public void Heal(int amount) // 체력 회복 , 아직 구현 x 
     {
         currentHp = Mathf.Min(currentHp + amount, playerhp);
     }
 
-    public bool IsDead()
+    public bool IsDead() // 죽음 상태
     {
         return currentHp <= 0;
     }
 
-    public int CalculateDamage()
+    public int CalculateDamage() //  크리티컬 , 아직 구현 x 
     {
         bool isCritical = Random.value < playercritical;
 
