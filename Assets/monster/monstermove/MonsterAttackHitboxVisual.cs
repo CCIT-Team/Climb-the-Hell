@@ -86,26 +86,30 @@ public class MonsterAttackHitbox : MonoBehaviour
 
     private void CreateRangeVisual()
     {
-        rangeVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        rangeVisual.name = "[MonsterAttackRange]";
+    rangeVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+    rangeVisual.name = "[MonsterAttackRange]";
 
-        Destroy(rangeVisual.GetComponent<Collider>());
+    Collider visualCollider = rangeVisual.GetComponent<Collider>();
+    if (visualCollider != null)
+    {
+        DestroyImmediate(visualCollider);
+    }
 
-        rangeVisual.transform.SetParent(transform);
-        UpdateVisualTransform();
+    rangeVisual.transform.SetParent(transform);
+    UpdateVisualTransform();
 
-        rangeRenderer = rangeVisual.GetComponent<MeshRenderer>();
+    rangeRenderer = rangeVisual.GetComponent<MeshRenderer>();
 
-        Material mat = new Material(Shader.Find("Standard"));
-        mat.SetFloat("_Mode", 3);
-        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-        mat.SetInt("_ZWrite", 0);
-        mat.EnableKeyword("_ALPHABLEND_ON");
-        mat.renderQueue = 3000;
+    Material mat = new Material(Shader.Find("Standard"));
+    mat.SetFloat("_Mode", 3);
+    mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+    mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+    mat.SetInt("_ZWrite", 0);
+    mat.EnableKeyword("_ALPHABLEND_ON");
+    mat.renderQueue = 3000;
 
-        rangeRenderer.material = mat;
-        SetVisualColor(idleColor);
+    rangeRenderer.material = mat;
+    SetVisualColor(idleColor);
     }
 
     private void UpdateVisualTransform()

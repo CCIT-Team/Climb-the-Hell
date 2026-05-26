@@ -54,7 +54,7 @@ public class MonsterAI : MonsterStats
         base.Awake();
 
         agent = GetComponent<NavMeshAgent>();
-        attackVisual = GetComponent<MonsterAttackHitbox>();
+        attackVisual = GetComponentInChildren<MonsterAttackHitbox>();
 
         ApplyMonsterStatsToAI();
     }
