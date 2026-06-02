@@ -2,9 +2,9 @@ using System;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는 추상 클래스
+public class MonsterAI : MonsterStats
 {
-    public enum State //현재 상태 4개
+    public enum State
     {
         Idle,
         Chase,
@@ -14,78 +14,110 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
 
     public State currentState = State.Idle;
 
-    [Header("reward")] // 보상들 < 나중에 스탯으로 옮길 예정
+    [Header("reward")]
     public int rewardExp;
     public int rewardGold;
     public float rewardflowerleaf;
     public string MonsterName;
 
-    [Header("monster setting")] 
-    public int AttackSpeed = 1000; // 이동속도
-    public float moverange = 10f; // 인식 범위
+    [Header("monster setting")]
+    public int AttackSpeed = 1000;
+    public float moverange = 10f;
 
     [Header("target")]
-    public Transform player; // 타켓
+    public Transform player;
 
-    [Header("monster body")]
-    public float monsterCheckRadius = 0.8f; // 체크 범위
-    public float separationWeight = 0.4f; 
+    [Header("Surround Slot")]
+    public int surroundSlotCount = 16;
+    public float surroundRadiusMultiplier = 0.8f;
+    public float slotCheckRadius = 0.6f;
+    public float slotChangeInterval = 0.35f;
+    public float slotSearchNavMeshRange = 2f;
 
-    [Header("ai rate")]
-    public float aiTickRate = 0.2f; // ai 틱 주기
-    public float pathUpdateRate = 0.5f; // pathupdate 주기
+    [Header("Separation")]
+    public float monsterCheckRadius = 0.8f;
+    public float separationWeight = 0.45f;
+    public float attackSeparationWeight = 0.25f;
+
+    [Header("Predictive Pursuit")]
+    public float predictionTime = 0.2f;
+    public float maxPredictionDistance = 1.5f;
+
+    [Header("AI Rate")]
+    public float aiTickRate = 0.15f;
+    public float pathUpdateRate = 0.1f;
 
     [Header("dead")]
-    public bool isDead = false; // 뒤짐
+    public bool isDead = false;
 
     public event Action<MonsterAI> OnMonsterDead;
 
-    private NavMeshAgent agent; // 계산을 위한 '현재' 상태 변수
-    private float attackCooldown; // 공격 쿨타임
-    private float lastAttackTime; // 공격 갱신 주기
-    private float nextAITick; // 다음 ai 틱
-    private float nextPathTick; // 다음 pathupdate 주기
-    private float currentDistance; // 현재 플레이어와 몬스터 거리
+    private NavMeshAgent agent;
+    private float attackCooldown;
+    private float lastAttackTime;
+    private float nextAITick;
+    private float nextPathTick;
+    private float currentDistance;
+
+    private Vector3 lastPlayerPosition;
+    private Vector3 playerVelocity;
+
+    private float personalAngleOffset;
+    private float nextSlotChangeTime;
+    private Vector3 currentSlotTarget;
 
     public MonsterAttackHitbox attackVisual;
 
     protected override void Awake()
     {
-        base.Awake(); //부모 MonsterStats의 Awake 실행
+        base.Awake();
 
-        agent = GetComponent<NavMeshAgent>(); // NavMeshAgent 가져옴
-        attackVisual = GetComponentInChildren<MonsterAttackHitbox>();// 자식 오브젝트에서 MonsterAttackHitbox를 가져옴
+        agent = GetComponent<NavMeshAgent>();
+        attackVisual = GetComponentInChildren<MonsterAttackHitbox>();
+
+        personalAngleOffset = UnityEngine.Random.Range(0f, 360f);
 
         ApplyMonsterStatsToAI();
     }
 
-    void Start() 
+    void Start()
     {
-        FindPlayer(); // 플레이어 있는지 검사
+        FindPlayer();
+
+        if (player != null)
+        {
+            lastPlayerPosition = player.position;
+            currentSlotTarget = player.position;
+        }
     }
 
     void Update()
     {
-        if (currentState == State.Dead) return; 
+        if (currentState == State.Dead) return;
 
-        if (player == null) // 플레이어 없으면 찾기
+        if (player == null)
         {
             FindPlayer();
+
             if (player == null) return;
+
+            lastPlayerPosition = player.position;
         }
 
         if (agent == null) return;
         if (!agent.isOnNavMesh) return;
 
+        UpdatePlayerVelocity();
+
         currentDistance = Vector3.Distance(transform.position, player.position);
 
-        if (Time.time >= nextAITick) //ai tick 시간 계산 (실제 ai 계산)
+        if (Time.time >= nextAITick)
         {
             UpdateAI();
             nextAITick = Time.time + aiTickRate;
         }
 
-        if (Time.time >= nextPathTick) // ai pathupdate 시간 계산 (상태 판단 주기)
+        if (Time.time >= nextPathTick)
         {
             UpdatePath();
             nextPathTick = Time.time + pathUpdateRate;
@@ -94,7 +126,7 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
 
     public void ApplyMonsterStatsToAI()
     {
-        if (monsterspeed <= 0) // 스탯 체크
+        if (monsterspeed <= 0)
             monsterspeed = 3f;
 
         if (moverange <= 0)
@@ -106,18 +138,20 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
         if (AttackSpeed <= 0)
             AttackSpeed = 1000;
 
-        attackCooldown = AttackSpeed / 1000f; //쿨타임 1000f == 1초임
+        attackCooldown = AttackSpeed / 1000f;
 
         if (agent != null)
         {
-            agent.speed = monsterspeed; // NavMeshAgent 속도를 몬스터 스탯에 맞춤
-            agent.stoppingDistance = monsterrange * 0.8f;// 공격 범위 근처에서 멈추게함
+            agent.speed = monsterspeed;
+            agent.stoppingDistance = 0.05f;
+            agent.radius = 0.23f;
             agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
-            agent.avoidancePriority = UnityEngine.Random.Range(30, 70); //몬스터 끼리 회피 우선순위를 랜덤으로 줌
+            agent.avoidancePriority = UnityEngine.Random.Range(10, 90);
+            agent.autoBraking = false;
         }
     }
 
-    void FindPlayer() // 아까 Update에서 한 player찾기 
+    void FindPlayer()
     {
         GameObject p = GameObject.FindWithTag("Player");
 
@@ -125,24 +159,44 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
             player = p.transform;
     }
 
+    void UpdatePlayerVelocity()
+    {
+        if (Time.deltaTime <= 0f) return;
+
+        playerVelocity = (player.position - lastPlayerPosition) / Time.deltaTime;
+        playerVelocity.y = 0f;
+
+        lastPlayerPosition = player.position;
+    }
+
+    Vector3 GetPredictedPlayerPosition()
+    {
+        Vector3 predictedOffset = playerVelocity * predictionTime;
+
+        if (predictedOffset.magnitude > maxPredictionDistance)
+            predictedOffset = predictedOffset.normalized * maxPredictionDistance;
+
+        return player.position + predictedOffset;
+    }
+
     void UpdateAI()
     {
         switch (currentState)
         {
-            case State.Idle: //플레이어가 몬스터 인지범위내에 없으면 idle
+            case State.Idle:
                 if (currentDistance <= moverange)
                     ChangeState(State.Chase);
                 break;
 
-            case State.Chase: // 플레이어가 몬스터 인지범위내에 들어오면 chase
+            case State.Chase:
                 if (currentDistance <= monsterrange)
                     ChangeState(State.Attack);
                 else if (currentDistance > moverange)
                     ChangeState(State.Idle);
                 break;
 
-            case State.Attack: // 플레이어가 몬스터 공격 범위로 들어오면 attack
-                if (currentDistance > monsterrange)
+            case State.Attack:
+                if (currentDistance > monsterrange * 1.3f)
                     ChangeState(State.Chase);
                 break;
         }
@@ -153,19 +207,24 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
         switch (currentState)
         {
             case State.Idle:
-                StopAgent(); //몬스터가 가만히 멈추는 함수
+                StopAgent();
                 break;
 
             case State.Chase:
-                agent.isStopped = false; 
-                agent.SetDestination(GetChaseTarget()); // 플레이어 쪽으로 이동
+                agent.isStopped = false;
+                MoveToBestSurroundSlot();
                 break;
 
             case State.Attack:
-                StopAgent(); 
-                LookAtPlayer(); // 몬스터가 이동 멈춘뒤에 플레이어 바라보기
+                agent.isStopped = false;
+                LookAtPlayer();
 
-                if (Time.time >= lastAttackTime + attackCooldown) // 쿨타임 되면 공격함
+                if (currentDistance > monsterrange * 0.75f)
+                    MoveToBestSurroundSlot();
+                else
+                    KeepPositionButSeparate();
+
+                if (Time.time >= lastAttackTime + attackCooldown)
                 {
                     TryAttackPlayer();
                     lastAttackTime = Time.time;
@@ -174,61 +233,131 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
         }
     }
 
-    Vector3 GetChaseTarget() //플레이어 한테 붙는게 아니라 공격 버리보다 살짝 떨어진 위치를 목표로 잡음
+    void MoveToBestSurroundSlot()
     {
-        Vector3 toPlayer = player.position - transform.position; // 플레이어 있는 방향 바라보기
-        toPlayer.y = 0;
+        Vector3 center = GetPredictedPlayerPosition();
 
-        if (toPlayer == Vector3.zero)
-            return transform.position;
+        if (Time.time >= nextSlotChangeTime || currentSlotTarget == Vector3.zero)
+        {
+            currentSlotTarget = GetBestSurroundSlot(center);
+            nextSlotChangeTime = Time.time + slotChangeInterval;
+        }
 
-        toPlayer.Normalize();
-
-        Vector3 targetPos = player.position - toPlayer * (monsterrange * 0.6f); // 떨어질 거리 계산
         Vector3 separationDir = GetSeparationDirection();
+        Vector3 finalTarget = currentSlotTarget + separationDir * separationWeight;
 
-        if (currentDistance > monsterrange) // 플레이어 근처까지 접근하지만 몬스터끼리 너무 겹치지 않게끔 함
-            targetPos += separationDir * separationWeight; 
-
-        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 2f, NavMesh.AllAreas))
-            return hit.position;
-
-        return targetPos;
+        if (NavMesh.SamplePosition(finalTarget, out NavMeshHit hit, slotSearchNavMeshRange, NavMesh.AllAreas))
+        {
+            agent.SetDestination(hit.position);
+        }
+        else
+        {
+            agent.SetDestination(center);
+        }
     }
 
-    Vector3 GetSeparationDirection() // 아까 위에 GetChase에서 몬스터 주변 일정 반경 안에 있는 콜라이더를 검사함
+    Vector3 GetBestSurroundSlot(Vector3 center)
+    {
+        float surroundRadius = Mathf.Max(monsterrange * surroundRadiusMultiplier, 0.8f);
+
+        Vector3 bestPos = center;
+        float bestScore = float.MaxValue;
+
+        for (int i = 0; i < surroundSlotCount; i++)
+        {
+            float angle = personalAngleOffset + (360f / surroundSlotCount) * i;
+            float rad = angle * Mathf.Deg2Rad;
+
+            Vector3 dir = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad));
+            Vector3 rawSlotPos = center + dir * surroundRadius;
+
+            if (!NavMesh.SamplePosition(rawSlotPos, out NavMeshHit hit, slotSearchNavMeshRange, NavMesh.AllAreas))
+                continue;
+
+            float score = EvaluateSlotScore(hit.position, center);
+
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestPos = hit.position;
+            }
+        }
+
+        return bestPos;
+    }
+
+    float EvaluateSlotScore(Vector3 slotPos, Vector3 center)
+    {
+        Collider[] cols = Physics.OverlapSphere(slotPos, slotCheckRadius);
+
+        int monsterCount = 0;
+        float closePenalty = 0f;
+
+        foreach (Collider col in cols)
+        {
+            if (!col.CompareTag("Monster")) continue;
+            if (col.gameObject == gameObject) continue;
+
+            monsterCount++;
+
+            float d = Vector3.Distance(slotPos, col.transform.position);
+            closePenalty += 1f / Mathf.Max(d, 0.1f);
+        }
+
+        float myDistanceToSlot = Vector3.Distance(transform.position, slotPos);
+        float playerDistance = Mathf.Abs(Vector3.Distance(slotPos, center) - monsterrange * surroundRadiusMultiplier);
+
+        return monsterCount * 20f + closePenalty * 3f + myDistanceToSlot * 0.4f + playerDistance;
+    }
+
+    void KeepPositionButSeparate()
+    {
+        Vector3 separationDir = GetSeparationDirection();
+
+        if (separationDir.sqrMagnitude <= 0.01f)
+        {
+            agent.ResetPath();
+            return;
+        }
+
+        Vector3 targetPos = transform.position + separationDir.normalized * attackSeparationWeight;
+
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 1f, NavMesh.AllAreas))
+        {
+            agent.SetDestination(hit.position);
+        }
+        else
+        {
+            agent.ResetPath();
+        }
+    }
+
+    Vector3 GetSeparationDirection()
     {
         Collider[] cols = Physics.OverlapSphere(transform.position, monsterCheckRadius);
 
         Vector3 separationDir = Vector3.zero;
-        int count = 0;
 
         foreach (Collider col in cols)
         {
             if (col.gameObject == gameObject) continue;
+            if (!col.CompareTag("Monster")) continue;
 
-            if (col.CompareTag("Monster")) // 몬스터 찾기(tag임)
-            {
-                Vector3 awayDir = transform.position - col.transform.position;
-                awayDir.y = 0; // 몬스터에게서 멀어지는 방향을 계산함
+            Vector3 awayDir = transform.position - col.transform.position;
+            awayDir.y = 0f;
 
-                float distance = awayDir.magnitude;
+            float distance = awayDir.magnitude;
 
-                if (distance > 0)
-                {
-                    separationDir += awayDir.normalized / distance;
-                    count++;
-                }
-            }
+            if (distance <= 0.01f) continue;
+
+            float strength = 1f / distance;
+            separationDir += awayDir.normalized * strength;
         }
 
-        if (count > 0)
-            separationDir /= count;
-
-        return separationDir.normalized;
+        return separationDir;
     }
 
-    void TryAttackPlayer() // 몬스터 > 플레이어 공격 코드
+    void TryAttackPlayer()
     {
         if (player == null) return;
 
@@ -236,7 +365,7 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
 
         if (distance > monsterrange) return;
 
-        Player playerComponent = player.GetComponent<Player>(); // 플레이어 컴포넌트 찾기
+        Player playerComponent = player.GetComponent<Player>();
 
         if (playerComponent == null)
             playerComponent = player.GetComponentInParent<Player>();
@@ -244,20 +373,20 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
         if (playerComponent == null) return;
 
         if (attackVisual != null)
-            attackVisual.Attack(playerComponent, monsterattack); //MonsterAttackHitbox가 있으면 공격 범위 표시 / 판정을 통해 공격
+            attackVisual.Attack(playerComponent, monsterattack);
         else
             playerComponent.TakeDamage(monsterattack);
     }
 
-    public override bool TakeDamage(int damage) // 공격 맞는 코드
+    public override bool TakeDamage(int damage)
     {
         if (isDead) return false;
 
-        bool dead = base.TakeDamage(damage); // 부모 클래스(MonsterStats)의 피격 처리를 먼저 진행
+        bool dead = base.TakeDamage(damage);
 
         Debug.Log($"{MonsterName} HP: {currentHp}/{monsterhp}");
 
-        if (dead) // 보상(이건 수정 필요할듯)
+        if (dead)
         {
             DropReward();
             Die();
@@ -266,59 +395,61 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
         return dead;
     }
 
-    public void DropReward() // 보상 로그
+    public void DropReward()
     {
         Debug.Log($"[Monster:{MonsterName}] 골드 {rewardGold}개, 꽃잎 {rewardflowerleaf}개 드랍");
     }
 
-    public void Die() // 죽음
+    public void Die()
     {
         if (isDead) return;
 
         isDead = true;
-        ChangeState(State.Dead); // 죽음 상태로 바꾸기
-        StopAgent(); // 이동 멈춤
+        ChangeState(State.Dead);
+        StopAgent();
 
         Collider col = GetComponent<Collider>();
+
         if (col != null)
-            col.enabled = false; // 콜라이더 끄기 > 죽은 몬스터와 충돌 하면 안됌
+            col.enabled = false;
 
-        OnMonsterDead?.Invoke(this); // 몬스터 뒤짐 신호 보냄(스포너 시스템을 위해서), 이거 나중에 통계로 사용도 가능할듯
+        OnMonsterDead?.Invoke(this);
 
-        Destroy(gameObject, 0.5f); // < 이거 없에기 1순위, 오브젝트 폴링 스포너에 추가해봄
+        Destroy(gameObject, 0.5f);
     }
 
-    void StopAgent() // 몬스터 움직임 멈추기
+    void StopAgent()
     {
         if (agent == null) return;
 
         agent.isStopped = true;
-        agent.velocity = Vector3.zero; // Vector3값을 0으로 만들기
+        agent.velocity = Vector3.zero;
     }
 
-    void LookAtPlayer() // 플레이어가 있는 방향보기(공격하기 위해서)
+    void LookAtPlayer()
     {
         if (player == null) return;
 
         Vector3 dir = player.position - transform.position;
-        dir.y = 0;
+        dir.y = 0f;
 
         if (dir != Vector3.zero)
             transform.rotation = Quaternion.LookRotation(dir);
     }
 
-    void ChangeState(State newState) // FSM 상태 바꾸기
+    void ChangeState(State newState)
     {
-        if (currentState == newState) return; // 현재 상태랑 새로운 상태를 지속해서 갱신
+        if (currentState == newState) return;
+
         currentState = newState;
     }
 
-    public bool IsAlive() // 살아있는지 아닌지 판정
+    public bool IsAlive()
     {
         return !isDead;
     }
 
-    void OnDrawGizmos() // 공격 범위 보여주기
+    void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, monsterCheckRadius);
@@ -328,5 +459,23 @@ public class MonsterAI : MonsterStats // 상속 형태의 구조 MonsterStats는
 
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, monsterrange);
+
+        if (player != null)
+        {
+            Gizmos.color = Color.green;
+
+            float radius = Mathf.Max(monsterrange * surroundRadiusMultiplier, 0.8f);
+
+            for (int i = 0; i < surroundSlotCount; i++)
+            {
+                float angle = (360f / surroundSlotCount) * i;
+                float rad = angle * Mathf.Deg2Rad;
+
+                Vector3 dir = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad));
+                Vector3 pos = player.position + dir * radius;
+
+                Gizmos.DrawWireSphere(pos, slotCheckRadius);
+            }
+        }
     }
 }

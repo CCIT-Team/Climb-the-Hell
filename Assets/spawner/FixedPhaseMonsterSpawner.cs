@@ -1,66 +1,64 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 
-// 페이즈 하나에 대한 설정 데이터
 [System.Serializable]
 public class FixedSpawnPhase
 {
-    // 페이즈 이름
     public string phaseName = "Phase";
 
-    // 이 페이즈에서 생성할 몬스터 수
+    // 생성할 몬스터 수
     public int spawnCount = 5;
 
-    // 몇 마리 죽으면 다음 페이즈로 넘어갈지
+    // 몇 마리 죽으면 다음 페이즈
     public int nextPhaseWhenDeadCount = 4;
 }
 
-// 고정된 스폰 포인트를 순서대로 사용해서 몬스터를 생성하는 스포너
 public class FixedPhaseMonsterSpawner : MonoBehaviour
 {
     [Header("Phase Setting")]
-    // 여러 개의 페이즈 설정
     public FixedSpawnPhase[] phases;
 
-    // 현재 진행 중인 페이즈 번호
     private int currentPhaseIndex = 0;
-
-    // 현재 페이즈에서 죽은 몬스터 수
     private int deadCountInPhase = 0;
-
-    // 모든 페이즈가 끝났는지 확인
     private bool allPhaseFinished = false;
 
-    // 페이즈가 바뀔 때 외부에 알려주는 이벤트
     public event Action<int> OnPhaseChanged;
-
-    // 모든 페이즈가 끝났을 때 외부에 알려주는 이벤트
     public event Action OnAllPhasesFinished;
 
     [Header("Monster Prefab")]
-    // 생성할 몬스터 프리팹 목록
     public GameObject[] monsterPrefabs;
 
-    [Header("Spawn Points - Fixed Order")]
-    // 고정 스폰 위치 목록
-    public MonsterSpawnPoint[] spawnPoints;
-
-    [Header("Spawn Condition")]
-    // 플레이어 위치
+    [Header("Player")]
     public Transform player;
 
-    // 플레이어와 너무 가까우면 생성하지 않기 위한 최소 거리
-    public float minDistanceFromPlayer = 5f;
+    [Header("Spawn Timing")]
+    public float firstPhaseDelay = 3f;
+    public float spawnInterval = 0.4f;
 
-    // 스폰 위치 주변에 몬스터가 있는지 검사하는 반경
-    public float spawnCheckRadius = 1f;
+    [Header("Circular Random Spawn")]
+    public float minSpawnDistance = 6f;
+    public float maxSpawnDistance = 15f;
+    public float spawnCheckRadius = 1.2f;
+    public int maxSpawnTry = 50;
 
-    // 다음에 사용할 스폰 포인트 인덱스
-    private int spawnPointIndex = 0;
+    [Header("Empty Space Guided Spawn")]
+    public bool useEmptySpaceGuidedSpawn = true;
 
-    // 다음에 사용할 몬스터 프리팹 인덱스
+    // 플레이어 주변을 몇 구역으로 나눌지
+    public int sectorCount = 8;
+
+    // 비워둘 구역 번호
+    public int emptySectorIndex = 0;
+
+    [Header("Click Effect")]
+    public GameObject clickEffectPrefab;
+    public float clickEffectDestroyTime = 1f;
+    public LayerMask clickLayerMask = ~0;
+
+    private Camera mainCamera;
+
     private int monsterPrefabIndex = 0;
 
     // 현재 살아있는 몬스터 목록
@@ -68,17 +66,55 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
 
     private void Start()
     {
-        // 플레이어 찾기
+        mainCamera = Camera.main;
+
         FindPlayer();
 
-        // 0번 페이즈부터 시작
+        StartCoroutine(StartFirstPhaseAfterDelay());
+    }
+
+    private IEnumerator StartFirstPhaseAfterDelay()
+    {
+        yield return new WaitForSeconds(firstPhaseDelay);
+
         StartPhase(0);
     }
 
-    // 특정 페이즈 시작
+    private void Update()
+    {
+        HandleClickEffect();
+    }
+
+    // 클릭 이펙트
+    private void HandleClickEffect()
+    {
+        if (clickEffectPrefab == null) return;
+
+        if (mainCamera == null)
+            mainCamera = Camera.main;
+
+        if (mainCamera == null) return;
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+
+            if (Physics.Raycast(ray, out RaycastHit hit, 1000f, clickLayerMask))
+            {
+                GameObject effect = Instantiate(
+                    clickEffectPrefab,
+                    hit.point,
+                    Quaternion.identity
+                );
+
+                Destroy(effect, clickEffectDestroyTime);
+            }
+        }
+    }
+
+    // 페이즈 시작
     private void StartPhase(int phaseIndex)
     {
-        // 더 이상 시작할 페이즈가 없으면 전체 종료
         if (phaseIndex >= phases.Length)
         {
             FinishAllPhases();
@@ -87,20 +123,233 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
 
         currentPhaseIndex = phaseIndex;
         deadCountInPhase = 0;
-        spawnPointIndex = 0;
+
+        // 빈 공간 방향 다시 계산
+        UpdateEmptySector();
 
         FixedSpawnPhase phase = phases[currentPhaseIndex];
 
-        Debug.Log($"[{phase.phaseName}] 시작");
+        Debug.Log($"[{phase.phaseName}] 시작 / 빈 공간 구역: {emptySectorIndex}");
 
-        // 페이즈 변경 이벤트 호출
         OnPhaseChanged?.Invoke(currentPhaseIndex);
 
-        // 해당 페이즈의 몬스터 수만큼 생성
-        SpawnMonsters(phase.spawnCount);
+        // 순차 생성 시작
+        StartCoroutine(SpawnMonstersRoutine(phase.spawnCount));
     }
 
-    // 다음 페이즈 시작
+    // 몬스터 순차 생성
+    private IEnumerator SpawnMonstersRoutine(int amount)
+    {
+        if (player == null)
+        {
+            FindPlayer();
+
+            if (player == null)
+            {
+                Debug.LogWarning("Player를 찾을 수 없음");
+                yield break;
+            }
+        }
+
+        if (monsterPrefabs == null || monsterPrefabs.Length == 0)
+        {
+            Debug.LogWarning("몬스터 프리팹이 없음");
+            yield break;
+        }
+
+        int spawnCount = 0;
+        int tryCount = 0;
+        int maxTry = amount * maxSpawnTry;
+
+        while (spawnCount < amount && tryCount < maxTry)
+        {
+            tryCount++;
+
+            Vector3 spawnPos = GetRandomSpawnPosition();
+
+            if (!CanSpawnAt(spawnPos))
+                continue;
+
+            GameObject prefab = GetNextMonsterPrefab();
+
+            GameObject monsterObj = Instantiate(
+                prefab,
+                spawnPos,
+                Quaternion.identity
+            );
+
+            MonsterAI monsterAI = monsterObj.GetComponent<MonsterAI>();
+
+            if (monsterAI != null)
+            {
+                monsterAI.OnMonsterDead += HandleMonsterDead;
+            }
+
+            aliveMonsters.Add(monsterObj);
+
+            spawnCount++;
+
+            yield return new WaitForSeconds(spawnInterval);
+        }
+
+        Debug.Log($"[{phases[currentPhaseIndex].phaseName}] 몬스터 {spawnCount}마리 생성");
+    }
+
+    // 랜덤 스폰 위치 계산
+    private Vector3 GetRandomSpawnPosition()
+    {
+        int selectedSector = GetRandomSpawnSector();
+
+        float sectorSize = 360f / sectorCount;
+
+        float startAngle = selectedSector * sectorSize;
+        float endAngle = startAngle + sectorSize;
+
+        float angle = UnityEngine.Random.Range(startAngle, endAngle);
+
+        float distance = UnityEngine.Random.Range(
+            minSpawnDistance,
+            maxSpawnDistance
+        );
+
+        float rad = angle * Mathf.Deg2Rad;
+
+        Vector3 dir = new Vector3(
+            Mathf.Sin(rad),
+            0f,
+            Mathf.Cos(rad)
+        );
+
+        return player.position + dir * distance;
+    }
+
+    // 빈 공간 제외하고 랜덤 구역 선택
+    private int GetRandomSpawnSector()
+    {
+        if (!useEmptySpaceGuidedSpawn)
+            return UnityEngine.Random.Range(0, sectorCount);
+
+        int sector = UnityEngine.Random.Range(0, sectorCount);
+
+        int safeLoop = 0;
+
+        while (sector == emptySectorIndex && safeLoop < 20)
+        {
+            sector = UnityEngine.Random.Range(0, sectorCount);
+            safeLoop++;
+        }
+
+        return sector;
+    }
+
+    // 빈 공간 방향 계산
+    private void UpdateEmptySector()
+    {
+        if (sectorCount <= 0)
+            sectorCount = 8;
+
+        if (player == null)
+        {
+            emptySectorIndex = UnityEngine.Random.Range(0, sectorCount);
+            return;
+        }
+
+        int[] monsterCountBySector = new int[sectorCount];
+
+        foreach (GameObject monster in aliveMonsters)
+        {
+            if (monster == null) continue;
+
+            int sector = GetSectorIndex(monster.transform.position);
+
+            monsterCountBySector[sector]++;
+        }
+
+        int leastMonsterSector = 0;
+        int leastCount = int.MaxValue;
+
+        for (int i = 0; i < sectorCount; i++)
+        {
+            if (monsterCountBySector[i] < leastCount)
+            {
+                leastCount = monsterCountBySector[i];
+                leastMonsterSector = i;
+            }
+        }
+
+        // 몬스터가 가장 적은 방향을 빈 공간으로 지정
+        emptySectorIndex = leastMonsterSector;
+    }
+
+    // 위치가 어느 구역인지 계산
+    private int GetSectorIndex(Vector3 worldPosition)
+    {
+        Vector3 dir = worldPosition - player.position;
+
+        dir.y = 0f;
+
+        if (dir == Vector3.zero)
+            return 0;
+
+        float angle = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+
+        if (angle < 0f)
+            angle += 360f;
+
+        float sectorSize = 360f / sectorCount;
+
+        return Mathf.FloorToInt(angle / sectorSize);
+    }
+
+    // 생성 가능한 위치인지 검사
+    private bool CanSpawnAt(Vector3 position)
+    {
+        if (player != null)
+        {
+            float distance = Vector3.Distance(position, player.position);
+
+            if (distance < minSpawnDistance)
+                return false;
+
+            if (distance > maxSpawnDistance)
+                return false;
+        }
+
+        Collider[] hits = Physics.OverlapSphere(
+            position,
+            spawnCheckRadius
+        );
+
+        foreach (Collider hit in hits)
+        {
+            if (hit.CompareTag("Monster"))
+                return false;
+        }
+
+        return true;
+    }
+
+    // 몬스터 사망 처리
+    private void HandleMonsterDead(MonsterAI monster)
+    {
+        if (monster == null) return;
+        if (allPhaseFinished) return;
+
+        monster.OnMonsterDead -= HandleMonsterDead;
+
+        aliveMonsters.Remove(monster.gameObject);
+
+        deadCountInPhase++;
+
+        Debug.Log($"[{phases[currentPhaseIndex].phaseName}] 죽은 몬스터 수: {deadCountInPhase}");
+
+        if (deadCountInPhase >= phases[currentPhaseIndex].nextPhaseWhenDeadCount)
+        {
+            StartNextPhase();
+        }
+    }
+
+    // 다음 페이즈
     private void StartNextPhase()
     {
         if (allPhaseFinished) return;
@@ -108,7 +357,7 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
         StartPhase(currentPhaseIndex + 1);
     }
 
-    // 모든 페이즈 종료 처리
+    // 전체 종료
     private void FinishAllPhases()
     {
         if (allPhaseFinished) return;
@@ -117,158 +366,23 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
 
         Debug.Log("모든 페이즈 종료");
 
-        // 전체 종료 이벤트 호출
         OnAllPhasesFinished?.Invoke();
     }
 
-    // 몬스터 생성 함수
-    private void SpawnMonsters(int amount)
-    {
-        // 몬스터 프리팹이 없으면 생성 불가
-        if (monsterPrefabs == null || monsterPrefabs.Length == 0)
-        {
-            Debug.LogWarning("몬스터 프리팹이 없음");
-            return;
-        }
-
-        // 스폰 포인트가 없으면 생성 불가
-        if (spawnPoints == null || spawnPoints.Length == 0)
-        {
-            Debug.LogWarning("스폰 포인트가 없음");
-            return;
-        }
-
-        int spawnCount = 0;
-        int tryCount = 0;
-
-        // 무한 반복 방지용 최대 시도 횟수
-        int maxTry = amount * 10;
-
-        while (spawnCount < amount && tryCount < maxTry)
-        {
-            tryCount++;
-
-            // 다음 스폰 포인트 가져오기
-            MonsterSpawnPoint point = GetNextSpawnPoint();
-
-            if (point == null) continue;
-
-            // 해당 위치에 생성 가능한지 검사
-            if (!CanSpawnAt(point.transform.position)) continue;
-
-            // 다음 몬스터 프리팹 가져오기
-            GameObject prefab = GetNextMonsterPrefab();
-
-            // 몬스터 생성
-            GameObject monsterObj = Instantiate(
-                prefab,
-                point.transform.position,
-                point.transform.rotation
-            );
-
-            // 생성된 몬스터의 MonsterAI 가져오기
-            MonsterAI monsterAI = monsterObj.GetComponent<MonsterAI>();
-
-            if (monsterAI != null)
-            {
-                // 몬스터가 죽었을 때 HandleMonsterDead가 실행되도록 연결
-                monsterAI.OnMonsterDead += HandleMonsterDead;
-            }
-
-            // 살아있는 몬스터 목록에 추가
-            aliveMonsters.Add(monsterObj);
-
-            spawnCount++;
-        }
-
-        Debug.Log($"[{phases[currentPhaseIndex].phaseName}] 몬스터 {spawnCount}마리 고정 생성");
-    }
-
-    // 몬스터가 죽었을 때 실행되는 함수
-    private void HandleMonsterDead(MonsterAI monster)
-    {
-        if (monster == null) return;
-        if (allPhaseFinished) return;
-
-        // 이벤트 중복 호출 방지를 위해 연결 해제
-        monster.OnMonsterDead -= HandleMonsterDead;
-
-        // 살아있는 몬스터 목록에서 제거
-        aliveMonsters.Remove(monster.gameObject);
-
-        // 현재 페이즈에서 죽은 몬스터 수 증가
-        deadCountInPhase++;
-
-        Debug.Log($"[{phases[currentPhaseIndex].phaseName}] 죽은 몬스터 수: {deadCountInPhase}");
-
-        // 일정 수 이상 죽으면 다음 페이즈 시작
-        if (deadCountInPhase >= phases[currentPhaseIndex].nextPhaseWhenDeadCount)
-        {
-            StartNextPhase();
-        }
-    }
-
-    // 스폰 포인트를 순서대로 가져오는 함수
-    private MonsterSpawnPoint GetNextSpawnPoint()
-    {
-        if (spawnPoints == null || spawnPoints.Length == 0) return null;
-
-        MonsterSpawnPoint point = spawnPoints[spawnPointIndex];
-
-        spawnPointIndex++;
-
-        // 마지막 스폰 포인트까지 갔다면 다시 처음으로
-        if (spawnPointIndex >= spawnPoints.Length)
-            spawnPointIndex = 0;
-
-        return point;
-    }
-
-    // 몬스터 프리팹을 순서대로 가져오는 함수
+    // 몬스터 프리팹 순환 선택
     private GameObject GetNextMonsterPrefab()
     {
         GameObject prefab = monsterPrefabs[monsterPrefabIndex];
 
         monsterPrefabIndex++;
 
-        // 마지막 프리팹까지 갔다면 다시 처음으로
         if (monsterPrefabIndex >= monsterPrefabs.Length)
             monsterPrefabIndex = 0;
 
         return prefab;
     }
 
-    // 해당 위치에 몬스터를 생성할 수 있는지 검사
-    private bool CanSpawnAt(Vector3 position)
-    {
-        // 플레이어와 너무 가까우면 생성하지 않음
-        if (player != null)
-        {
-            float distance = Vector3.Distance(position, player.position);
-
-            if (distance < minDistanceFromPlayer)
-                return false;
-        }
-
-        // 스폰 위치 주변에 이미 몬스터가 있으면 생성하지 않음
-        Collider[] hits = Physics.OverlapSphere(position, spawnCheckRadius);
-
-        foreach (Collider hit in hits)
-        {
-            if (hit.CompareTag("Monster"))
-                return false;
-        }
-
-        NavMeshHit navHit;
-
-        // 해당 위치가 NavMesh 위 또는 근처인지 검사
-        if (!NavMesh.SamplePosition(position, out navHit, 1.5f, NavMesh.AllAreas))
-            return false;
-
-        return true;
-    }
-
-    // Player 태그를 가진 오브젝트 찾기
+    // Player 태그 찾기
     private void FindPlayer()
     {
         if (player != null) return;
@@ -277,5 +391,42 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
 
         if (p != null)
             player = p.transform;
+    }
+
+    // 씬 뷰 표시
+    private void OnDrawGizmosSelected()
+    {
+        if (player == null) return;
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(player.position, minSpawnDistance);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(player.position, maxSpawnDistance);
+
+        if (sectorCount <= 0) return;
+
+        float sectorSize = 360f / sectorCount;
+
+        for (int i = 0; i < sectorCount; i++)
+        {
+            float angle = (i * sectorSize + sectorSize * 0.5f) * Mathf.Deg2Rad;
+
+            Vector3 dir = new Vector3(
+                Mathf.Sin(angle),
+                0f,
+                Mathf.Cos(angle)
+            );
+
+            if (i == emptySectorIndex)
+                Gizmos.color = Color.cyan;
+            else
+                Gizmos.color = Color.gray;
+
+            Gizmos.DrawLine(
+                player.position,
+                player.position + dir * maxSpawnDistance
+            );
+        }
     }
 }

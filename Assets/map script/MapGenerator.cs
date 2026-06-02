@@ -21,8 +21,8 @@ public class MapGenerator : MonoBehaviour
     public float floorGapY = 30f;
     public float nodeGapX = 70f;
 
-    [Header("랜덤 간선 확률")]
-    public float extraLineChance = 0.25f;
+    [Header("주변 노드 연결 설정")]
+    public int nearNodeRange = 1; // 1이면 바로 주변 노드만 연결
 
     [Header("크기 설정")]
     public Vector2 nodeSize = new Vector2(25, 25);
@@ -60,7 +60,6 @@ public class MapGenerator : MonoBehaviour
         for (int floor = 1; floor <= maxFloor; floor++)
         {
             List<MapNodes> floorNodes = new List<MapNodes>();
-
             int nodeCount = GetNodeCount(floor);
 
             for (int i = 0; i < nodeCount; i++)
@@ -70,7 +69,6 @@ public class MapGenerator : MonoBehaviour
 
                 float y = startY + (floor - 1) * floorGapY;
                 float x = (i - (nodeCount - 1) / 2f) * nodeGapX;
-
                 x += Random.Range(-15f, 15f);
 
                 rect.anchoredPosition = new Vector2(x, y);
@@ -95,41 +93,66 @@ public class MapGenerator : MonoBehaviour
             List<MapNodes> currentFloorNodes = floors[floorIndex];
             List<MapNodes> nextFloorNodes = floors[floorIndex + 1];
 
-            foreach (MapNodes fromNode in currentFloorNodes)
+            for (int i = 0; i < currentFloorNodes.Count; i++)
             {
-                MapNodes randomToNode = nextFloorNodes[Random.Range(0, nextFloorNodes.Count)];
-                TryConnect(fromNode, randomToNode);
+                List<MapNodes> nearNodes = GetNearNodes(i, nextFloorNodes);
+                MapNodes toNode = nearNodes[Random.Range(0, nearNodes.Count)];
+                TryConnect(currentFloorNodes[i], toNode);
             }
 
-            foreach (MapNodes toNode in nextFloorNodes)
+            for (int i = 0; i < nextFloorNodes.Count; i++)
             {
-                bool hasIncoming = false;
-
-                foreach (MapNodes fromNode in currentFloorNodes)
+                if (!HasIncomingLine(currentFloorNodes, nextFloorNodes[i]))
                 {
-                    if (connectedLineKeys.Contains(GetLineKey(fromNode, toNode)))
-                    {
-                        hasIncoming = true;
-                        break;
-                    }
-                }
-
-                if (!hasIncoming)
-                {
-                    MapNodes randomFromNode = currentFloorNodes[Random.Range(0, currentFloorNodes.Count)];
-                    TryConnect(randomFromNode, toNode);
+                    List<MapNodes> nearFromNodes = GetNearNodes(i, currentFloorNodes);
+                    MapNodes fromNode = nearFromNodes[Random.Range(0, nearFromNodes.Count)];
+                    TryConnect(fromNode, nextFloorNodes[i]);
                 }
             }
 
-            foreach (MapNodes fromNode in currentFloorNodes)
+            int extraLineCount = GetExtraLineCount(floorIndex + 1);
+
+            for (int i = 0; i < extraLineCount; i++)
             {
-                foreach (MapNodes toNode in nextFloorNodes)
-                {
-                    if (Random.value < extraLineChance)
-                        TryConnect(fromNode, toNode);
-                }
+                int randomFromIndex = Random.Range(0, currentFloorNodes.Count);
+                List<MapNodes> nearNodes = GetNearNodes(randomFromIndex, nextFloorNodes);
+
+                MapNodes fromNode = currentFloorNodes[randomFromIndex];
+                MapNodes toNode = nearNodes[Random.Range(0, nearNodes.Count)];
+
+                TryConnect(fromNode, toNode);
             }
         }
+    }
+
+private List<MapNodes> GetNearNodes(int baseIndex, List<MapNodes> targetNodes)
+{
+    List<MapNodes> nearNodes = new List<MapNodes>();
+
+    if (targetNodes == null || targetNodes.Count == 0)
+        return nearNodes;
+
+    int clampedBaseIndex = Mathf.Clamp(baseIndex, 0, targetNodes.Count - 1);
+
+    int startIndex = Mathf.Max(0, clampedBaseIndex - nearNodeRange);
+    int endIndex = Mathf.Min(targetNodes.Count - 1, clampedBaseIndex + nearNodeRange);
+
+    for (int i = startIndex; i <= endIndex; i++)
+    {
+        nearNodes.Add(targetNodes[i]);
+    }
+
+    return nearNodes;
+}
+    private bool HasIncomingLine(List<MapNodes> currentFloorNodes, MapNodes toNode)
+    {
+        foreach (MapNodes fromNode in currentFloorNodes)
+        {
+            if (connectedLineKeys.Contains(GetLineKey(fromNode, toNode)))
+                return true;
+        }
+
+        return false;
     }
 
     private void TryConnect(MapNodes fromNode, MapNodes toNode)
@@ -175,10 +198,27 @@ public class MapGenerator : MonoBehaviour
         if (floor == 1)
             return 1;
 
-        if (floor == 9 || floor == 10)
+        if (floor == maxFloor)
             return 1;
 
-        return Random.Range(2, 4);
+        if (floor <= 3)
+            return Random.Range(1, 3);
+
+        if (floor <= 6)
+            return Random.Range(2, 4);
+
+        return Random.Range(3, 5);
+    }
+
+    private int GetExtraLineCount(int floor)
+    {
+        if (floor <= 3)
+            return Random.Range(0, 2);
+
+        if (floor <= 6)
+            return Random.Range(1, 3);
+
+        return Random.Range(1, 4);
     }
 
     private string GetSceneNameByFloor(int floor)
