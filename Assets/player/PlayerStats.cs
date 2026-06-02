@@ -3,6 +3,9 @@ using UnityEngine;
 [System.Serializable]
 public class PlayerStats
 {
+    [Header("무적")]
+    public bool Invincible = false;
+
     [Header("기본 스탯")]
     public int playerhp = 100;
     public int playerattack = 10;
@@ -25,9 +28,17 @@ public class PlayerStats
 
     public bool TakeDamage(int damage) // 공격 대미지 받기
     {
-        currentHp -= damage;
-        currentHp = Mathf.Max(currentHp, 0);
-        return currentHp <= 0;
+        if (Invincible || IsDead())
+        {
+            return false;
+        }
+        else
+        {
+            currentHp -= damage;
+            currentHp = Mathf.Max(currentHp, 0);
+            return currentHp <= 0;
+        }
+        
     }
 
     public void Heal(int amount) // 체력 회복 , 아직 구현 x 

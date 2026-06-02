@@ -12,6 +12,11 @@ public class Player : MonoBehaviour
     // 플레이어 위치 저장용 변수
     public Vector3 playerposition;
 
+    [Header("player control")]
+    // 플레이어 컨트롤러 참조
+    public PlayerController playerController = new PlayerController();
+
+
     // 현재 경험치
     public int exp;
     
@@ -64,26 +69,21 @@ public class Player : MonoBehaviour
 
     public void TakeDamage(int damage) // 대미지 받는거
     {
-        // 무적 상태거나 이미 죽었으면 데미지 무시
-        if (isInvincible) return;
-        if (stats.IsDead()) return;
-
-        // 체력 감소 처리
-        bool dead = stats.TakeDamage(damage);
-
-        // HP UI 갱신용 이벤트 호출
-        OnHpChanged?.Invoke(stats.currentHp);
-
-        Debug.Log($"[Player] 피격 — 남은 HP: {stats.currentHp}/{stats.playerhp}");
-
-        // 죽었으면 사망 처리, 아니면 잠깐 무적
-        if (dead)
+        // 무적, 죽음 상태면 대미지 무시
+        if (isInvincible || stats.IsDead())
         {
-            Die();
+            Debug.Log("[Player] 무적/죽음 상태로 피격 무시");
+            return;
         }
         else
         {
-            StartCoroutine(InvincibleFrame(0.5f));
+            // 체력 감소 처리
+            bool dead = stats.TakeDamage(damage);
+
+            // HP UI 갱신용 이벤트 호출
+            OnHpChanged?.Invoke(stats.currentHp);
+
+            Debug.Log($"[Player] 피격 — 남은 HP: {stats.currentHp}/{stats.playerhp}");
         }
     }
 

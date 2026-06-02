@@ -3,10 +3,14 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
+
+    [Header("무적")]
+    public bool Invincible = false;
+
     [Header("이동 설정")]
     public float moveSpeed = 5f;
     public float rotateSpeed = 15f;
-
+    
     [Header("대시 설정")]
     public KeyCode dashKey = KeyCode.Space;
     public float dashSpeed = 20f;       // 대시 순간 속도
@@ -164,13 +168,15 @@ public class PlayerController : MonoBehaviour
     // 무적 처리 (필요에 따라 확장)
     void StartInvincible()
     {
-        // 예: gameObject.layer = LayerMask.NameToLayer("Invincible");
+        Invincible = true;
         // 애니메이션, 이펙트 등 여기서 추가
         Debug.Log("대시 무적 시작");
     }
 
     void StopInvincible()
     {
+        Invincible = false;
+        // 애니메이션, 이펙트 등 여기서 추가
         Debug.Log("대시 무적 종료");
     }
 
