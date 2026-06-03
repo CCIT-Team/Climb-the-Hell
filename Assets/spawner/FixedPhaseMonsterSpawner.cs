@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class FixedSpawnPhase
+public class FixedSpawnPhase // 페이즈 전용 클래스 (따로 빼도 ㄱㅊ을거 같은데 인스팩터 창에서 관리하는게 편할거 같아서 내뚬)
 {
     public string phaseName = "Phase";
 
@@ -20,15 +20,15 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
     [Header("Phase Setting")]
     public FixedSpawnPhase[] phases;
 
-    private int currentPhaseIndex = 0;
-    private int deadCountInPhase = 0;
-    private bool allPhaseFinished = false;
+    private int currentPhaseIndex = 0; // 현재 몇 페이즈 인지 저장함
+    private int deadCountInPhase = 0; // 현재 죽은 몬스터 수 저장 변수
+    private bool allPhaseFinished = false; // 페이즈 끝났는지 확인하는 변수
 
-    public event Action<int> OnPhaseChanged;
-    public event Action OnAllPhasesFinished;
+    public event Action<int> OnPhaseChanged; // 페이즈 바뀌면 다른 코드들에게 신호 보내기
+    public event Action OnAllPhasesFinished; // 페이즈 끝났을때 행동되는 변수 > 이걸로 연계 시키셈
 
     [Header("Monster Prefab")]
-    public GameObject[] monsterPrefabs;
+    public GameObject[] monsterPrefabs; // 몬스터 프리팹 저장 변수
 
     [Header("Player")]
     public Transform player;
@@ -37,27 +37,20 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
     public float firstPhaseDelay = 3f;
     public float spawnInterval = 0.4f;
 
-    [Header("Circular Random Spawn")]
+    [Header("Circular Random Spawn")] // 스폰 거리
     public float minSpawnDistance = 6f;
     public float maxSpawnDistance = 15f;
     public float spawnCheckRadius = 1.2f;
     public int maxSpawnTry = 50;
 
     [Header("Empty Space Guided Spawn")]
-    public bool useEmptySpaceGuidedSpawn = true;
+    public bool useEmptySpaceGuidedSpawn = true; // 빈 공간 스폰 여부 > 아마 건드릴 일 x
 
     // 플레이어 주변을 몇 구역으로 나눌지
     public int sectorCount = 8;
 
     // 비워둘 구역 번호
-    public int emptySectorIndex = 0;
-
-    [Header("Click Effect")]
-    public GameObject clickEffectPrefab;
-    public float clickEffectDestroyTime = 1f;
-    public LayerMask clickLayerMask = ~0;
-
-    private Camera mainCamera;
+    public int emptySectorIndex = 0; // 걍 저장용임 건들 ㄴㄴ
 
     private int monsterPrefabIndex = 0;
 
@@ -66,81 +59,47 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
 
     private void Start()
     {
-        mainCamera = Camera.main;
-
         FindPlayer();
 
-        StartCoroutine(StartFirstPhaseAfterDelay());
+        StartCoroutine(StartFirstPhaseAfterDelay()); // 코루틴 함수 출력
     }
 
-    private IEnumerator StartFirstPhaseAfterDelay()
+    private IEnumerator StartFirstPhaseAfterDelay() // 코루틴 함수
     {
-        yield return new WaitForSeconds(firstPhaseDelay);
+        yield return new WaitForSeconds(firstPhaseDelay); // 앞에서 설정했던 fristpahsedelay 변수 만큼 실행 대기
 
-        StartPhase(0);
+        StartPhase(0); // 0 페이즈 부터 시작
     }
 
-    private void Update()
+    
+    private void StartPhase(int phaseIndex) // 페이즈 시작
     {
-        HandleClickEffect();
-    }
-
-    // 클릭 이펙트
-    private void HandleClickEffect()
-    {
-        if (clickEffectPrefab == null) return;
-
-        if (mainCamera == null)
-            mainCamera = Camera.main;
-
-        if (mainCamera == null) return;
-
-        if (Input.GetMouseButtonDown(0))
+        if (phaseIndex >= phases.Length) // 페이즈가 넘었는지 검사하는 if문
         {
-            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-
-            if (Physics.Raycast(ray, out RaycastHit hit, 1000f, clickLayerMask))
-            {
-                GameObject effect = Instantiate(
-                    clickEffectPrefab,
-                    hit.point,
-                    Quaternion.identity
-                );
-
-                Destroy(effect, clickEffectDestroyTime);
-            }
-        }
-    }
-
-    // 페이즈 시작
-    private void StartPhase(int phaseIndex)
-    {
-        if (phaseIndex >= phases.Length)
-        {
-            FinishAllPhases();
+            FinishAllPhases(); // 신호 보내는 함수
             return;
         }
 
-        currentPhaseIndex = phaseIndex;
-        deadCountInPhase = 0;
+        currentPhaseIndex = phaseIndex; // 페이즈 변수 저장
+        deadCountInPhase = 0; // 페이즈 비우기
 
         // 빈 공간 방향 다시 계산
-        UpdateEmptySector();
+        UpdateEmptySector(); 
 
-        FixedSpawnPhase phase = phases[currentPhaseIndex];
+        FixedSpawnPhase phase = phases[currentPhaseIndex]; // FixedSpawnPhase 에 있는 phase 함수데이터를 가져와 저장함
 
-        Debug.Log($"[{phase.phaseName}] 시작 / 빈 공간 구역: {emptySectorIndex}");
+        Debug.Log($"[{phase.phaseName}] 시작 / 빈 공간 구역: {emptySectorIndex}"); // 디버그용 출력
 
-        OnPhaseChanged?.Invoke(currentPhaseIndex);
+        OnPhaseChanged?.Invoke(currentPhaseIndex); // 현재 이벤트가 끝났다는 신호임, ?는 이벤트가 연결되어 있을때만 실행 < 다른 이벤트 연결하면 필요없는 null연산자임
 
         // 순차 생성 시작
-        StartCoroutine(SpawnMonstersRoutine(phase.spawnCount));
+        StartCoroutine(SpawnMonstersRoutine(phase.spawnCount)); // 한번에 소환하면 랙걸리니 순차생성으로 함 + 나중에 순차생성으로 빈공간 유도가 가능하다 생각해서 내뚬
     }
 
     // 몬스터 순차 생성
-    private IEnumerator SpawnMonstersRoutine(int amount)
+    private IEnumerator SpawnMonstersRoutine(int amount) // 코루틴 받기
     {
-        if (player == null)
+        if (player == null) // 플레이어 검사, 오류 방지용
         {
             FindPlayer();
 
@@ -151,7 +110,7 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
             }
         }
 
-        if (monsterPrefabs == null || monsterPrefabs.Length == 0)
+        if (monsterPrefabs == null || monsterPrefabs.Length == 0) // 프리팹 검사, 오류 방지용
         {
             Debug.LogWarning("몬스터 프리팹이 없음");
             yield break;
@@ -161,85 +120,87 @@ public class FixedPhaseMonsterSpawner : MonoBehaviour
         int tryCount = 0;
         int maxTry = amount * maxSpawnTry;
 
-        while (spawnCount < amount && tryCount < maxTry)
+        while (spawnCount < amount && tryCount < maxTry) // &&는 and연산자임 목표수만큼 남아있거나 시도 횟수 남아있으면 반복
         {
-            tryCount++;
+            tryCount++; // 시도횠수 증가
 
-            Vector3 spawnPos = GetRandomSpawnPosition();
+            Vector3 spawnPos = GetRandomSpawnPosition(); // 랜덤 위치 구하는 함수
 
-            if (!CanSpawnAt(spawnPos))
+            if (!CanSpawnAt(spawnPos)) // 그 위치에 생성할 수 없으면 아래 다시 위치 찾음
                 continue;
 
-            GameObject prefab = GetNextMonsterPrefab();
+            GameObject prefab = GetNextMonsterPrefab(); //몬스터 프리팹 가져오기
 
-            GameObject monsterObj = Instantiate(
+
+
+            GameObject monsterObj = Instantiate( //실제 몬스터 생성,노회전으로 소환 > 이거 나중에 플레이어 방향으로 해도 ㄱㅊ을을듯
                 prefab,
                 spawnPos,
                 Quaternion.identity
             );
 
-            MonsterAI monsterAI = monsterObj.GetComponent<MonsterAI>();
+            MonsterAI monsterAI = monsterObj.GetComponent<MonsterAI>();// 소환한 몬스터 오브젝트의 ai를 가져오는거
 
-            if (monsterAI != null)
+            if (monsterAI != null) //  몬스터에 Monsterai가 있으면 
             {
-                monsterAI.OnMonsterDead += HandleMonsterDead;
+                monsterAI.OnMonsterDead += HandleMonsterDead; // 죽었을때 함수 실행 , +=는 이벤트 함수인데 아까 OnMonsterDead에서 선언한거 발생시 이것도 같이 발생하는 코드임
             }
 
-            aliveMonsters.Add(monsterObj);
+            aliveMonsters.Add(monsterObj); //살아있는 몬스터를 목록에 추가함
 
-            spawnCount++;
+            spawnCount++; // 생성 몬스터 증가
 
-            yield return new WaitForSeconds(spawnInterval);
+            yield return new WaitForSeconds(spawnInterval); // spawnInterval만큼 기다리기
         }
 
-        Debug.Log($"[{phases[currentPhaseIndex].phaseName}] 몬스터 {spawnCount}마리 생성");
+        Debug.Log($"[{phases[currentPhaseIndex].phaseName}] 몬스터 {spawnCount}마리 생성"); // 스폰 생성
     }
 
-    // 랜덤 스폰 위치 계산
-    private Vector3 GetRandomSpawnPosition()
+    // 랜덤 스폰 위치 계산 > 
+    private Vector3 GetRandomSpawnPosition() // 위에서 spawnpos함수에 들어가는 함수
     {
-        int selectedSector = GetRandomSpawnSector();
+        int selectedSector = GetRandomSpawnSector(); // 색터 나눈것중 구역 선택함
 
-        float sectorSize = 360f / sectorCount;
+        float sectorSize = 360f / sectorCount; // 플레이어 주변 360도를 입력한 색터 변수만큼 나눔
 
-        float startAngle = selectedSector * sectorSize;
-        float endAngle = startAngle + sectorSize;
+        float startAngle = selectedSector * sectorSize; // 선택된 구역의 시작 각도
+        float endAngle = startAngle + sectorSize; // 선택된 구역의 끝 각도
 
-        float angle = UnityEngine.Random.Range(startAngle, endAngle);
+        float angle = UnityEngine.Random.Range(startAngle, endAngle); // 그 구역 안에서 랜덤 각도를 선택
 
-        float distance = UnityEngine.Random.Range(
+        float distance = UnityEngine.Random.Range( //플레이어로부터 떨어질 거리 선택
             minSpawnDistance,
             maxSpawnDistance
         );
 
-        float rad = angle * Mathf.Deg2Rad;
+        float rad = angle * Mathf.Deg2Rad; // 각도를 라디안으로 변환시킴
 
-        Vector3 dir = new Vector3(
+        Vector3 dir = new Vector3( // 각도에 따른 방향 백터 만들기 < 이거 솔직히 이해안됌
             Mathf.Sin(rad),
             0f,
             Mathf.Cos(rad)
         );
 
-        return player.position + dir * distance;
+        return player.position + dir * distance; // 플레이어 위치에서 dir방향으로 거리만큼 떨어진 좌표를 반환시켜 보냄
     }
 
     // 빈 공간 제외하고 랜덤 구역 선택
     private int GetRandomSpawnSector()
     {
-        if (!useEmptySpaceGuidedSpawn)
+        if (!useEmptySpaceGuidedSpawn) //빈 공간 유도 스폰을 안쓰면 걍 알빠노 선택함
             return UnityEngine.Random.Range(0, sectorCount);
 
         int sector = UnityEngine.Random.Range(0, sectorCount);
 
-        int safeLoop = 0;
+        int safeLoop = 0; // 무한 방지용 변수
 
-        while (sector == emptySectorIndex && safeLoop < 20)
+        while (sector == emptySectorIndex && safeLoop < 20) //선택된 구역이 비워둘 구역이면 다시 뽑음, 최대 20번
         {
             sector = UnityEngine.Random.Range(0, sectorCount);
             safeLoop++;
-        }
+        } // 다른 구역을 다시 뽑고 반복 횟수 증가함
 
-        return sector;
+        return sector; // 총 정리된 색터 반환
     }
 
     // 빈 공간 방향 계산
