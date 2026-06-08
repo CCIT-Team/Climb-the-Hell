@@ -244,6 +244,8 @@ public class MonsterAI : MonsterStats
 
         if (p != null)
             player = p.transform;
+
+
     }
 
     // 플레이어의 이동 속도를 계산하는 함수
