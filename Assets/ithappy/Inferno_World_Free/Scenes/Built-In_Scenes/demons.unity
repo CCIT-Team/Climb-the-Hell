@@ -2679,13 +2679,10 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 703817663690992181, guid: 0519ffae9ea046242bef54c47504f2de, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1740714109}
-    - targetCorrespondingSourceObject: {fileID: 703817663690992181, guid: 0519ffae9ea046242bef54c47504f2de, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 1740714103}
     - targetCorrespondingSourceObject: {fileID: 703817663690992181, guid: 0519ffae9ea046242bef54c47504f2de, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1740714110}
+      addedObject: {fileID: 1740714115}
   m_SourcePrefab: {fileID: 100100000, guid: 0519ffae9ea046242bef54c47504f2de, type: 3}
 --- !u!1001 &323523166
 PrefabInstance:
@@ -15215,19 +15212,7 @@ NavMeshObstacle:
   m_CarveOnlyStationary: 1
   m_Center: {x: -0.16100001, y: 3.0770001, z: -0.27400002}
   m_TimeToStationary: 0.5
---- !u!114 &1740714109
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1740714098}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 422e63dade79dc74bbf60924a3aa2118, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!136 &1740714110
+--- !u!136 &1740714115
 CapsuleCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

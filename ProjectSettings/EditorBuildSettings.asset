@@ -20,4 +20,10 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/seens collect/1floor.unity
     guid: ce0898292fffc394ba284bcd71852093
+  - enabled: 1
+    path: Assets/ithappy/Inferno_World_Free/Scenes/Built-In_Scenes/demons.unity
+    guid: 206fe021c8ca97943b30ebd500681b73
+  - enabled: 1
+    path: Assets/seens collect/Loading.unity
+    guid: e91d6078fdf14224f934163b323db3fa
   m_configObjects: {}

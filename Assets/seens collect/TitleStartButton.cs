@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public class TitleStartButton : MonoBehaviour
 {
-    public string lobbySceneName = "lobby";
+    public string loadingSceneName = "Loading";
 
     [Header("Fade")]
     public Image blackPanel;
@@ -17,10 +17,10 @@ public class TitleStartButton : MonoBehaviour
     {
         if (isChangingScene) return;
 
-        StartCoroutine(FadeOutAndLoadScene());
+        StartCoroutine(FadeOutAndLoadLoadingScene());
     }
 
-    private IEnumerator FadeOutAndLoadScene()
+    private IEnumerator FadeOutAndLoadLoadingScene()
     {
         isChangingScene = true;
 
@@ -41,6 +41,6 @@ public class TitleStartButton : MonoBehaviour
             yield return null;
         }
 
-        SceneManager.LoadScene(lobbySceneName);
+        SceneManager.LoadScene(loadingSceneName);
     }
 }
