@@ -16283,7 +16283,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.16666667
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 87df69beadb3efa4cb7afc732e27a636, type: 2}
+  m_NavMeshData: {fileID: 23800000, guid: e3548be0ba5c7644a938e3b6a6122fdf, type: 2}
   m_BuildHeightMesh: 0
 --- !u!114 &1932230720
 MonoBehaviour:
@@ -16306,12 +16306,12 @@ MonoBehaviour:
   - {fileID: 179004080}
   - {fileID: 1079050669}
   samplePointCount: 300
-  obstaclePercent: 0.32
+  obstaclePercent: 0.15
   playerSpawnPoint: {fileID: 1155939371}
   playerSafeRadius: 2
   roomCenter: {x: 0, y: 0, z: 0}
   centerSafeRadius: 4
-  minObstacleDistance: 1
+  minObstacleDistance: 2
   useBFSConnectivityCheck: 1
   gridCellSize: 1.5
   minReachableRatio: 1
