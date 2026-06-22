@@ -7458,7 +7458,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6154292151195963278, guid: fcfe13a48a9d7384aa168d74f5aac435, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -283.54282
+      value: -286.98
       objectReference: {fileID: 0}
     - target: {fileID: 6154292151195963278, guid: fcfe13a48a9d7384aa168d74f5aac435, type: 3}
       propertyPath: m_LocalPosition.y
@@ -8167,13 +8167,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.37678882, z: -0, w: 0.9262992}
-  m_LocalPosition: {x: 75.6, y: 29.8, z: -54.3}
+  m_LocalRotation: {x: 0.16085006, y: 0.37106588, z: -0.06542892, w: 0.91222614}
+  m_LocalPosition: {x: 90, y: 44, z: -40}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 44.27, z: 0}
+  m_LocalEulerAnglesHint: {x: 20, y: 44.27, z: 0}
 --- !u!114 &963194229
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8241,7 +8241,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 81a0d14d9fc754fd2926b176ec8bd893, type: 3}
   m_Name: 
@@ -9868,7 +9868,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1155939367}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -9920,7 +9920,7 @@ Transform:
   m_GameObject: {fileID: 1155939367}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 123.1, y: 16.11, z: 2.92}
+  m_LocalPosition: {x: 123.1, y: 14.3, z: 2.92}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -14825,7 +14825,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!108 &1698213882
 Light:
   m_ObjectHideFlags: 0
@@ -16306,7 +16306,7 @@ MonoBehaviour:
   - {fileID: 179004080}
   - {fileID: 1079050669}
   samplePointCount: 300
-  obstaclePercent: 0.15
+  obstaclePercent: 0.25
   playerSpawnPoint: {fileID: 1155939371}
   playerSafeRadius: 2
   roomCenter: {x: 0, y: 0, z: 0}
@@ -20391,7 +20391,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &3458413449362080625
 Transform:
   m_ObjectHideFlags: 0

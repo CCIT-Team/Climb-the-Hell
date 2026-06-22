@@ -515,7 +515,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -8474651742996372913, guid: 6cdd026528310f14196f279c8a0b8d62, type: 3}
+  - {fileID: 2100000, guid: bb8fecfdaeda14a4385532f5cec0a646, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1264,16 +1264,15 @@ MonoBehaviour:
   MonsterName: 
   player: {fileID: 7238975998125102832}
   detectRange: 20
-  attackRange: 8
-  stoppingDistance: 5
+  attackRange: 20
+  stoppingDistance: 20
   attackSpeed: 1500
   aimTime: 0.6
-  projectileSpeed: 12
-  projectileLifeTime: 4
-  reflectedSpeedMultiplier: 1.2
+  forwardVisualTime: 0.5
+  reflectedVisualTime: 0.3
   reflectedDamageMultiplier: 1
   firePoint: {fileID: 1951428752}
-  projectileVisualPrefab: {fileID: 1208968224}
+  projectileVisualPrefab: {fileID: 1142425222}
   aimLine: {fileID: 342555574}
   shotLine: {fileID: 0}
   shotLineTime: 0.08
@@ -1283,8 +1282,8 @@ MonoBehaviour:
   reflectedHitMask:
     serializedVersion: 2
     m_Bits: 192
-  surfaceOffset: 0.05
-  maxReflectionCount: 1
+  reflectedRayDistance: 30
+  reflectedOriginOffset: 0.05
   showDebugLog: 1
   drawDebugRay: 1
   isDead: 0
@@ -1421,7 +1420,7 @@ Transform:
   m_GameObject: {fileID: 914906659}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 10, y: 1, z: 10}
+  m_LocalPosition: {x: 10, y: 1, z: -1.78}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1745,7 +1744,7 @@ Transform:
   m_GameObject: {fileID: 1028773103}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.71185386, z: -0, w: 0.7023277}
-  m_LocalPosition: {x: -7.4, y: 0, z: 4.2}
+  m_LocalPosition: {x: -6.7, y: 0, z: 58.3}
   m_LocalScale: {x: 30, y: 5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2090,6 +2089,111 @@ Transform:
   - {fileID: 546263089}
   m_Father: {fileID: 814552863}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1142425222
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1142425226}
+  - component: {fileID: 1142425225}
+  - component: {fileID: 1142425224}
+  - component: {fileID: 1142425223}
+  m_Layer: 0
+  m_Name: m-sq
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!135 &1142425223
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142425222}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &1142425224
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142425222}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1142425225
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142425222}
+  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &1142425226
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142425222}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 41.5, y: 22, z: -24.7}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1156292747
 GameObject:
   m_ObjectHideFlags: 0
@@ -2253,7 +2357,7 @@ Transform:
   m_GameObject: {fileID: 1206214533}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.71185386, z: -0, w: 0.7023277}
-  m_LocalPosition: {x: 21.5, y: 0, z: 3.1}
+  m_LocalPosition: {x: 22.3, y: 0, z: 59}
   m_LocalScale: {x: 30, y: 5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2327,7 +2431,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -3210,7 +3314,7 @@ Transform:
   m_GameObject: {fileID: 1627245574}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 7.9, y: 0, z: 17.6}
+  m_LocalPosition: {x: 7.9, y: 0, z: 41.6}
   m_LocalScale: {x: 30, y: 5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4131,19 +4235,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f1257b24b096204c8e55e16ea7ebf32, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  destroyDelay: 0.05
-  reflectedDamageMultiplier: 1
-  <IsReflected>k__BackingField: 0
-  <CurrentDirection>k__BackingField: {x: 0, y: 0, z: 0}
-  <CurrentStart>k__BackingField: {x: 0, y: 0, z: 0}
-  <CurrentEnd>k__BackingField: {x: 0, y: 0, z: 0}
-  moveSpeed: 0
-  damage: 0
-  attackRange: 0
-  hitMask:
-    m_Bits: 0
-  targetPlayer: {fileID: 0}
-  owner: {fileID: 0}
 --- !u!114 &3267191868620703
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13768,13 +13859,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   attackKey: 323
-  reflectDuration: 3
-  colliderCenter: {x: 0, y: 1, z: 0.8}
-  colliderRadius: 1.2
-  useTrigger: 1
-  reflectLayerName: Reflect
+  reflectDuration: 1
+  reflectCenter: {x: 0, y: 1, z: 0.7}
+  reflectWidth: 2.4
+  reflectHeight: 2.4
   showDebugLog: 1
-  drawColliderGizmo: 1
+  drawGizmo: 1
 --- !u!4 &7819586200704392321
 Transform:
   m_ObjectHideFlags: 0
@@ -15268,6 +15358,7 @@ SceneRoots:
   - {fileID: 1627245578}
   - {fileID: 1206214537}
   - {fileID: 2113026521}
+  - {fileID: 1142425226}
   - {fileID: 1028773107}
   - {fileID: 4858681047601673754}
   - {fileID: 5128406352846008208}

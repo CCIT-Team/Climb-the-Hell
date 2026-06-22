@@ -15,24 +15,27 @@ public class PlayerAttackReflect : MonoBehaviour
     [Tooltip("공격 버튼을 누른 뒤 반사 판정 유지 시간")]
     public float reflectDuration = 0.25f;
 
-    [Header("Temporary Reflect Collider")]
-    [Tooltip("플레이어 기준 반사 범위 위치")]
-    public Vector3 colliderCenter = new Vector3(0f, 1f, 0f);
+    [Header("Reflect Plane")]
+    [Tooltip("플레이어 로컬 좌표 기준 반사 면 중심")]
+    public Vector3 reflectCenter =
+        new Vector3(0f, 1f, 0.7f);
 
-    [Tooltip("자동 생성 SphereCollider 반지름")]
-    public float colliderRadius = 1.2f;
+    [Tooltip("반사 면의 가로 길이")]
+    public float reflectWidth = 2.4f;
 
-    [Tooltip("Reflect 레이어 이름")]
-    public string reflectLayerName = "Reflect";
+    [Tooltip("반사 면의 세로 길이")]
+    public float reflectHeight = 2.4f;
 
     [Header("Debug")]
     public bool showDebugLog = true;
     public bool drawGizmo = true;
 
-    public bool IsReflecting { get; private set; }
+    public bool IsReflecting
+    {
+        get;
+        private set;
+    }
 
-    private GameObject reflectObject;
-    private SphereCollider reflectCollider;
     private Coroutine reflectCoroutine;
 
     private void Update()
@@ -65,18 +68,14 @@ public class PlayerAttackReflect : MonoBehaviour
         if (reflectCoroutine != null)
         {
             StopCoroutine(reflectCoroutine);
-            RemoveReflectCollider();
         }
 
-        reflectCoroutine = StartCoroutine(
-            ReflectRoutine()
-        );
+        reflectCoroutine =
+            StartCoroutine(ReflectRoutine());
     }
 
     private IEnumerator ReflectRoutine()
     {
-        CreateReflectCollider();
-
         IsReflecting = true;
 
         if (showDebugLog)
@@ -90,8 +89,6 @@ public class PlayerAttackReflect : MonoBehaviour
 
         IsReflecting = false;
 
-        RemoveReflectCollider();
-
         if (showDebugLog)
         {
             Debug.Log("반사 판정 종료");
@@ -100,78 +97,79 @@ public class PlayerAttackReflect : MonoBehaviour
         reflectCoroutine = null;
     }
 
-    private void CreateReflectCollider()
-    {
-        RemoveReflectCollider();
-
-        reflectObject = new GameObject(
-            "TemporaryReflectCollider"
-        );
-
-        reflectObject.transform.SetParent(
-            transform
-        );
-
-        reflectObject.transform.localPosition =
-            colliderCenter;
-
-        reflectObject.transform.localRotation =
-            Quaternion.identity;
-
-        reflectObject.transform.localScale =
-            Vector3.one;
-
-        int reflectLayer = LayerMask.NameToLayer(
-            reflectLayerName
-        );
-
-        if (reflectLayer >= 0)
-        {
-            reflectObject.layer = reflectLayer;
-        }
-        else
-        {
-            reflectObject.layer = gameObject.layer;
-
-            Debug.LogWarning(
-                $"'{reflectLayerName}' 레이어가 없습니다."
-            );
-        }
-
-        reflectCollider =
-            reflectObject.AddComponent<SphereCollider>();
-
-        reflectCollider.center = Vector3.zero;
-        reflectCollider.radius = colliderRadius;
-        reflectCollider.isTrigger = true;
-    }
-
-    private void RemoveReflectCollider()
-    {
-        if (reflectObject != null)
-        {
-            Destroy(reflectObject);
-        }
-
-        reflectObject = null;
-        reflectCollider = null;
-    }
-
-    public bool IsReflectCollider(
-        Collider targetCollider
+    /*
+     * 반사 사각형의 월드 좌표 꼭짓점 반환
+     *
+     * v3 -------- v2
+     * |         / |
+     * |      /    |
+     * |   /       |
+     * v0 -------- v1
+     *
+     * 삼각형 1: v0, v1, v2
+     * 삼각형 2: v0, v2, v3
+     */
+    public void GetReflectVertices(
+        out Vector3 v0,
+        out Vector3 v1,
+        out Vector3 v2,
+        out Vector3 v3
     )
     {
-        return
-            IsReflecting &&
-            reflectCollider != null &&
-            targetCollider == reflectCollider;
+        Vector3 center =
+            transform.TransformPoint(
+                reflectCenter
+            );
+
+        Vector3 right =
+            transform.right.normalized;
+
+        Vector3 up =
+            transform.up.normalized;
+
+        Vector3 scale =
+            transform.lossyScale;
+
+        float halfWidth =
+            reflectWidth *
+            Mathf.Abs(scale.x) *
+            0.5f;
+
+        float halfHeight =
+            reflectHeight *
+            Mathf.Abs(scale.y) *
+            0.5f;
+
+        v0 =
+            center -
+            right * halfWidth -
+            up * halfHeight;
+
+        v1 =
+            center +
+            right * halfWidth -
+            up * halfHeight;
+
+        v2 =
+            center +
+            right * halfWidth +
+            up * halfHeight;
+
+        v3 =
+            center -
+            right * halfWidth +
+            up * halfHeight;
     }
 
     private void OnDisable()
     {
         IsReflecting = false;
 
-        RemoveReflectCollider();
+        if (reflectCoroutine != null)
+        {
+            StopCoroutine(reflectCoroutine);
+            reflectCoroutine = null;
+        }
     }
 
     private void OnDrawGizmosSelected()
@@ -181,13 +179,24 @@ public class PlayerAttackReflect : MonoBehaviour
             return;
         }
 
-        Gizmos.color = Color.cyan;
-
-        Gizmos.DrawWireSphere(
-            transform.TransformPoint(
-                colliderCenter
-            ),
-            colliderRadius
+        GetReflectVertices(
+            out Vector3 v0,
+            out Vector3 v1,
+            out Vector3 v2,
+            out Vector3 v3
         );
+
+        Gizmos.color =
+            IsReflecting
+                ? Color.green
+                : Color.cyan;
+
+        Gizmos.DrawLine(v0, v1);
+        Gizmos.DrawLine(v1, v2);
+        Gizmos.DrawLine(v2, v3);
+        Gizmos.DrawLine(v3, v0);
+
+        // 사각형을 삼각형 두 개로 나누는 선
+        Gizmos.DrawLine(v0, v2);
     }
 }

@@ -60,7 +60,7 @@ public class RangedMonsterAI : MonsterStats
     public float shotLineTime = 0.08f;
 
     [Header("Raycast Mask")]
-    [Tooltip("Player, Reflect, Obstacle 포함")]
+    [Tooltip("Player, Obstacle 포함")]
     public LayerMask attackHitMask;
 
     [Tooltip("Monster, Obstacle 포함")]
@@ -128,6 +128,7 @@ public class RangedMonsterAI : MonsterStats
         if (agent != null)
         {
             agent.speed = monsterspeed;
+
             agent.stoppingDistance =
                 stoppingDistance;
 
@@ -199,7 +200,8 @@ public class RangedMonsterAI : MonsterStats
 
         if (playerObject != null)
         {
-            player = playerObject.transform;
+            player =
+                playerObject.transform;
         }
     }
 
@@ -356,6 +358,7 @@ public class RangedMonsterAI : MonsterStats
                 StopAttackVisual();
 
                 isAttacking = false;
+
                 yield break;
             }
 
@@ -389,7 +392,8 @@ public class RangedMonsterAI : MonsterStats
             firePoint.position;
 
         Vector3 incomingDirection =
-            targetPosition - rayStart;
+            targetPosition -
+            rayStart;
 
         if (
             incomingDirection.sqrMagnitude <=
@@ -397,20 +401,20 @@ public class RangedMonsterAI : MonsterStats
         )
         {
             isAttacking = false;
+
             yield break;
         }
 
         incomingDirection.Normalize();
 
-        /*
-         * 이 Raycast는 시각 오브젝트의
-         * 이동 종료 위치만 계산합니다.
-         */
         Vector3 visualEndPosition =
             rayStart +
             incomingDirection *
             attackRange;
 
+        /*
+         * 일반 Collider 미리보기 판정
+         */
         bool previewHasHit =
             Physics.Raycast(
                 rayStart,
@@ -418,10 +422,37 @@ public class RangedMonsterAI : MonsterStats
                 out RaycastHit previewHit,
                 attackRange,
                 attackHitMask,
-                QueryTriggerInteraction.Collide
+                QueryTriggerInteraction.Ignore
+            );
+
+        float previewNormalDistance =
+            previewHasHit
+                ? previewHit.distance
+                : float.MaxValue;
+
+        /*
+         * 뮐러–트럼보어 알고리즘으로
+         * 반사 면 미리보기 판정
+         */
+        bool previewReflectHit =
+            TryGetReflectHit(
+                rayStart,
+                incomingDirection,
+                attackRange,
+                out Vector3 previewReflectPoint,
+                out float previewReflectDistance
             );
 
         if (
+            previewReflectHit &&
+            previewReflectDistance <=
+            previewNormalDistance
+        )
+        {
+            visualEndPosition =
+                previewReflectPoint;
+        }
+        else if (
             previewHasHit &&
             previewHit.collider != null
         )
@@ -446,10 +477,6 @@ public class RangedMonsterAI : MonsterStats
                 incomingDirection
             );
 
-        /*
-         * 판정 없는 시각 오브젝트를
-         * 플레이어 쪽으로 이동합니다.
-         */
         yield return StartCoroutine(
             MoveVisualProjectile(
                 visualProjectile,
@@ -460,8 +487,7 @@ public class RangedMonsterAI : MonsterStats
         );
 
         /*
-         * 시각 오브젝트가 도착한 순간
-         * 실제 공격 Raycast를 실행합니다.
+         * 실제 일반 Collider 공격 판정
          */
         bool actualHasHit =
             Physics.Raycast(
@@ -470,7 +496,24 @@ public class RangedMonsterAI : MonsterStats
                 out RaycastHit actualHit,
                 attackRange,
                 attackHitMask,
-                QueryTriggerInteraction.Collide
+                QueryTriggerInteraction.Ignore
+            );
+
+        float actualNormalDistance =
+            actualHasHit
+                ? actualHit.distance
+                : float.MaxValue;
+
+        /*
+         * 실제 뮐러–트럼보어 반사 판정
+         */
+        bool actualReflectHit =
+            TryGetReflectHit(
+                rayStart,
+                incomingDirection,
+                attackRange,
+                out Vector3 reflectHitPoint,
+                out float reflectHitDistance
             );
 
         if (drawDebugRay)
@@ -479,11 +522,44 @@ public class RangedMonsterAI : MonsterStats
                 rayStart,
                 incomingDirection *
                 attackRange,
-                actualHasHit
-                    ? Color.red
-                    : Color.yellow,
+                actualReflectHit
+                    ? Color.cyan
+                    : actualHasHit
+                        ? Color.red
+                        : Color.yellow,
                 1f
             );
+        }
+
+        /*
+         * 반사 면이 장애물이나 플레이어보다
+         * 먼저 교차했을 때만 반사 성공
+         */
+        if (
+            actualReflectHit &&
+            reflectHitDistance <=
+            actualNormalDistance
+        )
+        {
+            if (showDebugLog)
+            {
+                Debug.Log(
+                    $"{name}: 뮐러–트럼보어 " +
+                    "교차 판정으로 반사 성공"
+                );
+            }
+
+            yield return StartCoroutine(
+                ReflectAttack(
+                    reflectHitPoint,
+                    incomingDirection,
+                    visualProjectile
+                )
+            );
+
+            isAttacking = false;
+
+            yield break;
         }
 
         if (
@@ -494,8 +570,8 @@ public class RangedMonsterAI : MonsterStats
             if (showDebugLog)
             {
                 Debug.Log(
-                    $"{name}: 실제 공격 Ray가 " +
-                    "아무것도 맞히지 못함"
+                    $"{name}: 공격이 아무것도 " +
+                    "맞히지 못함"
                 );
             }
 
@@ -504,13 +580,13 @@ public class RangedMonsterAI : MonsterStats
             );
 
             isAttacking = false;
+
             yield break;
         }
 
         yield return StartCoroutine(
             ProcessAttackHit(
                 actualHit,
-                incomingDirection,
                 visualProjectile
             )
         );
@@ -520,7 +596,6 @@ public class RangedMonsterAI : MonsterStats
 
     private IEnumerator ProcessAttackHit(
         RaycastHit attackHit,
-        Vector3 incomingDirection,
         GameObject visualProjectile
     )
     {
@@ -528,46 +603,6 @@ public class RangedMonsterAI : MonsterStats
         {
             DestroyVisualProjectile(
                 visualProjectile
-            );
-
-            yield break;
-        }
-
-        PlayerAttackReflect reflect =
-            attackHit.collider
-                .GetComponentInParent<
-                    PlayerAttackReflect
-                >();
-
-        bool reflected = false;
-
-        if (reflect != null)
-        {
-            reflected =
-                reflect.IsReflectCollider(
-                    attackHit.collider
-                );
-        }
-
-        if (reflected)
-        {
-            if (showDebugLog)
-            {
-                Debug.Log(
-                    $"{name}: 플레이어 반사 성공"
-                );
-            }
-
-            /*
-             * 플레이어 피해는 주지 않고
-             * 같은 시각 오브젝트를 몬스터 쪽으로 보냅니다.
-             */
-            yield return StartCoroutine(
-                ReflectAttack(
-                    attackHit,
-                    incomingDirection,
-                    visualProjectile
-                )
             );
 
             yield break;
@@ -602,25 +637,255 @@ public class RangedMonsterAI : MonsterStats
         DestroyVisualProjectile(
             visualProjectile
         );
+
+        yield return null;
+    }
+
+    /*
+     * 플레이어 반사 사각형을
+     * 삼각형 두 개로 나눈 후
+     * 뮐러–트럼보어 알고리즘 실행
+     */
+    private bool TryGetReflectHit(
+        Vector3 rayOrigin,
+        Vector3 rayDirection,
+        float maxDistance,
+        out Vector3 hitPoint,
+        out float hitDistance
+    )
+    {
+        hitPoint = Vector3.zero;
+        hitDistance = 0f;
+
+        if (player == null)
+        {
+            return false;
+        }
+
+        PlayerAttackReflect reflect =
+            player.GetComponent<
+                PlayerAttackReflect
+            >();
+
+        if (reflect == null)
+        {
+            reflect =
+                player.GetComponentInChildren<
+                    PlayerAttackReflect
+                >();
+        }
+
+        if (
+            reflect == null ||
+            !reflect.IsReflecting
+        )
+        {
+            return false;
+        }
+
+        reflect.GetReflectVertices(
+            out Vector3 v0,
+            out Vector3 v1,
+            out Vector3 v2,
+            out Vector3 v3
+        );
+
+        bool hitTriangle1 =
+            MollerTrumboreIntersect(
+                rayOrigin,
+                rayDirection,
+                v0,
+                v1,
+                v2,
+                out float distance1
+            );
+
+        bool hitTriangle2 =
+            MollerTrumboreIntersect(
+                rayOrigin,
+                rayDirection,
+                v0,
+                v2,
+                v3,
+                out float distance2
+            );
+
+        if (
+            !hitTriangle1 &&
+            !hitTriangle2
+        )
+        {
+            return false;
+        }
+
+        if (
+            hitTriangle1 &&
+            hitTriangle2
+        )
+        {
+            hitDistance =
+                Mathf.Min(
+                    distance1,
+                    distance2
+                );
+        }
+        else if (hitTriangle1)
+        {
+            hitDistance = distance1;
+        }
+        else
+        {
+            hitDistance = distance2;
+        }
+
+        if (
+            hitDistance < 0f ||
+            hitDistance > maxDistance
+        )
+        {
+            return false;
+        }
+
+        hitPoint =
+            rayOrigin +
+            rayDirection.normalized *
+            hitDistance;
+
+        return true;
+    }
+
+    /*
+     * 뮐러–트럼보어 광선-삼각형
+     * 교차 알고리즘 직접 구현
+     */
+    private bool MollerTrumboreIntersect(
+        Vector3 rayOrigin,
+        Vector3 rayDirection,
+        Vector3 vertex0,
+        Vector3 vertex1,
+        Vector3 vertex2,
+        out float distance
+    )
+    {
+        distance = 0f;
+
+        const float epsilon =
+            0.000001f;
+
+        if (
+            rayDirection.sqrMagnitude <=
+            epsilon
+        )
+        {
+            return false;
+        }
+
+        rayDirection.Normalize();
+
+        // 삼각형의 두 변
+        Vector3 edge1 =
+            vertex1 - vertex0;
+
+        Vector3 edge2 =
+            vertex2 - vertex0;
+
+        // 광선 방향과 두 번째 변의 외적
+        Vector3 pVector =
+            Vector3.Cross(
+                rayDirection,
+                edge2
+            );
+
+        // 행렬식 계산
+        float determinant =
+            Vector3.Dot(
+                edge1,
+                pVector
+            );
+
+        /*
+         * 행렬식이 0에 가까우면
+         * 광선과 삼각형 평면이 평행
+         */
+        if (
+            determinant > -epsilon &&
+            determinant < epsilon
+        )
+        {
+            return false;
+        }
+
+        float inverseDeterminant =
+            1f / determinant;
+
+        Vector3 tVector =
+            rayOrigin - vertex0;
+
+        // 무게중심 좌표 u 계산
+        float u =
+            Vector3.Dot(
+                tVector,
+                pVector
+            ) *
+            inverseDeterminant;
+
+        if (
+            u < 0f ||
+            u > 1f
+        )
+        {
+            return false;
+        }
+
+        Vector3 qVector =
+            Vector3.Cross(
+                tVector,
+                edge1
+            );
+
+        // 무게중심 좌표 v 계산
+        float v =
+            Vector3.Dot(
+                rayDirection,
+                qVector
+            ) *
+            inverseDeterminant;
+
+        if (
+            v < 0f ||
+            u + v > 1f
+        )
+        {
+            return false;
+        }
+
+        // 광선 시작점부터 교차점까지 거리
+        float t =
+            Vector3.Dot(
+                edge2,
+                qVector
+            ) *
+            inverseDeterminant;
+
+        if (t <= epsilon)
+        {
+            return false;
+        }
+
+        distance = t;
+
+        return true;
     }
 
     private IEnumerator ReflectAttack(
-        RaycastHit attackHit,
+        Vector3 reflectHitPoint,
         Vector3 incomingDirection,
         GameObject visualProjectile
     )
     {
-        /*
-         * Ray 반사 공식:
-         *
-         * R = I - 2(N · I)N
-         *
-         * Vector3.Reflect가 위 공식을 계산합니다.
-         */
-
         Vector3 directionToMonster =
             GetMonsterAimPoint() -
-            attackHit.point;
+            reflectHitPoint;
 
         if (
             directionToMonster.sqrMagnitude <=
@@ -635,8 +900,7 @@ public class RangedMonsterAI : MonsterStats
         }
 
         /*
-         * 공격한 몬스터 방향을 기준으로
-         * 가상의 반사 표면 법선을 계산합니다.
+         * 공격자를 향하도록 가상 법선 계산
          */
         Vector3 reflectNormal =
             (
@@ -651,8 +915,8 @@ public class RangedMonsterAI : MonsterStats
             ).normalized;
 
         /*
-         * 계산 결과가 몬스터 반대쪽이면
-         * 안전하게 몬스터 방향을 사용합니다.
+         * 반사 방향이 공격자 반대쪽이면
+         * 공격자 방향으로 보정
          */
         if (
             Vector3.Dot(
@@ -666,7 +930,7 @@ public class RangedMonsterAI : MonsterStats
         }
 
         Vector3 reflectedOrigin =
-            attackHit.point +
+            reflectHitPoint +
             reflectedDirection *
             reflectedOriginOffset;
 
@@ -697,14 +961,10 @@ public class RangedMonsterAI : MonsterStats
             );
         }
 
-        /*
-         * 같은 시각 오브젝트를
-         * 플레이어 위치에서 몬스터 방향으로 이동합니다.
-         */
         if (visualProjectile != null)
         {
             visualProjectile.transform.position =
-                attackHit.point;
+                reflectHitPoint;
 
             if (
                 reflectedDirection.sqrMagnitude >
@@ -721,16 +981,12 @@ public class RangedMonsterAI : MonsterStats
         yield return StartCoroutine(
             MoveVisualProjectile(
                 visualProjectile,
-                attackHit.point,
+                reflectHitPoint,
                 reflectedEndPosition,
                 reflectedVisualTime
             )
         );
 
-        /*
-         * 반사 시각 오브젝트가 도착한 뒤
-         * 실제 몬스터 피해를 처리합니다.
-         */
         if (
             hasReflectedHit &&
             reflectedHit.collider != null
@@ -742,11 +998,6 @@ public class RangedMonsterAI : MonsterStats
         }
         else
         {
-            /*
-             * LayerMask나 Collider 문제로
-             * 공격자 자신을 찾지 못하면
-             * 공격자에게 직접 피해를 줍니다.
-             */
             int reflectedDamage =
                 CalculateReflectedDamage();
 
@@ -865,7 +1116,8 @@ public class RangedMonsterAI : MonsterStats
         }
 
         Quaternion rotation =
-            direction.sqrMagnitude > 0.001f
+            direction.sqrMagnitude >
+            0.001f
                 ? Quaternion.LookRotation(
                     direction
                 )
@@ -901,7 +1153,8 @@ public class RangedMonsterAI : MonsterStats
         }
 
         Vector3 direction =
-            endPosition - startPosition;
+            endPosition -
+            startPosition;
 
         if (
             direction.sqrMagnitude >
@@ -972,10 +1225,12 @@ public class RangedMonsterAI : MonsterStats
 
         if (playerCollider != null)
         {
-            return playerCollider.bounds.center;
+            return playerCollider
+                .bounds.center;
         }
 
-        return player.position + Vector3.up;
+        return player.position +
+            Vector3.up;
     }
 
     private Vector3 GetMonsterAimPoint()
@@ -987,10 +1242,12 @@ public class RangedMonsterAI : MonsterStats
 
         if (monsterCollider != null)
         {
-            return monsterCollider.bounds.center;
+            return monsterCollider
+                .bounds.center;
         }
 
-        return transform.position + Vector3.up;
+        return transform.position +
+            Vector3.up;
     }
 
     private IEnumerator ShowShotLine(
