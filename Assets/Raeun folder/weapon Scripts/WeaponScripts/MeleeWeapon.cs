@@ -24,7 +24,7 @@ public class MeleeWeapon : Weapon
     private LineRenderer fanRenderer;
     private LineRenderer specialRenderer;
 
-    private bool isAttacking = false;
+    //private bool isAttacking = false;
 
     void Awake()
     {
