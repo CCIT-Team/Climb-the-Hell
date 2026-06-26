@@ -4,24 +4,15 @@ using UnityEngine;
 
 public class Weapon : MonoBehaviour
 {
-    [SerializeField] protected BoxCollider range;        //공격 범위
     [SerializeField] protected TrailRenderer trailEffect; //공격 효과
     protected bool canAttack = true;    //공격 가능 여부
     protected bool isAttacking = false;   //공격 중 여부
 
-    public WeaponData data;
+    public PlayerStats data;
 
-
-    // Start is called before the first frame update
-    void Start()
+    public virtual void Use()
     {
-        
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 
     //마우스 위치를 월드 좌표로 변환하는 함수
