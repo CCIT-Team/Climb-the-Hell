@@ -26,6 +26,10 @@ public class TitleStartButton : MonoBehaviour
 
         blackPanel.gameObject.SetActive(true);
 
+        Color color = blackPanel.color;
+        color.a = 0f;
+        blackPanel.color = color;
+
         float time = 0f;
 
         while (time < fadeTime)
@@ -34,12 +38,16 @@ public class TitleStartButton : MonoBehaviour
 
             float alpha = time / fadeTime;
 
-            Color color = blackPanel.color;
+            color = blackPanel.color;
             color.a = alpha;
             blackPanel.color = color;
 
             yield return null;
         }
+
+        color = blackPanel.color;
+        color.a = 1f;
+        blackPanel.color = color;
 
         SceneManager.LoadScene(loadingSceneName);
     }

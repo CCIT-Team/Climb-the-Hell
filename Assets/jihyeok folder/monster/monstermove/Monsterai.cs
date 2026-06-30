@@ -1,6 +1,7 @@
 using System;                 
 using UnityEngine;            
 using UnityEngine.AI;         // NavMeshAgent, NavMesh.SamplePosition 등 길찾기 기능 사용
+using System.Collections;
 
 public class MonsterAI : MonsterStats
 {
@@ -15,7 +16,9 @@ public class MonsterAI : MonsterStats
     }
 
     // 현재 몬스터의 상태
-    // 처음에는 Idle 상태로 시작
+    
+
+        // 처음에는 Idle 상태로 시작
     public State currentState = State.Idle;
 
     [Header("reward")]
@@ -37,7 +40,7 @@ public class MonsterAI : MonsterStats
     public Transform player;
 
     [Header("Surround Slot")]
- 
+    
     public int surroundSlotCount = 16;
 
     public float surroundRadiusMultiplier = 0.8f;
@@ -110,7 +113,7 @@ public class MonsterAI : MonsterStats
         // 부모 클래스인 MonsterStats의 Awake 실행
         // MonsterStats에서 체력 초기화 같은 작업을 할 가능성이 있음
         base.Awake();
-
+    
         // 현재 오브젝트에 붙어 있는 NavMeshAgent 컴포넌트를 가져옴
         agent = GetComponent<NavMeshAgent>();
 
