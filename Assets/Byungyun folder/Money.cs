@@ -1,72 +1,60 @@
+using System;
 using UnityEngine;
 
-[System.Serializable]
-public class Money
+[Serializable]
+public class MoneyData
 {
-    public int   gold;
-    public int   flowerleaf;
-    public float CollectionGold;
+    [SerializeField]
+    [Min(0)]
+    private int currentMoney;
 
-    // ────────────────────────────────────────────────
-    #region Gold
+    public int CurrentMoney => currentMoney;
 
-    /// <summary>
-    /// 골드 추가
-    /// </summary>
-    public void AddGold(int amount)
+    public event Action<int> OnMoneyChanged;
+
+    public void SetMoney(int amount)
     {
-        if (amount <= 0) return;
-        gold += amount;
-        CollectionGold += amount; // 누적 획득량 기록
-        Debug.Log($"[Money] Gold +{amount} → 현재: {gold} (총 획득: {CollectionGold})");
+        currentMoney =
+            Mathf.Max(0, amount);
+
+        OnMoneyChanged?.Invoke(
+            currentMoney
+        );
     }
 
-    /// <summary>
-    /// 골드 소모 — 성공 여부 반환
-    /// </summary>
-    public bool SpendGold(int amount)
+    public void AddMoney(int amount)
     {
-        if (amount <= 0) return false;
-        if (gold < amount)
+        if (amount <= 0)
         {
-            Debug.Log($"[Money] Gold 부족 — 필요: {amount}, 보유: {gold}");
+            return;
+        }
+
+        currentMoney += amount;
+
+        OnMoneyChanged?.Invoke(
+            currentMoney
+        );
+    }
+
+    public bool CanSpend(int amount)
+    {
+        return amount >= 0 &&
+               currentMoney >= amount;
+    }
+
+    public bool TrySpend(int amount)
+    {
+        if (!CanSpend(amount))
+        {
             return false;
         }
-        gold -= amount;
-        Debug.Log($"[Money] Gold -{amount} → 현재: {gold}");
+
+        currentMoney -= amount;
+
+        OnMoneyChanged?.Invoke(
+            currentMoney
+        );
+
         return true;
     }
-
-    #endregion
-
-    // ────────────────────────────────────────────────
-    #region Flowerleaf
-
-    /// <summary>
-    /// 꽃잎 추가
-    /// </summary>
-    public void AddFlowerleaf(int amount)
-    {
-        if (amount <= 0) return;
-        flowerleaf += amount;
-        Debug.Log($"[Money] Flowerleaf +{amount} → 현재: {flowerleaf}");
-    }
-
-    /// <summary>
-    /// 꽃잎 소모 — 성공 여부 반환
-    /// </summary>
-    public bool SpendFlowerleaf(int amount)
-    {
-        if (amount <= 0) return false;
-        if (flowerleaf < amount)
-        {
-            Debug.Log($"[Money] Flowerleaf 부족 — 필요: {amount}, 보유: {flowerleaf}");
-            return false;
-        }
-        flowerleaf -= amount;
-        Debug.Log($"[Money] Flowerleaf -{amount} → 현재: {flowerleaf}");
-        return true;
-    }
-
-    #endregion
 }

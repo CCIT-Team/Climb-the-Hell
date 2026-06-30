@@ -1,193 +1,355 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(Collider))]
 public class PlayerController : MonoBehaviour
 {
     [Header("이동 설정")]
-    public float moveSpeed = 5f;
-    public float rotateSpeed = 15f;
+    [Min(0f)]
+    [SerializeField] private float moveSpeed = 5f;
 
-    [Header("대시 설정")]
-    public KeyCode dashKey = KeyCode.Space;
-    public float dashSpeed = 20f;       // 대시 순간 속도
-    public float dashDuration = 0.15f;  // 대시 지속 시간 (초)
-    public float dashCooldown = 1f;     // 쿨타임 (초)
-    public bool dashInvincible = true;  // 무적 여부
+    [Header("카메라")]
+    [SerializeField] private Transform cameraTransform;
 
-    [Header("바닥 감지")]
-    public float groundCheckDistance = 0.6f;
-    public LayerMask groundLayer;
+    [Header("모델 회전 보정")]
+    [Tooltip("모델이 반대로 보이면 180, 옆으로 보이면 90 또는 -90")]
+    [SerializeField] private float modelRotationOffset = 0f;
 
-    [Header("카메라 참조")]
-    public Transform cameraTransform;
+    private Rigidbody rb;
+    private Animator animator;
+    private PlayerDash playerDash;
 
-    private Rigidbody _rb;
-    private Vector3 _moveDir;
-    private bool _isGrounded;
+    private Vector3 moveDirection;
+    private Vector3 facingDirection = Vector3.forward;
 
-    private Animator _animator;
+    private float horizontalInput;
+    private float verticalInput;
 
-    // 대시 상태
-    private bool _isDashing = false;
-    private float _dashTimer = 0f;
-    private float _cooldownTimer = 0f;
-    private Vector3 _dashDir;
+    private bool isAttacking;
 
-    void Awake()
+    private static readonly int IsMovingHash =
+        Animator.StringToHash("isMoving");
+
+    private void Awake()
     {
-        _rb = GetComponent<Rigidbody>();
-        _rb.freezeRotation = true;
+        rb = GetComponent<Rigidbody>();
+        animator = GetComponentInChildren<Animator>();
+        playerDash = GetComponent<PlayerDash>();
 
-        _animator = GetComponentInChildren<Animator>();
+        SetupRigidbody();
+        FindCamera();
 
-
-        if (cameraTransform == null)
-            cameraTransform = Camera.main.transform;
-        
-        if (_animator == null){
-            Debug.LogError("Animator를 찾을 수 없어요! Body에 Animator 컴포넌트가 있는지 확인해줘요.");
+        if (animator != null)
+        {
+            animator.applyRootMotion = false;
         }
     }
 
-    void Update()
+    private void Update()
     {
         GatherInput();
-        CheckGround();
-        HandleDashInput();
-        UpdateTimers();
         UpdateAnimation();
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        if (_isDashing)
-            DashMove();
-        else
-            Move();
-
-        Rotate();
-    }
-
-    void GatherInput()
-    {
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
-
-        Vector3 camForward = cameraTransform.forward;
-        Vector3 camRight   = cameraTransform.right;
-        camForward.y = 0f;
-        camRight.y   = 0f;
-        camForward.Normalize();
-        camRight.Normalize();
-
-        _moveDir = (camForward * v + camRight * h).normalized;
-    }
-
-    void HandleDashInput()
-    {
-        // 쿨타임 중이거나 이미 대시 중이면 무시
-        if (_isDashing || _cooldownTimer > 0f) return;
-
-        if (Input.GetKeyDown(dashKey))
+        // 대시 중에는 PlayerDash가 이동과 회전을 담당
+        if (playerDash != null &&
+            playerDash.IsDashing())
         {
-            // 이동 방향이 없으면 바라보는 방향으로 대시
-            _dashDir = _moveDir.sqrMagnitude > 0.01f
-                ? _moveDir
-                : transform.forward;
-
-            _isDashing = true;
-            _dashTimer = dashDuration;
-            _cooldownTimer = dashCooldown;
-
-            // 무적 처리 (태그나 레이어로 관리 가능)
-            if (dashInvincible)
-                StartInvincible();
-        }
-    }
-
-    void UpdateTimers()
-    {
-        if (_dashTimer > 0f)
-        {
-            _dashTimer -= Time.deltaTime;
-            if (_dashTimer <= 0f)
-            {
-                _isDashing = false;
-                StopInvincible();
-            }
-        }
-
-        if (_cooldownTimer > 0f)
-            _cooldownTimer -= Time.deltaTime;
-    }
-
-    void DashMove()
-    {
-        _rb.velocity = new Vector3(
-            _dashDir.x * dashSpeed,
-            _rb.velocity.y,
-            _dashDir.z * dashSpeed
-        );
-    }
-
-    void Move()
-    {
-        if (_moveDir.sqrMagnitude < 0.01f)
-        {
-            _rb.velocity = new Vector3(0f, _rb.velocity.y, 0f);
             return;
         }
 
-        Vector3 targetVelocity = _moveDir * moveSpeed;
-        _rb.velocity = new Vector3(targetVelocity.x, _rb.velocity.y, targetVelocity.z);
+        Move();
+        RotatePlayerByMovement();
     }
 
-    void Rotate()
+    private void SetupRigidbody()
     {
-        if (_moveDir.sqrMagnitude < 0.01f) return;
+        /*
+         * X, Z 회전은 고정해서 충돌 시 넘어지지 않게 한다.
+         * Y 회전은 캐릭터 방향 변경에 사용한다.
+         */
+        rb.constraints =
+            RigidbodyConstraints.FreezeRotationX |
+            RigidbodyConstraints.FreezeRotationZ;
 
-        Quaternion targetRot = Quaternion.LookRotation(_moveDir, Vector3.up);
-        Quaternion yOnlyRot  = Quaternion.Euler(0f, targetRot.eulerAngles.y, 0f);
-        transform.rotation   = Quaternion.Slerp(transform.rotation, yOnlyRot, Time.fixedDeltaTime * rotateSpeed);
+        rb.isKinematic = false;
+        rb.useGravity = true;
+        rb.detectCollisions = true;
+
+        rb.collisionDetectionMode =
+            CollisionDetectionMode.ContinuousDynamic;
+
+        rb.interpolation =
+            RigidbodyInterpolation.Interpolate;
     }
 
-    void CheckGround()
+    private void FindCamera()
     {
-        _isGrounded = Physics.Raycast(
-            transform.position,
-            Vector3.down,
-            groundCheckDistance,
-            groundLayer
+        if (cameraTransform != null)
+        {
+            return;
+        }
+
+        Camera mainCamera = Camera.main;
+
+        if (mainCamera != null)
+        {
+            cameraTransform = mainCamera.transform;
+        }
+        else
+        {
+            Debug.LogError(
+                "[PlayerController] MainCamera를 찾지 못했습니다.",
+                this
+            );
+        }
+    }
+
+    private void GatherInput()
+    {
+        horizontalInput =
+            Input.GetAxisRaw("Horizontal");
+
+        verticalInput =
+            Input.GetAxisRaw("Vertical");
+
+        if (cameraTransform == null)
+        {
+            moveDirection = Vector3.zero;
+            return;
+        }
+
+        Vector3 cameraForward =
+            cameraTransform.forward;
+
+        Vector3 cameraRight =
+            cameraTransform.right;
+
+        cameraForward.y = 0f;
+        cameraRight.y = 0f;
+
+        if (cameraForward.sqrMagnitude > 0.001f)
+        {
+            cameraForward.Normalize();
+        }
+
+        if (cameraRight.sqrMagnitude > 0.001f)
+        {
+            cameraRight.Normalize();
+        }
+
+        /*
+         * 카메라 기준 이동 방향 계산.
+         *
+         * W: 카메라 앞쪽
+         * S: 카메라 뒤쪽
+         * A: 카메라 왼쪽
+         * D: 카메라 오른쪽
+         */
+        moveDirection =
+            cameraForward * verticalInput +
+            cameraRight * horizontalInput;
+
+        if (moveDirection.sqrMagnitude > 1f)
+        {
+            moveDirection.Normalize();
+        }
+    }
+
+    private void Move()
+    {
+        Vector3 targetVelocity =
+            moveDirection * moveSpeed;
+
+        rb.velocity =
+            new Vector3(
+                targetVelocity.x,
+                rb.velocity.y,
+                targetVelocity.z
+            );
+    }
+
+    private void RotatePlayerByMovement()
+    {
+        // 공격 중에는 마우스로 지정한 공격 방향을 유지한다.
+        if (isAttacking)
+        {
+            return;
+        }
+
+        if (moveDirection.sqrMagnitude < 0.001f)
+        {
+            return;
+        }
+
+        facingDirection =
+            moveDirection.normalized;
+
+        Quaternion lookRotation =
+            Quaternion.LookRotation(
+                facingDirection,
+                Vector3.up
+            );
+
+        Quaternion offsetRotation =
+            Quaternion.Euler(
+                0f,
+                modelRotationOffset,
+                0f
+            );
+
+        rb.MoveRotation(
+            lookRotation * offsetRotation
         );
     }
 
-    // 무적 처리 (필요에 따라 확장)
-    void StartInvincible()
+    private void UpdateAnimation()
     {
-        // 예: gameObject.layer = LayerMask.NameToLayer("Invincible");
-        // 애니메이션, 이펙트 등 여기서 추가
-        Debug.Log("대시 무적 시작");
+        if (animator == null)
+        {
+            return;
+        }
+
+        bool isMoving =
+            moveDirection.sqrMagnitude > 0.01f;
+
+        if (playerDash != null &&
+            playerDash.IsDashing())
+        {
+            isMoving = false;
+        }
+
+        animator.SetBool(
+            IsMovingHash,
+            isMoving
+        );
     }
 
-    void StopInvincible()
+    /// <summary>
+    /// 공격 시 플레이어를 지정된 방향으로 회전시킨다.
+    /// </summary>
+    public void FaceDirection(Vector3 direction)
     {
-        Debug.Log("대시 무적 종료");
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.001f)
+        {
+            return;
+        }
+
+        facingDirection =
+            direction.normalized;
+
+        Quaternion lookRotation =
+            Quaternion.LookRotation(
+                facingDirection,
+                Vector3.up
+            );
+
+        Quaternion offsetRotation =
+            Quaternion.Euler(
+                0f,
+                modelRotationOffset,
+                0f
+            );
+
+        /*
+         * 공격 입력은 Update에서 들어오기 때문에
+         * 즉시 회전시켜 공격 방향과 판정 방향을 맞춘다.
+         */
+        rb.rotation =
+            lookRotation * offsetRotation;
     }
 
-    // 쿨타임 UI 등에서 참조용
-    public float GetCooldownRatio() => Mathf.Clamp01(_cooldownTimer / dashCooldown);
-    public bool IsDashing() => _isDashing;
-
-    void OnDrawGizmosSelected()
+    /// <summary>
+    /// 공격 중 이동 방향으로 회전하는 것을 막는다.
+    /// </summary>
+    public void SetAttacking(bool attacking)
     {
-        Gizmos.color = _isGrounded ? Color.green : Color.red;
-        Gizmos.DrawLine(transform.position, transform.position + Vector3.down * groundCheckDistance);
+        isAttacking = attacking;
+
+        /*
+         * 공격 종료 시 이동 중이면
+         * 다시 이동 방향을 바라보게 한다.
+         */
+        if (!isAttacking &&
+            moveDirection.sqrMagnitude > 0.001f)
+        {
+            facingDirection =
+                moveDirection.normalized;
+        }
     }
 
-    void UpdateAnimation()
+    public bool IsAttacking()
     {
-        if (_animator == null) return;
-        _animator.SetBool("isMoving", _moveDir.sqrMagnitude > 0.01f);
-        _animator.SetBool("isDashing", _isDashing);
+        return isAttacking;
+    }
+
+    public Vector3 GetMoveDirection()
+    {
+        return moveDirection;
+    }
+
+    public Vector3 GetFacingDirection()
+    {
+        if (facingDirection.sqrMagnitude < 0.001f)
+        {
+            Vector3 currentForward =
+                transform.forward;
+
+            currentForward.y = 0f;
+
+            if (currentForward.sqrMagnitude < 0.001f)
+            {
+                return Vector3.forward;
+            }
+
+            return currentForward.normalized;
+        }
+
+        return facingDirection.normalized;
+    }
+
+    /*
+     * 기존 PlayerDash와의 호환을 위해 유지한다.
+     */
+    public Transform GetVisualRoot()
+    {
+        return transform;
+    }
+
+    public float GetMoveSpeed()
+    {
+        return moveSpeed;
+    }
+
+    public void SetMoveSpeed(float value)
+    {
+        moveSpeed =
+            Mathf.Max(0f, value);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Vector3 direction =
+            Application.isPlaying
+                ? GetFacingDirection()
+                : transform.forward;
+
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.001f)
+        {
+            return;
+        }
+
+        Gizmos.color = Color.cyan;
+
+        Gizmos.DrawRay(
+            transform.position + Vector3.up,
+            direction.normalized * 2f
+        );
     }
 }

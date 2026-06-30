@@ -1,72 +1,131 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-// Player 컴포넌트가 반드시 있어야 동작
-[RequireComponent(typeof(Player))]
-
+[RequireComponent(typeof(PlayerController))]
 public class Attack : MonoBehaviour
 {
+    [Header("무기")]
     [SerializeField] private Weapon currentWeapon;
 
-    private Player player;
-    private Camera mainCamera; // ← 카메라 캐싱용 변수 추가
+    [Header("카메라")]
+    [SerializeField] private Camera mainCamera;
+
+    private PlayerController playerController;
 
     private void Awake()
     {
-        // Player 컴포넌트 가져오기
-        player = GetComponent<Player>();
+        playerController =
+            GetComponent<PlayerController>();
 
-        // 카메라를 Awake에서 한 번만 찾아서 저장
+        FindCamera();
+
+        if (currentWeapon == null)
+        {
+            Debug.LogError(
+                "[Attack] Current Weapon에 무기를 연결하세요.",
+                this
+            );
+        }
+    }
+
+    private void Update()
+    {
+        HandleAttackInput();
+    }
+
+    private void FindCamera()
+    {
+        if (mainCamera != null)
+        {
+            return;
+        }
+
         mainCamera = Camera.main;
 
         if (mainCamera == null)
-            Debug.LogError("MainCamera를 찾을 수 없습니다! 카메라에 'MainCamera' 태그가 있는지 확인하세요.");
+        {
+            Debug.LogError(
+                "[Attack] MainCamera를 찾을 수 없습니다.",
+                this
+            );
+        }
     }
 
-    // Start is called before the first frame update
-    void Start()
+    private void HandleAttackInput()
     {
-        
-    }
+        if (currentWeapon == null)
+        {
+            return;
+        }
 
-    // Update is called once per frame
-    void Update()
-    {
-        // 마우스 방향으로 플레이어 회전
-        RotateBoxToMouse();
-
-        // 좌클릭 시 공격
+        // 마우스 왼쪽 버튼: 기본 공격
         if (Input.GetMouseButtonDown(0))
         {
+            FaceMouseDirection();
             currentWeapon.Use();
         }
-    }
 
-    // 플레이어를 마우스 방향으로 회전
-    private void RotateBoxToMouse()
-    {
-        // Camera.main 대신 캐싱된 mainCamera 사용
-        if (mainCamera == null) return;
-
-        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-
-        Plane groundPlane = new Plane(
-            Vector3.up,
-            new Vector3(0f, transform.position.y, 0f)
-        );
-
-        if (groundPlane.Raycast(ray, out float distance))
+        // 마우스 오른쪽 버튼: 근접 무기 특수 공격
+        if (Input.GetMouseButtonDown(1) &&
+            currentWeapon is MeleeWeapon meleeWeapon)
         {
-            Vector3 mouseWorldPos = ray.GetPoint(distance);
-            Vector3 dir = mouseWorldPos - transform.position;
-            dir.y = 0f;
-
-            if (dir.sqrMagnitude > 0.01f)
-            {
-                transform.rotation = Quaternion.LookRotation(dir.normalized);
-            }
+            FaceMouseDirection();
+            meleeWeapon.SpecialUse();
         }
     }
 
+    private void FaceMouseDirection()
+    {
+        if (mainCamera == null ||
+            playerController == null)
+        {
+            return;
+        }
+
+        Ray mouseRay =
+            mainCamera.ScreenPointToRay(
+                Input.mousePosition
+            );
+
+        Plane groundPlane =
+            new Plane(
+                Vector3.up,
+                transform.position
+            );
+
+        if (!groundPlane.Raycast(
+            mouseRay,
+            out float hitDistance
+        ))
+        {
+            return;
+        }
+
+        Vector3 mouseWorldPosition =
+            mouseRay.GetPoint(hitDistance);
+
+        Vector3 attackDirection =
+            mouseWorldPosition -
+            transform.position;
+
+        attackDirection.y = 0f;
+
+        if (attackDirection.sqrMagnitude < 0.001f)
+        {
+            return;
+        }
+
+        playerController.FaceDirection(
+            attackDirection
+        );
+    }
+
+    public void SetWeapon(Weapon newWeapon)
+    {
+        currentWeapon = newWeapon;
+    }
+
+    public Weapon GetCurrentWeapon()
+    {
+        return currentWeapon;
+    }
 }
