@@ -1,0 +1,117 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 696e5383fc7d3c2448ac7b226d5d4221, type: 3}
+  m_Name: L - Attack
+  m_EditorClassIdentifier: 
+  boonId: LAttack
+  displayName: LAttack
+  description: LAttack
+  icon: {fileID: 21300000, guid: 3492cfac868231c4dbea2d44f968fea4, type: 3}
+  rewardTitle: LAttack
+  rewardDescription: LAttack
+  grade: 1
+  category: 1
+  stackable: 1
+  maxStack: 1
+  categoryRequirements:
+  - category: 1
+    requiredCount: 3
+  requiredBoonIds: []
+  instantStatBonus:
+    maxHp: 0
+    attack: -20
+    moveSpeed: 0
+    mana: 0
+    criticalChance: 0
+    criticalMultiplier: 0
+    dashDistance: 0
+    dashDuration: 0
+    dashCooldown: 0
+    dashCooldownRecoveryMultiplier: 0
+    extraDashCount: 0
+    dashInvincible: 0
+  attackEffect:
+    enableDashDamage: 0
+    dashDamage: 0
+    attackSpeedIncreaseRate: 0
+    additionalStaggerDuration: 0
+  defenseEffect:
+    damageReductionRate: 0
+  dashEffect:
+    enabled: 0
+    statBonus:
+      maxHp: 0
+      attack: 0
+      moveSpeed: 0
+      mana: 0
+      criticalChance: 0
+      criticalMultiplier: 0
+      dashDistance: 0
+      dashDuration: 0
+      dashCooldown: 0
+      dashCooldownRecoveryMultiplier: 0
+      extraDashCount: 0
+      dashInvincible: 0
+  enemyReductionEffect:
+    enabled: 0
+    moveSpeedReductionRate: 0
+    attackReductionRate: 0
+    maxHpReductionRate: 0
+  debuffEffect:
+    enabled: 0
+    triggerType: 1
+    type: 0
+    duration: 3
+    applyChance: 1
+    maxStack: 1
+    damagePerTick: 0
+    tickInterval: 1
+    moveSpeedReductionRate: 0
+    attackReductionRate: 0
+    maxHpReductionRate: 0
+    stunDuration: 0
+  reflectEffect:
+    enabled: 0
+    triggerType: 0
+    reflectChance: 1
+    reflectedDamageMultiplier: 1
+    activeDuration: 0.25
+  jakduRideEffect:
+    enabled: 0
+    buffStats:
+      maxHp: 0
+      attack: 0
+      moveSpeed: 0
+      mana: 0
+      criticalChance: 0
+      criticalMultiplier: 0
+      dashDistance: 0
+      dashDuration: 0
+      dashCooldown: 0
+      dashCooldownRecoveryMultiplier: 0
+      extraDashCount: 0
+      dashInvincible: 0
+    debuffStats:
+      maxHp: 0
+      attack: 0
+      moveSpeed: 0
+      mana: 0
+      criticalChance: 0
+      criticalMultiplier: 0
+      dashDistance: 0
+      dashDuration: 0
+      dashCooldown: 0
+      dashCooldownRecoveryMultiplier: 0
+      extraDashCount: 0
+      dashInvincible: 0
+    duration: 5
+    permanent: 0

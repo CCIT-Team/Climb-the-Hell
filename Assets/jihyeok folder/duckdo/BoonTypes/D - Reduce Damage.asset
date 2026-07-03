@@ -10,18 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 696e5383fc7d3c2448ac7b226d5d4221, type: 3}
-  m_Name: attackspeed
+  m_Name: D - Reduce Damage
   m_EditorClassIdentifier: 
-  boonId: sfsf
-  displayName: sfg
-  description: adada
-  icon: {fileID: 21300000, guid: ac3ef68d964302546b016fb9edaffeea, type: 3}
-  rewardTitle: Move Speed
-  rewardDescription: 'can do it this
-
-'
+  boonId: ReduceDamage
+  displayName: ReduceDamage
+  description: Reduce Damage
+  icon: {fileID: 21300000, guid: 18b3011bda5e40f45b64e274f42f6713, type: 3}
+  rewardTitle: ReduceDamage
+  rewardDescription: Reduce Damage
   grade: 0
-  category: 0
+  category: 2
   stackable: 1
   maxStack: 1
   categoryRequirements: []
@@ -29,7 +27,7 @@ MonoBehaviour:
   instantStatBonus:
     maxHp: 0
     attack: 0
-    moveSpeed: 100
+    moveSpeed: 0
     mana: 0
     criticalChance: 0
     criticalMultiplier: 0
@@ -42,10 +40,10 @@ MonoBehaviour:
   attackEffect:
     enableDashDamage: 0
     dashDamage: 0
-    attackSpeedIncreaseRate: 10
+    attackSpeedIncreaseRate: 0
     additionalStaggerDuration: 0
   defenseEffect:
-    damageReductionRate: 0
+    damageReductionRate: 0.1
   dashEffect:
     enabled: 0
     statBonus:

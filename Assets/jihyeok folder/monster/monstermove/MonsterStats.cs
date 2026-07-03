@@ -1,33 +1,153 @@
 using UnityEngine;
 
-public abstract class MonsterStats : MonoBehaviour
+/// <summary>
+/// 몬스터의 체력과 기본 능력치를 관리한다.
+/// 피격 순간에만 HP바를 갱신한다.
+/// </summary>
+public class MonsterStats : MonoBehaviour
 {
-    [Header("기본 스탯")]
-    public int monsterhp = 50;
-    public int monsterattack = 10;
-    public float monsterspeed = 3f;
-    public int monstermana = 0;
-    public int monsterlv = 1;
-    public float monsterrange = 3f;
+    [Header("몬스터 체력")]
+    [Min(1)]
+    public int monsterhp = 100;
 
-    [Header("현재 체력")]
+    [HideInInspector]
     public int currentHp;
+
+    [Header("몬스터 공격력")]
+    [Min(0)]
+    public int monsterattack = 10;
+
+    [Header("몬스터 이동속도")]
+    [Min(0f)]
+    public float monsterspeed = 3f;
+
+    [Header("몬스터 공격 범위")]
+    [Min(0f)]
+    public float monsterrange = 2f;
+
+    [Header("몬스터 HP바")]
+    [Tooltip("비워두면 자기 자식에서 자동으로 찾는다.")]
+    [SerializeField]
+    private MonsterHealthBar monsterHealthBar;
 
     protected virtual void Awake()
     {
         currentHp = monsterhp;
+
+        FindHealthBar();
+
+        if (monsterHealthBar != null)
+        {
+            monsterHealthBar.ResetHealthBar(
+                currentHp,
+                monsterhp
+            );
+        }
     }
 
+    /// <summary>
+    /// 몬스터에게 데미지를 적용한다.
+    /// </summary>
     public virtual bool TakeDamage(int damage)
     {
-        currentHp -= damage;
-        currentHp = Mathf.Max(currentHp, 0);
+        if (damage <= 0)
+        {
+            return false;
+        }
+
+        if (currentHp <= 0)
+        {
+            return true;
+        }
+
+        currentHp =
+            Mathf.Max(
+                0,
+                currentHp - damage
+            );
+
+        RefreshHealthBar();
 
         return currentHp <= 0;
     }
 
-    public bool IsDead()
+    /// <summary>
+    /// 몬스터 체력을 회복한다.
+    /// </summary>
+    public virtual void Heal(int amount)
     {
-        return currentHp <= 0;
+        if (amount <= 0 ||
+            currentHp <= 0)
+        {
+            return;
+        }
+
+        currentHp =
+            Mathf.Min(
+                monsterhp,
+                currentHp + amount
+            );
+
+        RefreshHealthBar();
+    }
+
+    /// <summary>
+    /// 오브젝트 풀에서 몬스터를 다시 사용할 때 호출한다.
+    /// </summary>
+    public virtual void ResetStats()
+    {
+        currentHp = monsterhp;
+
+        FindHealthBar();
+
+        if (monsterHealthBar != null)
+        {
+            monsterHealthBar.ResetHealthBar(
+                currentHp,
+                monsterhp
+            );
+        }
+    }
+
+    /// <summary>
+    /// 자기 몬스터 프리팹 안의 HP바만 찾는다.
+    /// </summary>
+    private void FindHealthBar()
+    {
+        if (monsterHealthBar != null)
+        {
+            return;
+        }
+
+        monsterHealthBar =
+            GetComponentInChildren<MonsterHealthBar>(
+                true
+            );
+    }
+
+    /// <summary>
+    /// 현재 체력을 HP바에 전달한다.
+    /// </summary>
+    private void RefreshHealthBar()
+    {
+        if (monsterHealthBar == null)
+        {
+            FindHealthBar();
+        }
+
+        if (monsterHealthBar == null)
+        {
+            Debug.LogWarning(
+                $"[{name}] MonsterHealthBar를 찾지 못했습니다.",
+                gameObject
+            );
+
+            return;
+        }
+
+        monsterHealthBar.SetHealth(
+            currentHp,
+            monsterhp
+        );
     }
 }

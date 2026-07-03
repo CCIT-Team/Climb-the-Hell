@@ -10,23 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 696e5383fc7d3c2448ac7b226d5d4221, type: 3}
-  m_Name: attack
+  m_Name: G - MoreDash
   m_EditorClassIdentifier: 
-  boonId: 12
-  displayName: 333
-  description: 121
-  icon: {fileID: 21300000, guid: ac3ef68d964302546b016fb9edaffeea, type: 3}
-  rewardTitle: Attack
-  rewardDescription: attack
+  boonId: MoreDash
+  displayName: MoreDash
+  description: can MoreDash
+  icon: {fileID: 21300000, guid: da289f48e4b127b4a9484d05fe3dc702, type: 3}
+  rewardTitle: MoreDash
+  rewardDescription: can MoreDash
   grade: 0
-  category: 0
+  category: 3
   stackable: 1
   maxStack: 1
   categoryRequirements: []
   requiredBoonIds: []
   instantStatBonus:
     maxHp: 0
-    attack: 10
+    attack: 0
     moveSpeed: 0
     mana: 0
     criticalChance: 0

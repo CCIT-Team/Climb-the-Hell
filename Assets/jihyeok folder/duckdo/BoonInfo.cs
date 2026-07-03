@@ -5,81 +5,72 @@ using UnityEngine;
 [RequireComponent(typeof(Player))]
 public class BoonInfo : MonoBehaviour
 {
-    [Header("현재 보유 득도")]
+    [Header("플레이어")]
+
+    [SerializeField]
+    private Player player;
+
+    [Header("현재 획득한 득도")]
+
     [SerializeField]
     private List<BoonData> ownedBoons =
         new List<BoonData>();
 
-    private Player player;
-    private PlayerStats stats;
-    private JakduRide jakduRide;
-
     /*
-     * Boon ID별 중첩 횟수.
-     * 매번 리스트 전체를 검색하지 않도록 Dictionary로 관리한다.
+     * 득도 ID별 보유 개수.
+     * 예:
+     * attack_power_01 → 2개
      */
     private readonly Dictionary<string, int>
         boonStackCounts =
             new Dictionary<string, int>();
 
     /*
-     * 분류별 보유 개수.
-     * 전설·듀오 조건 검사에 사용한다.
+     * 계열별 보유 개수.
+     * 전설·듀오 득도의 등장 조건 검사에 사용한다.
      */
     private readonly Dictionary<BoonCategory, int>
         categoryCounts =
             new Dictionary<BoonCategory, int>();
 
-    public event Action<BoonData>
-        OnBoonObtained;
+    private JakduRide jakduRide;
 
-    public IReadOnlyList<BoonData>
-        OwnedBoons =>
-            ownedBoons;
+    public event Action<BoonData> OnBoonAdded;
 
     private void Awake()
     {
-        player =
-            GetComponent<Player>();
+        InitializeReferences();
 
-        if (player != null)
+        RebuildCounts();
+    }
+
+    /// <summary>
+    /// 필요한 컴포넌트 참조를 가져온다.
+    /// </summary>
+    private void InitializeReferences()
+    {
+        if (player == null)
         {
-            stats = player.stats;
+            player =
+                GetComponent<Player>();
+        }
+
+        if (player == null)
+        {
+            Debug.LogError(
+                "[BoonInfo] Player 컴포넌트를 찾을 수 없습니다.",
+                this
+            );
+
+            return;
         }
 
         jakduRide =
             GetComponent<JakduRide>();
-
-        RebuildCaches();
     }
 
     /// <summary>
-    /// Inspector에 미리 들어 있던 득도를 기준으로
-    /// 중첩 수와 분류 개수를 다시 계산한다.
-    /// </summary>
-    private void RebuildCaches()
-    {
-        boonStackCounts.Clear();
-        categoryCounts.Clear();
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
-        {
-            BoonData boon =
-                ownedBoons[i];
-
-            if (boon == null)
-            {
-                continue;
-            }
-
-            AddToCaches(boon);
-        }
-    }
-
-    /// <summary>
-    /// 현재 조건에서 보상 후보로 등장할 수 있는지 검사한다.
+    /// 해당 득도가 현재 보상으로 등장할 수 있는지 검사한다.
     /// </summary>
     public bool CanOffer(
         BoonData boon
@@ -90,65 +81,125 @@ public class BoonInfo : MonoBehaviour
             return false;
         }
 
-        // 중첩 제한 검사
+        if (string.IsNullOrWhiteSpace(
+                boon.boonId
+            ))
+        {
+            Debug.LogWarning(
+                $"[BoonInfo] {boon.name}의 Boon ID가 비어 있습니다.",
+                boon
+            );
+
+            return false;
+        }
+
         int currentStack =
-            GetBoonStackCount(
+            GetBoonStack(
                 boon.boonId
             );
 
+        /*
+         * 중첩 불가능한 득도를 이미 가지고 있으면
+         * 다시 등장하지 않는다.
+         */
         if (!boon.stackable &&
             currentStack > 0)
         {
             return false;
         }
 
+        int maximumStack =
+            Mathf.Max(
+                1,
+                boon.maxStack
+            );
+
         if (currentStack >=
-            Mathf.Max(1, boon.maxStack))
+            maximumStack)
         {
             return false;
         }
 
-        // 분류별 요구 개수 검사
-        if (!MeetsCategoryRequirements(
-                boon
-            ))
+        /*
+         * 일반 등급은 중첩 조건만 통과하면 등장한다.
+         */
+        if (boon.grade ==
+            BoonGrade.Normal)
         {
-            return false;
+            return true;
         }
 
-        // 필수 선행 득도 검사
-        if (!MeetsRequiredBoonIds(
-                boon
-            ))
-        {
-            return false;
-        }
-
-        return true;
+        /*
+         * 전설과 듀오 등급은
+         * 계열 개수와 필수 득도 조건도 검사한다.
+         */
+        return MeetsCategoryRequirements(
+                   boon.categoryRequirements
+               ) &&
+               MeetsRequiredBoonIds(
+                   boon.requiredBoonIds
+               );
     }
 
     /// <summary>
-    /// 득도를 실제로 획득하고 효과를 적용한다.
+    /// 선택한 득도를 실제 보유 목록에 추가하고 효과를 적용한다.
     /// </summary>
     public bool TryAddBoon(
         BoonData boon
     )
     {
+        if (boon == null)
+        {
+            Debug.LogError(
+                "[BoonInfo] 선택한 득도가 null입니다.",
+                this
+            );
+
+            return false;
+        }
+
         if (!CanOffer(boon))
+        {
+            Debug.LogWarning(
+                $"[BoonInfo] 득도 획득 실패\n" +
+                $"이름: {boon.displayName}\n" +
+                $"현재 중첩: {GetBoonStack(boon.boonId)}\n" +
+                $"최대 중첩: {boon.maxStack}",
+                boon
+            );
+
+            return false;
+        }
+
+        if (!ValidatePlayer())
         {
             return false;
         }
 
         ownedBoons.Add(boon);
-        AddToCaches(boon);
 
-        ApplyImmediateEffects(boon);
+        IncrementBoonStack(
+            boon.boonId
+        );
 
-        OnBoonObtained?.Invoke(boon);
+        IncrementCategory(
+            boon.category
+        );
+
+        /*
+         * 득도에 설정된 효과를 실제 플레이어에 전달한다.
+         */
+        ApplyBoonEffects(boon);
+
+        OnBoonAdded?.Invoke(boon);
 
         Debug.Log(
-            $"[BoonInfo] {boon.displayName} 획득 " +
-            $"({GetBoonStackCount(boon.boonId)}중첩)",
+            $"[BoonInfo] 득도 획득 완료\n" +
+            $"이름: {boon.displayName}\n" +
+            $"ID: {boon.boonId}\n" +
+            $"현재 중첩: {GetBoonStack(boon.boonId)}\n" +
+            $"계열: {boon.category}\n" +
+            $"계열 보유 개수: {GetCategoryCount(boon.category)}",
             this
         );
 
@@ -156,99 +207,464 @@ public class BoonInfo : MonoBehaviour
     }
 
     /// <summary>
-    /// 획득 즉시 적용할 플레이어 효과를 처리한다.
+    /// 득도의 각 효과 데이터를 적용한다.
     /// </summary>
-    private void ApplyImmediateEffects(
+    private void ApplyBoonEffects(
         BoonData boon
     )
     {
-        if (stats != null)
+        if (boon == null ||
+            !ValidatePlayer())
         {
-            // 공격력, 이동속도, 치명타 등의 즉시 스탯
-            if (boon.instantStatBonus != null)
-            {
-                stats.AddBoonBonus(
-                    boon.instantStatBonus
-                );
-            }
-
-            // 대시 거리, 횟수, 쿨타임 등의 스탯
-            if (boon.dashEffect != null &&
-                boon.dashEffect.enabled &&
-                boon.dashEffect.statBonus != null)
-            {
-                stats.AddBoonBonus(
-                    boon.dashEffect.statBonus
-                );
-            }
+            return;
         }
 
-        // 작두 타기 효과는 별도 실행 클래스에 전달
-        if (boon.jakduRideEffect != null &&
-            boon.jakduRideEffect.enabled)
-        {
-            if (jakduRide == null)
-            {
-                jakduRide =
-                    GetComponent<JakduRide>();
-            }
+        ApplyImmediateStats(boon);
+        ApplyDashStats(boon);
+        ApplyJakduRide(boon);
 
-            if (jakduRide != null)
-            {
-                jakduRide.Apply(
-                    boon.jakduRideEffect
-                );
-            }
-        }
+        /*
+         * attackEffect, defenseEffect, debuffEffect,
+         * reflectEffect, enemyReductionEffect는
+         * 각 전투 스크립트에서 읽어 사용해야 한다.
+         *
+         * BoonInfo는 해당 BoonData를 ownedBoons에 보관한다.
+         */
     }
 
-    private void AddToCaches(
+    /// <summary>
+    /// 공격력, 최대 체력, 이동속도 등
+    /// 기본 추가 스탯을 PlayerStats에 전달한다.
+    /// </summary>
+    private void ApplyImmediateStats(
         BoonData boon
     )
     {
-        if (!string.IsNullOrWhiteSpace(
-                boon.boonId
-            ))
+        if (boon.instantStatBonus == null)
         {
-            boonStackCounts.TryGetValue(
-                boon.boonId,
-                out int currentStack
+            Debug.LogWarning(
+                $"[BoonInfo] {boon.displayName}의 " +
+                "Instant Stat Bonus가 null입니다.",
+                boon
             );
 
-            boonStackCounts[boon.boonId] =
-                currentStack + 1;
+            return;
         }
 
-        categoryCounts.TryGetValue(
-            boon.category,
-            out int categoryCount
+        PlayerStatValues bonus =
+            boon.instantStatBonus;
+
+        Debug.Log(
+            $"[BoonInfo] 즉시 스탯 전달\n" +
+            $"득도: {boon.displayName}\n" +
+            $"최대 체력: {bonus.maxHp}\n" +
+            $"공격력: {bonus.attack}\n" +
+            $"이동속도: {bonus.moveSpeed}\n" +
+            $"마나: {bonus.mana}\n" +
+            $"크리티컬 확률: {bonus.criticalChance}\n" +
+            $"크리티컬 배율: {bonus.criticalMultiplier}",
+            boon
         );
 
-        categoryCounts[boon.category] =
-            categoryCount + 1;
+        player.stats.AddBoonBonus(
+            bonus
+        );
     }
 
-    private bool MeetsCategoryRequirements(
+    /// <summary>
+    /// 대시 효과 안에 설정한 추가 스탯을 전달한다.
+    /// </summary>
+    private void ApplyDashStats(
         BoonData boon
     )
     {
-        if (boon.categoryRequirements ==
-            null)
+        if (boon.dashEffect == null)
+        {
+            return;
+        }
+
+        if (!boon.dashEffect.enabled)
+        {
+            return;
+        }
+
+        if (boon.dashEffect.statBonus == null)
+        {
+            Debug.LogWarning(
+                $"[BoonInfo] {boon.displayName}의 " +
+                "Dash Stat Bonus가 null입니다.",
+                boon
+            );
+
+            return;
+        }
+
+        PlayerStatValues dashBonus =
+            boon.dashEffect.statBonus;
+
+        Debug.Log(
+            $"[BoonInfo] 대시 스탯 전달\n" +
+            $"득도: {boon.displayName}\n" +
+            $"대시 거리: {dashBonus.dashDistance}\n" +
+            $"대시 지속시간: {dashBonus.dashDuration}\n" +
+            $"대시 쿨타임: {dashBonus.dashCooldown}\n" +
+            $"쿨타임 회복 배율: " +
+            $"{dashBonus.dashCooldownRecoveryMultiplier}\n" +
+            $"추가 대시 횟수: {dashBonus.extraDashCount}\n" +
+            $"대시 무적: {dashBonus.dashInvincible}",
+            boon
+        );
+
+        player.stats.AddBoonBonus(
+            dashBonus
+        );
+    }
+
+    /// <summary>
+    /// 작두 타기 효과를 JakduRide에 전달한다.
+    /// </summary>
+    private void ApplyJakduRide(
+        BoonData boon
+    )
+    {
+        if (boon.jakduRideEffect == null)
+        {
+            return;
+        }
+
+        if (!boon.jakduRideEffect.enabled)
+        {
+            return;
+        }
+
+        if (jakduRide == null)
+        {
+            Debug.LogError(
+                $"[BoonInfo] {boon.displayName}에 " +
+                "작두 타기 효과가 설정되어 있지만 " +
+                "Player에 JakduRide 컴포넌트가 없습니다.",
+                player
+            );
+
+            return;
+        }
+
+        jakduRide.Apply(
+            boon.jakduRideEffect
+        );
+    }
+
+    /// <summary>
+    /// 전설 득도가 현재 등장 가능한지 검사한다.
+    /// </summary>
+    public bool CanOfferLegendary(
+        BoonData boon
+    )
+    {
+        return boon != null &&
+               boon.grade ==
+                   BoonGrade.Legendary &&
+               CanOffer(boon);
+    }
+
+    /// <summary>
+    /// 듀오 득도가 현재 등장 가능한지 검사한다.
+    /// </summary>
+    public bool CanOfferDuo(
+        BoonData boon
+    )
+    {
+        return boon != null &&
+               boon.grade ==
+                   BoonGrade.Duo &&
+               CanOffer(boon);
+    }
+
+    /// <summary>
+    /// 특정 계열의 현재 보유 개수를 반환한다.
+    /// </summary>
+    public int GetCategoryCount(
+        BoonCategory category
+    )
+    {
+        return categoryCounts.TryGetValue(
+            category,
+            out int count
+        )
+            ? count
+            : 0;
+    }
+
+    /// <summary>
+    /// 특정 ID 득도의 현재 중첩 수를 반환한다.
+    /// </summary>
+    public int GetBoonStack(
+        string boonId
+    )
+    {
+        if (string.IsNullOrWhiteSpace(
+                boonId
+            ))
+        {
+            return 0;
+        }
+
+        return boonStackCounts.TryGetValue(
+            boonId,
+            out int count
+        )
+            ? count
+            : 0;
+    }
+
+    /// <summary>
+    /// 특정 ID의 득도를 가지고 있는지 확인한다.
+    /// </summary>
+    public bool HasBoon(
+        string boonId
+    )
+    {
+        return GetBoonStack(
+                   boonId
+               ) > 0;
+    }
+
+    /// <summary>
+    /// 현재 보유한 득도 목록을 읽기 전용으로 반환한다.
+    /// </summary>
+    public IReadOnlyList<BoonData>
+        GetOwnedBoons()
+    {
+        return ownedBoons;
+    }
+
+    /// <summary>
+    /// 특정 트리거를 사용하는 디버프 득도를 반환한다.
+    /// 공격 및 대시 코드에서 사용할 수 있다.
+    /// </summary>
+    public List<BoonData> GetDebuffBoons(
+        BoonTriggerType triggerType
+    )
+    {
+        List<BoonData> results =
+            new List<BoonData>();
+
+        for (int i = 0;
+             i < ownedBoons.Count;
+             i++)
+        {
+            BoonData boon =
+                ownedBoons[i];
+
+            if (boon == null ||
+                boon.debuffEffect == null ||
+                !boon.debuffEffect.enabled)
+            {
+                continue;
+            }
+
+            if (boon.debuffEffect.triggerType ==
+                triggerType)
+            {
+                results.Add(boon);
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// 특정 트리거를 사용하는 반사 득도를 반환한다.
+    /// </summary>
+    public List<BoonData> GetReflectBoons(
+        BoonTriggerType triggerType
+    )
+    {
+        List<BoonData> results =
+            new List<BoonData>();
+
+        for (int i = 0;
+             i < ownedBoons.Count;
+             i++)
+        {
+            BoonData boon =
+                ownedBoons[i];
+
+            if (boon == null ||
+                boon.reflectEffect == null ||
+                !boon.reflectEffect.enabled)
+            {
+                continue;
+            }
+
+            if (boon.reflectEffect.triggerType ==
+                triggerType)
+            {
+                results.Add(boon);
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// 현재 보유한 모든 피해 감소율을 합산한다.
+    /// 최댓값은 95%로 제한한다.
+    /// </summary>
+    public float GetTotalDamageReductionRate()
+    {
+        float totalRate = 0f;
+
+        for (int i = 0;
+             i < ownedBoons.Count;
+             i++)
+        {
+            BoonData boon =
+                ownedBoons[i];
+
+            if (boon == null ||
+                boon.defenseEffect == null)
+            {
+                continue;
+            }
+
+            totalRate +=
+                boon.defenseEffect
+                    .damageReductionRate;
+        }
+
+        return Mathf.Clamp(
+            totalRate,
+            0f,
+            0.95f
+        );
+    }
+
+    /// <summary>
+    /// 현재 보유한 공격속도 증가율을 합산한다.
+    /// </summary>
+    public float GetTotalAttackSpeedIncreaseRate()
+    {
+        float totalRate = 0f;
+
+        for (int i = 0;
+             i < ownedBoons.Count;
+             i++)
+        {
+            BoonData boon =
+                ownedBoons[i];
+
+            if (boon == null ||
+                boon.attackEffect == null)
+            {
+                continue;
+            }
+
+            totalRate +=
+                boon.attackEffect
+                    .attackSpeedIncreaseRate;
+        }
+
+        return Mathf.Max(
+            0f,
+            totalRate
+        );
+    }
+
+    /// <summary>
+    /// 현재 보유한 추가 경직 시간을 합산한다.
+    /// </summary>
+    public float GetTotalAdditionalStaggerDuration()
+    {
+        float totalDuration = 0f;
+
+        for (int i = 0;
+             i < ownedBoons.Count;
+             i++)
+        {
+            BoonData boon =
+                ownedBoons[i];
+
+            if (boon == null ||
+                boon.attackEffect == null)
+            {
+                continue;
+            }
+
+            totalDuration +=
+                boon.attackEffect
+                    .additionalStaggerDuration;
+        }
+
+        return Mathf.Max(
+            0f,
+            totalDuration
+        );
+    }
+
+    /// <summary>
+    /// 대시 피해가 활성화된 모든 득도의 피해를 합산한다.
+    /// </summary>
+    public float GetTotalDashDamage()
+    {
+        float totalDamage = 0f;
+
+        for (int i = 0;
+             i < ownedBoons.Count;
+             i++)
+        {
+            BoonData boon =
+                ownedBoons[i];
+
+            if (boon == null ||
+                boon.attackEffect == null ||
+                !boon.attackEffect
+                    .enableDashDamage)
+            {
+                continue;
+            }
+
+            totalDamage +=
+                boon.attackEffect
+                    .dashDamage;
+        }
+
+        return Mathf.Max(
+            0f,
+            totalDamage
+        );
+    }
+
+    /// <summary>
+    /// 전설·듀오의 계열 조건을 검사한다.
+    /// </summary>
+    private bool MeetsCategoryRequirements(
+        List<BoonRequirement> requirements
+    )
+    {
+        if (requirements == null ||
+            requirements.Count == 0)
         {
             return true;
         }
 
         for (int i = 0;
-             i < boon.categoryRequirements.Count;
+             i < requirements.Count;
              i++)
         {
             BoonRequirement requirement =
-                boon.categoryRequirements[i];
+                requirements[i];
 
             if (requirement == null)
             {
                 continue;
             }
+
+            int requiredCount =
+                Mathf.Max(
+                    1,
+                    requirement.requiredCount
+                );
 
             int ownedCount =
                 GetCategoryCount(
@@ -256,7 +672,7 @@ public class BoonInfo : MonoBehaviour
                 );
 
             if (ownedCount <
-                requirement.requiredCount)
+                requiredCount)
             {
                 return false;
             }
@@ -265,22 +681,25 @@ public class BoonInfo : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// 전설·듀오의 필수 득도 ID 조건을 검사한다.
+    /// </summary>
     private bool MeetsRequiredBoonIds(
-        BoonData boon
+        List<RequiredBoonId> requirements
     )
     {
-        if (boon.requiredBoonIds ==
-            null)
+        if (requirements == null ||
+            requirements.Count == 0)
         {
             return true;
         }
 
         for (int i = 0;
-             i < boon.requiredBoonIds.Count;
+             i < requirements.Count;
              i++)
         {
             RequiredBoonId requirement =
-                boon.requiredBoonIds[i];
+                requirements[i];
 
             if (requirement == null ||
                 string.IsNullOrWhiteSpace(
@@ -301,16 +720,46 @@ public class BoonInfo : MonoBehaviour
         return true;
     }
 
-    public bool HasBoon(
-        string boonId
-    )
+    /// <summary>
+    /// 인스펙터의 보유 목록을 기반으로
+    /// 중첩 수와 계열 개수를 다시 만든다.
+    /// </summary>
+    private void RebuildCounts()
     {
-        return GetBoonStackCount(
-            boonId
-        ) > 0;
+        boonStackCounts.Clear();
+        categoryCounts.Clear();
+
+        if (ownedBoons == null)
+        {
+            ownedBoons =
+                new List<BoonData>();
+
+            return;
+        }
+
+        for (int i = 0;
+             i < ownedBoons.Count;
+             i++)
+        {
+            BoonData boon =
+                ownedBoons[i];
+
+            if (boon == null)
+            {
+                continue;
+            }
+
+            IncrementBoonStack(
+                boon.boonId
+            );
+
+            IncrementCategory(
+                boon.category
+            );
+        }
     }
 
-    public int GetBoonStackCount(
+    private void IncrementBoonStack(
         string boonId
     )
     {
@@ -318,400 +767,56 @@ public class BoonInfo : MonoBehaviour
                 boonId
             ))
         {
-            return 0;
+            return;
         }
 
-        return boonStackCounts.TryGetValue(
-            boonId,
-            out int count
-        )
-            ? count
-            : 0;
+        boonStackCounts[boonId] =
+            GetBoonStack(
+                boonId
+            ) + 1;
     }
 
-    public int GetCategoryCount(
+    private void IncrementCategory(
         BoonCategory category
     )
     {
-        return categoryCounts.TryGetValue(
-            category,
-            out int count
-        )
-            ? count
-            : 0;
-    }
-
-    // =========================================================
-    // 공격 계열 조회
-    // =========================================================
-
-    /// <summary>
-    /// 모든 득도의 공격속도 증가율을 합산한다.
-    /// </summary>
-    public float GetAttackSpeedIncreaseRate()
-    {
-        float total = 0f;
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
-        {
-            BoonData boon =
-                ownedBoons[i];
-
-            if (boon?.attackEffect == null)
-            {
-                continue;
-            }
-
-            total +=
-                boon.attackEffect
-                    .attackSpeedIncreaseRate;
-        }
-
-        return Mathf.Max(0f, total);
+        categoryCounts[category] =
+            GetCategoryCount(
+                category
+            ) + 1;
     }
 
     /// <summary>
-    /// 공격속도 계산에 사용할 최종 배율.
-    /// 20% 증가라면 1.2를 반환한다.
+    /// Player와 PlayerStats 참조가 존재하는지 확인한다.
     /// </summary>
-    public float GetAttackSpeedMultiplier()
+    private bool ValidatePlayer()
     {
-        return 1f +
-               GetAttackSpeedIncreaseRate();
-    }
-
-    /// <summary>
-    /// 공격 적중 시 추가 경직 시간을 합산한다.
-    /// </summary>
-    public float GetAdditionalStaggerDuration()
-    {
-        float total = 0f;
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
+        if (player == null)
         {
-            BoonData boon =
-                ownedBoons[i];
-
-            if (boon?.attackEffect == null)
-            {
-                continue;
-            }
-
-            total +=
-                boon.attackEffect
-                    .additionalStaggerDuration;
+            player =
+                GetComponent<Player>();
         }
 
-        return Mathf.Max(0f, total);
-    }
-
-    /// <summary>
-    /// 대시 충돌 시 입힐 총 피해를 반환한다.
-    /// </summary>
-    public float GetDashDamage()
-    {
-        float total = 0f;
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
+        if (player == null)
         {
-            BoonData boon =
-                ownedBoons[i];
+            Debug.LogError(
+                "[BoonInfo] Player가 없습니다.",
+                this
+            );
 
-            if (boon?.attackEffect == null ||
-                !boon.attackEffect
-                    .enableDashDamage)
-            {
-                continue;
-            }
-
-            total +=
-                boon.attackEffect
-                    .dashDamage;
+            return false;
         }
 
-        return Mathf.Max(0f, total);
-    }
-
-    // =========================================================
-    // 수비 계열 조회
-    // =========================================================
-
-    /// <summary>
-    /// 받는 피해 감소율을 모두 합산한다.
-    /// 최대 95%까지만 허용한다.
-    /// </summary>
-    public float GetDamageReductionRate()
-    {
-        float total = 0f;
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
+        if (player.stats == null)
         {
-            BoonData boon =
-                ownedBoons[i];
+            Debug.LogError(
+                "[BoonInfo] Player.stats가 null입니다.",
+                player
+            );
 
-            if (boon?.defenseEffect ==
-                null)
-            {
-                continue;
-            }
-
-            total +=
-                boon.defenseEffect
-                    .damageReductionRate;
+            return false;
         }
 
-        return Mathf.Clamp(
-            total,
-            0f,
-            0.95f
-        );
-    }
-
-    /// <summary>
-    /// 피해 감소를 반영한 최종 피해량을 반환한다.
-    /// </summary>
-    public float CalculateReceivedDamage(
-        float originalDamage
-    )
-    {
-        float reductionRate =
-            GetDamageReductionRate();
-
-        return Mathf.Max(
-            0f,
-            originalDamage *
-            (1f - reductionRate)
-        );
-    }
-
-    // =========================================================
-    // 반사 조회
-    // =========================================================
-
-    /// <summary>
-    /// 특정 행동에서 발동하는 반사 득도들을 반환한다.
-    /// 새 리스트 생성을 피하기 위해 결과 리스트를 외부에서 전달받는다.
-    /// </summary>
-    public void GetReflectEffects(
-        BoonTriggerType triggerType,
-        List<ReflectEffectData> results
-    )
-    {
-        if (results == null)
-        {
-            return;
-        }
-
-        results.Clear();
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
-        {
-            BoonData boon =
-                ownedBoons[i];
-
-            ReflectEffectData effect =
-                boon?.reflectEffect;
-
-            if (effect == null ||
-                !effect.enabled)
-            {
-                continue;
-            }
-
-            if (effect.triggerType !=
-                triggerType)
-            {
-                continue;
-            }
-
-            results.Add(effect);
-        }
-    }
-
-    /// <summary>
-    /// 특정 행동에 반사 효과가 하나라도 있는지 검사한다.
-    /// </summary>
-    public bool HasReflectEffect(
-        BoonTriggerType triggerType
-    )
-    {
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
-        {
-            ReflectEffectData effect =
-                ownedBoons[i]
-                    ?.reflectEffect;
-
-            if (effect != null &&
-                effect.enabled &&
-                effect.triggerType ==
-                triggerType)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // =========================================================
-    // 디버프 조회
-    // =========================================================
-
-    /// <summary>
-    /// 특정 행동으로 부여되는 디버프들을 가져온다.
-    /// </summary>
-    public void GetDebuffEffects(
-        BoonTriggerType triggerType,
-        List<DebuffEffectData> results
-    )
-    {
-        if (results == null)
-        {
-            return;
-        }
-
-        results.Clear();
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
-        {
-            DebuffEffectData effect =
-                ownedBoons[i]
-                    ?.debuffEffect;
-
-            if (effect == null ||
-                !effect.enabled)
-            {
-                continue;
-            }
-
-            if (effect.triggerType !=
-                triggerType)
-            {
-                continue;
-            }
-
-            results.Add(effect);
-        }
-    }
-
-    // =========================================================
-    // 적 전체 능력치 감소 조회
-    // =========================================================
-
-    public float GetEnemyMoveSpeedReductionRate()
-    {
-        float total = 0f;
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
-        {
-            EnemyStatReductionEffectData effect =
-                ownedBoons[i]
-                    ?.enemyReductionEffect;
-
-            if (effect == null ||
-                !effect.enabled)
-            {
-                continue;
-            }
-
-            total +=
-                effect.moveSpeedReductionRate;
-        }
-
-        return Mathf.Clamp(
-            total,
-            0f,
-            0.95f
-        );
-    }
-
-    public float GetEnemyAttackReductionRate()
-    {
-        float total = 0f;
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
-        {
-            EnemyStatReductionEffectData effect =
-                ownedBoons[i]
-                    ?.enemyReductionEffect;
-
-            if (effect == null ||
-                !effect.enabled)
-            {
-                continue;
-            }
-
-            total +=
-                effect.attackReductionRate;
-        }
-
-        return Mathf.Clamp(
-            total,
-            0f,
-            0.95f
-        );
-    }
-
-    public float GetEnemyMaxHpReductionRate()
-    {
-        float total = 0f;
-
-        for (int i = 0;
-             i < ownedBoons.Count;
-             i++)
-        {
-            EnemyStatReductionEffectData effect =
-                ownedBoons[i]
-                    ?.enemyReductionEffect;
-
-            if (effect == null ||
-                !effect.enabled)
-            {
-                continue;
-            }
-
-            total +=
-                effect.maxHpReductionRate;
-        }
-
-        return Mathf.Clamp(
-            total,
-            0f,
-            0.95f
-        );
-    }
-
-    /// <summary>
-    /// 새 런 시작 시 득도 보유 정보를 초기화한다.
-    /// PlayerStats의 득도 스탯 초기화도 별도로 연결해야 한다.
-    /// </summary>
-    public void ClearAllBoons()
-    {
-        ownedBoons.Clear();
-        boonStackCounts.Clear();
-        categoryCounts.Clear();
-
-        Debug.Log(
-            "[BoonInfo] 모든 득도 정보 초기화",
-            this
-        );
+        return true;
     }
 }

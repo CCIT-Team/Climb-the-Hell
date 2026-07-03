@@ -10,22 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 696e5383fc7d3c2448ac7b226d5d4221, type: 3}
-  m_Name: hp
+  m_Name: L - debuff
   m_EditorClassIdentifier: 
-  boonId: hp
-  displayName: wfwr
-  description: gdg
-  icon: {fileID: 21300000, guid: 8e76907ed432e674899cd58c301a9d26, type: 3}
-  rewardTitle: HP
-  rewardDescription: HP
-  grade: 0
-  category: 0
+  boonId: Ldebuff
+  displayName: Ldebuff
+  description: Ldebuff
+  icon: {fileID: 21300000, guid: c6ecda9a6e96a2a4282907f88b27731c, type: 3}
+  rewardTitle: Ldebuff
+  rewardDescription: Ldebuff
+  grade: 1
+  category: 4
   stackable: 1
   maxStack: 1
-  categoryRequirements: []
+  categoryRequirements:
+  - category: 4
+    requiredCount: 3
   requiredBoonIds: []
   instantStatBonus:
-    maxHp: 10
+    maxHp: 0
     attack: 0
     moveSpeed: 0
     mana: 0
