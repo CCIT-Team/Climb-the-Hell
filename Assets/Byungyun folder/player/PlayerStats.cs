@@ -66,14 +66,6 @@ public class PlayerStats
             GetTotal(value => value.moveSpeed)
         );
 
-    public int Mana =>
-        Mathf.Max(
-            0,
-            Mathf.RoundToInt(GetTotal(
-                value => value.mana
-            ))
-        );
-
     public float CriticalChance =>
         Mathf.Clamp01(
             GetTotal(value => value.criticalChance)
@@ -121,6 +113,28 @@ public class PlayerStats
                 )
             )
         );
+
+    public int DeathResist =>
+    Mathf.Max(
+        0,
+        Mathf.RoundToInt(
+            GetTotal(value => value.deathResist)
+        )
+    );
+
+    public float GoldMultiplier =>
+    Mathf.Max(
+        0f,
+        GetTotal(value => value.goldMultiplier)
+    );
+
+    public int RerollCount =>
+    Mathf.Max(
+        0,
+        Mathf.RoundToInt(
+            GetTotal(value => value.rerollCount)
+        )
+    );
 
     public bool DashInvincible
     {
