@@ -8,7 +8,6 @@ public class PlayerStatValues
     public int maxHp;
     public int attack;
     public float moveSpeed;
-    public int mana;
 
     [Header("크리티컬")]
     public float criticalChance;
@@ -21,6 +20,10 @@ public class PlayerStatValues
     public float dashCooldownRecoveryMultiplier;
     public int extraDashCount;
     public bool dashInvincible;
+
+    public int deathResist;
+    public float goldMultiplier;
+    public int rerollCount;
 
     public PlayerStatValues Clone()
     {
@@ -37,7 +40,6 @@ public class PlayerStatValues
         maxHp += other.maxHp;
         attack += other.attack;
         moveSpeed += other.moveSpeed;
-        mana += other.mana;
 
         criticalChance += other.criticalChance;
         criticalMultiplier += other.criticalMultiplier;
@@ -50,6 +52,10 @@ public class PlayerStatValues
         extraDashCount += other.extraDashCount;
 
         dashInvincible |= other.dashInvincible;
+
+        deathResist += other.deathResist;
+        goldMultiplier += other.goldMultiplier;
+        rerollCount += other.rerollCount;
     }
 
     public void Subtract(PlayerStatValues other)
@@ -62,7 +68,6 @@ public class PlayerStatValues
         maxHp -= other.maxHp;
         attack -= other.attack;
         moveSpeed -= other.moveSpeed;
-        mana -= other.mana;
 
         criticalChance -= other.criticalChance;
         criticalMultiplier -= other.criticalMultiplier;
@@ -79,6 +84,10 @@ public class PlayerStatValues
          * 최종 dashInvincible은 PlayerStats에서
          * 모든 출처를 OR 연산해서 계산한다.
          */
+
+        deathResist -= other.deathResist;
+        goldMultiplier -= other.goldMultiplier;
+        rerollCount -= other.rerollCount;
     }
 
     public static PlayerStatValues CreateDefaultBaseStats()
@@ -88,7 +97,6 @@ public class PlayerStatValues
             maxHp = 100,
             attack = 10,
             moveSpeed = 5f,
-            mana = 50,
             criticalChance = 0.1f,
             criticalMultiplier = 1.5f,
 
@@ -97,7 +105,11 @@ public class PlayerStatValues
             dashCooldown = 1f,
             dashCooldownRecoveryMultiplier = 1f,
             extraDashCount = 0,
-            dashInvincible = true
+            dashInvincible = true,
+
+            deathResist = 0,
+            goldMultiplier = 1f,
+            rerollCount = 0
         };
     }
 }

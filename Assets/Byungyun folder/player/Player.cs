@@ -2,45 +2,70 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-public class Player : MonoBehaviour
+// 플레이어의 체력, 경험치, 돈, 피격, 사망 등을 관리하는 클래스
+public class Player : MonoBehaviour, IDamageable
 {
     [Header("플레이어 스탯")]
+    // 플레이어의 기본 스탯(HP, 공격력 등)
     public PlayerStats stats =
         new PlayerStats();
 
     [Header("돈 데이터")]
+    // 플레이어가 가지고 있는 돈
     public MoneyData money =
         new MoneyData();
 
     [Header("플레이어 상태")]
+    // 현재 위치
     public Vector3 playerPosition;
+
+    // 경험치
     public int exp;
 
     [Header("피격 무적")]
+    // 피격 후 무적 시간
     [SerializeField]
     private float hitInvincibleDuration = 0.5f;
 
+    // 피격 무적인지 여부
     private bool isHitInvincible;
+
+    // 대시 등으로 인한 무적인지 여부
     private bool isDashInvincible;
 
+    // 피격 무적 코루틴 저장
     private Coroutine hitInvincibleCoroutine;
 
+    // 플레이어 사망 이벤트
     public event Action OnDeath;
+
+    // HP가 변경될 때 UI 등에 알리는 이벤트
     public event Action<int> OnHpChanged;
+
+    // 남은 부활 횟수(죽음 저항)
+    private int remainDeathResist;
 
     private void Awake()
     {
+        // 플레이어 스탯 초기화
         stats.Init(true);
+
+        // 죽음 저항 횟수 초기화
+        remainDeathResist = stats.DeathResist;
     }
 
     private void Update()
     {
-        playerPosition =
-            transform.position;
+        // 현재 위치 저장
+        playerPosition = transform.position;
     }
 
+    // 데미지를 받았을 때 호출
     public void TakeDamage(int damage)
     {
+        Debug.Log($"🩸 Player Hit: {damage}");
+
+        // 데미지가 없거나, 이미 죽었거나, 무적이면 무시
         if (damage <= 0 ||
             stats.IsDead() ||
             IsInvincible())
@@ -48,12 +73,12 @@ public class Player : MonoBehaviour
             return;
         }
 
+        // 실제 HP 감소
         bool dead =
             stats.TakeDamage(damage);
 
-        OnHpChanged?.Invoke(
-            stats.CurrentHp
-        );
+        // UI 갱신
+        OnHpChanged?.Invoke(stats.CurrentHp);
 
         Debug.Log(
             $"[Player] 피격 {damage} / " +
@@ -61,15 +86,47 @@ public class Player : MonoBehaviour
             this
         );
 
+        // 죽었는지 확인
         if (dead)
         {
+            // 죽음 저항이 남아있으면 자동 부활
+            if (remainDeathResist > 0)
+            {
+                remainDeathResist--;
+
+                ReviveByDeathResist();
+
+                return;
+            }
+
+            // 완전히 사망
             Die();
             return;
         }
 
+        // 피격 후 잠깐 무적
         StartHitInvincible();
     }
 
+    // 죽음 저항으로 부활
+    private void ReviveByDeathResist()
+    {
+        StopHitInvincible();
+
+        isDashInvincible = false;
+
+        // HP 전부 회복
+        stats.Init(true);
+
+        OnHpChanged?.Invoke(stats.CurrentHp);
+
+        // 부활 후 잠시 무적
+        StartHitInvincible();
+
+        Debug.Log($"죽음 저항 발동! 남은 횟수 : {remainDeathResist}");
+    }
+
+    // 체력 회복
     public void HealHp(int amount)
     {
         if (amount <= 0 ||
@@ -80,22 +137,23 @@ public class Player : MonoBehaviour
 
         stats.Heal(amount);
 
-        OnHpChanged?.Invoke(
-            stats.CurrentHp
-        );
+        OnHpChanged?.Invoke(stats.CurrentHp);
     }
 
+    // 대시 무적 설정
     public void SetInvincible(bool value)
     {
         isDashInvincible = value;
     }
 
+    // 현재 무적인지 확인
     public bool IsInvincible()
     {
         return isHitInvincible ||
                isDashInvincible;
     }
 
+    // 경험치 획득
     public void AddExp(int amount)
     {
         if (amount <= 0)
@@ -106,6 +164,7 @@ public class Player : MonoBehaviour
         exp += amount;
     }
 
+    // 외부에서 호출하는 일반 부활
     public void Revive()
     {
         StopHitInvincible();
@@ -114,13 +173,15 @@ public class Player : MonoBehaviour
 
         stats.Init(true);
 
-        OnHpChanged?.Invoke(
-            stats.CurrentHp
-        );
+        Debug.Log($"남은 부활 횟수 : {remainDeathResist}");
+
+        OnHpChanged?.Invoke(stats.CurrentHp);
     }
 
+    // 피격 무적 시작
     private void StartHitInvincible()
     {
+        // 기존 코루틴이 있으면 종료
         StopHitInvincible();
 
         hitInvincibleCoroutine =
@@ -129,6 +190,7 @@ public class Player : MonoBehaviour
             );
     }
 
+    // 일정 시간 동안 피격 무적 유지
     private IEnumerator HitInvincibleRoutine()
     {
         isHitInvincible = true;
@@ -141,6 +203,7 @@ public class Player : MonoBehaviour
         hitInvincibleCoroutine = null;
     }
 
+    // 피격 무적 종료
     private void StopHitInvincible()
     {
         if (hitInvincibleCoroutine != null)
@@ -155,6 +218,7 @@ public class Player : MonoBehaviour
         isHitInvincible = false;
     }
 
+    // 플레이어 사망
     private void Die()
     {
         StopHitInvincible();
@@ -166,19 +230,23 @@ public class Player : MonoBehaviour
             this
         );
 
+        // GameManager 등이 이 이벤트를 받아 게임 오버 처리
         OnDeath?.Invoke();
     }
 
+    // 현재 HP 반환
     public int GetCurrentHp()
     {
         return stats.CurrentHp;
     }
 
+    // 최대 HP 반환
     public int GetMaxHp()
     {
         return stats.MaxHp;
     }
 
+    // 살아있는지 여부
     public bool IsAlive()
     {
         return !stats.IsDead();
@@ -186,7 +254,14 @@ public class Player : MonoBehaviour
 
     private void OnDisable()
     {
+        // 오브젝트 비활성화 시 무적 상태 초기화
         StopHitInvincible();
         isDashInvincible = false;
+    }
+
+    // 스탯이 변경됐을 때 죽음 저항 횟수도 다시 적용
+    public void RefreshDeathResist()
+    {
+        remainDeathResist = stats.DeathResist;
     }
 }
