@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &5124396739306259372
+--- !u!1 &6925638292750843097
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,48 +8,48 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 4054945671664366224}
-  - component: {fileID: 2027779978459019118}
-  - component: {fileID: 1873497985385753311}
-  - component: {fileID: 7940438261929777576}
+  - component: {fileID: 6856782408058495466}
+  - component: {fileID: 8077608452129141689}
+  - component: {fileID: 654680010390418169}
+  - component: {fileID: 1084254406432662912}
+  - component: {fileID: 8323213784420827941}
   m_Layer: 0
-  m_Name: Lava Cauldron
+  m_Name: Lava Pool
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 0
---- !u!4 &4054945671664366224
+--- !u!4 &6856782408058495466
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5124396739306259372}
+  m_GameObject: {fileID: 6925638292750843097}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -9.69, y: -5.14, z: -4.91}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -3.71, y: -5.17, z: -5.81}
+  m_LocalScale: {x: 3, y: 0.5, z: 3}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 4789478815432415140}
+  m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &2027779978459019118
+--- !u!33 &8077608452129141689
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5124396739306259372}
-  m_Mesh: {fileID: 3562994864544037467, guid: 16e394d12219d7d4eae26cf4f3f5b7de, type: 3}
---- !u!23 &1873497985385753311
+  m_GameObject: {fileID: 6925638292750843097}
+  m_Mesh: {fileID: 8630723578146661619, guid: 277b54ce3f3557f4698b0a57ffa246a6, type: 3}
+--- !u!23 &654680010390418169
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5124396739306259372}
+  m_GameObject: {fileID: 6925638292750843097}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -64,7 +64,6 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: de75bd2ec7b45c748bcd1c692422fc7b, type: 2}
-  - {fileID: 2100000, guid: 209a37c48f22ae942a8b40259d1d630c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -86,51 +85,39 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7940438261929777576
+--- !u!114 &1084254406432662912
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5124396739306259372}
+  m_GameObject: {fileID: 6925638292750843097}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d4f0aa1a4e156d646b708edc8af542dd, type: 3}
+  m_Script: {fileID: 11500000, guid: f488e1040af39bc4c978c0f78a10e6a4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lavaPrefab: {fileID: 5274626371973168847, guid: 47c169bbc429e4a48a97f4c7155aeff3, type: 3}
-  warningPrefab: {fileID: 3537261184723978360, guid: fe02cf47084612e499db71726c5db3b9, type: 3}
-  poolSize: 5
-  arcHeight: 5
-  warningTime: 1
---- !u!1 &8153625675915290291
-GameObject:
+  effect: {fileID: 11400000, guid: caeb1dda293c06d4dae96c0d4fe2b6d9, type: 2}
+--- !u!136 &8323213784420827941
+CapsuleCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 4789478815432415140}
-  m_Layer: 0
-  m_Name: Spawn Point
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &4789478815432415140
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8153625675915290291}
+  m_GameObject: {fileID: 6925638292750843097}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 4054945671664366224}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_Radius: 0.5993073
+  m_Height: 7.1916876
+  m_Direction: 1
+  m_Center: {x: 0.00068656605, y: 1.2984519, z: 0.010831237}
