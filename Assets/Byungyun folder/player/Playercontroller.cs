@@ -67,11 +67,14 @@ public class PlayerController : MonoBehaviour
     private void SetupRigidbody()
     {
         /*
-         * X, Z 회전은 고정해서 충돌 시 넘어지지 않게 한다.
-         * Y 회전은 캐릭터 방향 변경에 사용한다.
+         * 이 캐릭터의 회전(X, Y, Z 전부)은 물리 솔버의 토크가 아니라
+         * PlayerController 스크립트(MoveRotation/FaceDirection)가
+         * 전적으로 결정한다. 따라서 세 축을 모두 잠가
+         * 충돌 임펄스가 각속도로 흡수되는 경로 자체를 차단한다.
          */
         rb.constraints =
             RigidbodyConstraints.FreezeRotationX |
+            RigidbodyConstraints.FreezeRotationY |   // ← 추가
             RigidbodyConstraints.FreezeRotationZ;
 
         rb.isKinematic = false;
