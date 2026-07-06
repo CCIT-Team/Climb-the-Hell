@@ -260,7 +260,6 @@ public class BoonInfo : MonoBehaviour
             $"최대 체력: {bonus.maxHp}\n" +
             $"공격력: {bonus.attack}\n" +
             $"이동속도: {bonus.moveSpeed}\n" +
-            $"마나: {bonus.mana}\n" +
             $"크리티컬 확률: {bonus.criticalChance}\n" +
             $"크리티컬 배율: {bonus.criticalMultiplier}",
             boon
