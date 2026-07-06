@@ -6,6 +6,7 @@ TagManager:
   tags:
   - floor
   - Monster
+  - Weapon
   layers:
   - Default
   - TransparentFX
@@ -18,7 +19,7 @@ TagManager:
   - Projectile
   - Reflect
   - Player
-  - 
+  - Interactable
   - 
   - 
   - 
