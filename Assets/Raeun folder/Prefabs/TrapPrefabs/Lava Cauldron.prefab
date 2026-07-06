@@ -99,9 +99,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lavaPrefab: {fileID: 5274626371973168847, guid: 47c169bbc429e4a48a97f4c7155aeff3, type: 3}
+  warningPrefab: {fileID: 3537261184723978360, guid: fe02cf47084612e499db71726c5db3b9, type: 3}
   poolSize: 5
-  spawnInterval: 5
   arcHeight: 5
+  warningTime: 1
 --- !u!1 &8153625675915290291
 GameObject:
   m_ObjectHideFlags: 0

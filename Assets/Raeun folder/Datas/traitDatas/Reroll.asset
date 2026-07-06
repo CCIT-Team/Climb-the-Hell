@@ -12,6 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e75cc4ce981e9b4590433d33a4bd33b, type: 3}
   m_Name: Reroll
   m_EditorClassIdentifier: 
+  traitName: "\uB4DD\uB3C4 \uC0C8\uB85C\uACE0\uCE68"
   type: 8
   maxLevel: 3
-  valuePerLevel: 0
+  valuePerLevel: 1
+  levelPrices:
+  - 0.7
+  - 3
+  - 9

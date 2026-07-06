@@ -12,6 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e75cc4ce981e9b4590433d33a4bd33b, type: 3}
   m_Name: Attack
   m_EditorClassIdentifier: 
+  traitName: "\uACF5\uACA9\uB825 \uC99D\uAC00"
   type: 2
   maxLevel: 5
   valuePerLevel: 0
+  levelPrices:
+  - 0.5
+  - 0.7
+  - 0.9
+  - 1.1
+  - 1.3

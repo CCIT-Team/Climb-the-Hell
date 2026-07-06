@@ -12,6 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e75cc4ce981e9b4590433d33a4bd33b, type: 3}
   m_Name: DeathResist
   m_EditorClassIdentifier: 
+  traitName: "\uC8FD\uC74C \uC800\uD56D"
   type: 3
   maxLevel: 2
-  valuePerLevel: 0
+  valuePerLevel: 1
+  levelPrices:
+  - 1
+  - 8

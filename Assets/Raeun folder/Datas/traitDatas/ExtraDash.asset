@@ -12,6 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e75cc4ce981e9b4590433d33a4bd33b, type: 3}
   m_Name: ExtraDash
   m_EditorClassIdentifier: 
+  traitName: "\uC5F0\uC18D \uB300\uC2DC \uAC00\uB2A5"
   type: 6
   maxLevel: 1
-  valuePerLevel: 0
+  valuePerLevel: 1
+  levelPrices:
+  - 2
