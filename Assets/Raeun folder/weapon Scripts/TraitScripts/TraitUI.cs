@@ -59,4 +59,9 @@ public class TraitUI : UIBase
         // 돈이 바뀌면 특성 구매 가능 여부도 다시 계산
         traitPanel.Refresh();
     }
+
+    public void OnClickClose()
+    {
+        Close();
+    }
 }

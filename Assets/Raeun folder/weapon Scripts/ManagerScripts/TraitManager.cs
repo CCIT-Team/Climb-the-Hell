@@ -61,6 +61,9 @@ public class TraitManager : MonoBehaviour
         // 변경 내용 저장
         GameManager.Instance.SaveGame();
 
+        // 마지막에 UI 새로고침
+        GameManager.Instance.hubManager.traitUI.RefreshUI();
+
         return true;
     }
 

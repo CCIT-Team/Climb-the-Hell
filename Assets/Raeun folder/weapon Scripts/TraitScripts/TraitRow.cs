@@ -34,21 +34,26 @@ public class TraitRow : MonoBehaviour
 
     // Row 초기화
     public void Init(
-        TraitData traitData,
-        TraitManager manager,
-        TraitUI ui)
+    TraitData traitData,
+    TraitManager manager,
+    TraitUI ui)
     {
         trait = traitData;
         traitManager = manager;
         traitUI = ui;
 
-        // 초기 UI 갱신
+        // 버튼 클릭 이벤트 연결
+        upgradeButton.onClick.RemoveAllListeners();
+        upgradeButton.onClick.AddListener(Buy);
+
         Refresh();
     }
 
     // 구매 버튼이 눌렸을 때 호출
     public void Buy()
     {
+        Debug.Log("구매 버튼 클릭!");
+
         traitManager.BuyTrait(trait);
     }
 
@@ -114,7 +119,7 @@ public class TraitRow : MonoBehaviour
         // 돈이 부족하면 빨간색
         priceText.color =
             canBuy
-                ? Color.white
+                ? Color.black
                 : Color.red;
     }
 
