@@ -10,6 +10,8 @@ public class JakduRide : MonoBehaviour
     private PlayerStatValues activeBuff;
     private PlayerStatValues activeDebuff;
 
+    private bool activeEffectIsPermanent;
+
     private void Awake()
     {
         player =
@@ -26,6 +28,17 @@ public class JakduRide : MonoBehaviour
             return;
         }
 
+        if (player == null ||
+            player.stats == null)
+        {
+            Debug.LogError(
+                "[JakduRide] Player 또는 PlayerStats가 없습니다.",
+                this
+            );
+
+            return;
+        }
+
         RemoveCurrentEffect();
 
         activeBuff =
@@ -38,15 +51,20 @@ public class JakduRide : MonoBehaviour
                 ? effect.debuffStats.Clone()
                 : new PlayerStatValues();
 
-        player.stats.AddRuntimeModifier(
-            activeBuff
-        );
+        activeEffectIsPermanent =
+            effect.permanent;
 
-        player.stats.AddRuntimeModifier(
-            activeDebuff
-        );
+        player.stats
+            .AddRuntimeModifier(
+                activeBuff
+            );
 
-        if (!effect.permanent &&
+        player.stats
+            .AddRuntimeModifier(
+                activeDebuff
+            );
+
+        if (!activeEffectIsPermanent &&
             effect.duration > 0f)
         {
             activeRoutine =
@@ -58,7 +76,9 @@ public class JakduRide : MonoBehaviour
         }
 
         Debug.Log(
-            "[JakduRide] 버프와 디버프 적용",
+            activeEffectIsPermanent
+                ? "[JakduRide] 영구 버프와 디버프 적용"
+                : "[JakduRide] 제한시간 버프와 디버프 적용",
             this
         );
     }
@@ -67,33 +87,48 @@ public class JakduRide : MonoBehaviour
     {
         if (activeRoutine != null)
         {
-            StopCoroutine(activeRoutine);
+            StopCoroutine(
+                activeRoutine
+            );
+
             activeRoutine = null;
         }
 
         if (player != null &&
             player.stats != null)
         {
-            player.stats.RemoveRuntimeModifier(
-                activeBuff
-            );
+            if (activeBuff != null)
+            {
+                player.stats
+                    .RemoveRuntimeModifier(
+                        activeBuff
+                    );
+            }
 
-            player.stats.RemoveRuntimeModifier(
-                activeDebuff
-            );
+            if (activeDebuff != null)
+            {
+                player.stats
+                    .RemoveRuntimeModifier(
+                        activeDebuff
+                    );
+            }
         }
 
         activeBuff = null;
         activeDebuff = null;
+
+        activeEffectIsPermanent =
+            false;
     }
 
     private IEnumerator DurationRoutine(
         float duration
     )
     {
-        yield return new WaitForSeconds(
-            duration
-        );
+        yield return
+            new WaitForSeconds(
+                duration
+            );
 
         activeRoutine = null;
 
@@ -102,6 +137,23 @@ public class JakduRide : MonoBehaviour
 
     private void OnDisable()
     {
+        /*
+         * 일시 효과는 비활성화 시 정리한다.
+         * 영구 효과는 오브젝트가 잠시 비활성화됐다는 이유만으로
+         * 사라지지 않게 유지한다.
+         */
+        if (!activeEffectIsPermanent)
+        {
+            RemoveCurrentEffect();
+        }
+    }
+
+    private void OnDestroy()
+    {
+        /*
+         * 실제 오브젝트가 파괴될 때는
+         * 남아 있는 런타임 Modifier를 정리한다.
+         */
         RemoveCurrentEffect();
     }
 }

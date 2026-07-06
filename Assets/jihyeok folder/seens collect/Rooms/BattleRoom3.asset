@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f113429d860e92c418bea1dcc7cb07d5, type: 3}
+  m_Name: BattleRoom3
+  m_EditorClassIdentifier: 
+  roomId: battle3
+  displayName: battle3
+  roomType: 4
+  sceneName: CombatRoom_3
+  minimumFloor: 1
+  maximumFloor: 9
+  baseWeight: 10
+  canAppearRandomly: 1
+  allowImmediateRepeat: 0
+  minimumFloorGap: 0
+  maximumVisitsPerRun: 0
+  usePityWeight: 0
+  pityWeightPerMiss: 5
+  guaranteedAfterMisses: 0
+  nextRooms: []

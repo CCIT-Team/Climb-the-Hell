@@ -1,231 +1,367 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
+/// <summary>
+/// 씬에 이미 배치된 문을 관리한다.
+///
+/// 문 위 아이콘 Quad는 씬 로드 직후부터 계속 표시한다.
+/// 문 상태와 상관없이 아이콘을 끄지 않으며,
+/// 경로가 설정되면 Material만 교체한다.
+/// </summary>
 public class DungeonDoor : MonoBehaviour
 {
-    [Header("몬스터 스포너")]
-    [SerializeField] private MonsterSpawner monsterSpawner;
+    [Header("문 회전")]
+    [SerializeField]
+    private Transform doorPivot;
 
-    [Header("문 회전축")]
-    [Tooltip("문의 왼쪽 경첩 위치에 배치한 빈 오브젝트")]
-    [SerializeField] private Transform doorPivot;
+    [SerializeField]
+    private DoorSceneTrigger sceneTrigger;
 
-    [Header("문 열기 설정")]
-    [Tooltip("문이 열릴 때 Y축으로 회전할 각도")]
-    [SerializeField] private float openAngle = -90f;
+    [Tooltip("문이 열릴 Y축 각도")]
+    [SerializeField]
+    private float openAngle = -90f;
 
-    [Tooltip("문이 열리는 데 걸리는 시간")]
-    [SerializeField] private float openDuration = 1.5f;
+    [Min(0f)]
+    [SerializeField]
+    private float openDuration = 1.2f;
 
-    [Header("문 닫기 설정")]
-    [Tooltip("플레이어가 들어간 뒤 문이 닫히는 시간")]
-    [SerializeField] private float closeDuration = 3f;
+    [Min(0f)]
+    [SerializeField]
+    private float closeDuration = 0.8f;
 
-    [Header("씬 이동 Trigger")]
-    [Tooltip("DoorSceneTrigger가 붙어 있는 오브젝트")]
-    [SerializeField] private DoorSceneTrigger sceneChangeTrigger;
+    [Min(0f)]
+    [SerializeField]
+    private float triggerEnableDelay = 0.2f;
 
-    [Header("문 위 표시")]
-    [SerializeField] private GameObject destinationObject;
+    [Header("문 위 아이콘 Quad")]
+    [Tooltip(
+        "씬 시작부터 계속 표시할 문 위 Quad 오브젝트"
+    )]
+    [SerializeField]
+    private GameObject routeIconQuad;
 
-    [Header("이동할 씬")]
-    [SerializeField] private string targetSceneName;
+    [Tooltip(
+        "Route Icon Quad의 MeshRenderer. 비워두면 자동 탐색"
+    )]
+    [SerializeField]
+    private MeshRenderer routeIconRenderer;
 
-    [Header("Trigger 활성화 지연")]
-    [Tooltip("문이 완전히 열린 뒤 Trigger가 활성화될 때까지의 시간")]
-    [SerializeField] private float activationDelay = 0.5f;
+    [Header("전투방 득도 태그 Material")]
+    [SerializeField]
+    private Material attackMaterial;
+
+    [SerializeField]
+    private Material defenseMaterial;
+
+    [SerializeField]
+    private Material mobilityMaterial;
+
+    [SerializeField]
+    private Material debuffMaterial;
+
+    [Header("비전투방 아이콘 Material")]
+    [SerializeField]
+    private Material rewardRoomMaterial;
+
+    [SerializeField]
+    private Material shopRoomMaterial;
+
+    [SerializeField]
+    private Material jakduRoomMaterial;
+
+    [SerializeField]
+    private Material eventRoomMaterial;
+
+    [SerializeField]
+    private Material bossRoomMaterial;
 
     private Quaternion closedRotation;
     private Quaternion openedRotation;
 
-    private bool isOpened;
-    private bool isChangingScene;
-    private bool isDoorAnimating;
+    private RoomRouteOption route;
 
-    private Coroutine doorCoroutine;
+    private bool doorEnabled;
+    private bool opened;
+    private bool animating;
+    private bool changingScene;
+
+    private Coroutine doorRoutine;
+
+    private void Reset()
+    {
+        FindIconRenderer();
+    }
 
     private void Awake()
     {
-        if (doorPivot != null)
-        {
-            closedRotation = doorPivot.localRotation;
-
-            openedRotation =
-                closedRotation *
-                Quaternion.Euler(0f, openAngle, 0f);
-        }
-        else
+        if (doorPivot == null)
         {
             Debug.LogError(
                 "[DungeonDoor] Door Pivot이 연결되지 않았습니다.",
                 this
             );
+
+            enabled = false;
+            return;
         }
 
-        if (destinationObject != null)
-        {
-            destinationObject.SetActive(false);
-        }
+        FindIconRenderer();
 
-        if (sceneChangeTrigger != null)
-        {
-            sceneChangeTrigger.Initialize(this);
-            sceneChangeTrigger.SetTriggerEnabled(false);
-        }
-        else
-        {
-            Debug.LogError(
-                "[DungeonDoor] Scene Change Trigger가 연결되지 않았습니다.",
-                this
+        closedRotation =
+            doorPivot.localRotation;
+
+        openedRotation =
+            closedRotation *
+            Quaternion.Euler(
+                0f,
+                openAngle,
+                0f
             );
+
+        if (sceneTrigger != null)
+        {
+            sceneTrigger.Initialize(this);
+            sceneTrigger.SetTriggerEnabled(false);
         }
+
+        /*
+         * 아이콘은 씬 로드 직후부터 항상 표시한다.
+         * Inspector에서 설정한 기본 Material도 그대로 보인다.
+         */
+        KeepIconVisible();
     }
 
-    private void OnEnable()
+    /// <summary>
+    /// RoomChoiceGenerator가 다음 방 정보를 전달한다.
+    /// 아이콘은 끄지 않고 Material만 교체한다.
+    /// </summary>
+    public void Configure(
+        RoomRouteOption newRoute
+    )
     {
-        if (monsterSpawner != null)
-        {
-            monsterSpawner.OnAllPhasesCleared += OpenDoor;
-        }
-    }
+        route = newRoute;
 
-    private void Start()
-    {
-        if (monsterSpawner == null)
+        opened = false;
+        animating = false;
+        changingScene = false;
+
+        if (doorRoutine != null)
         {
+            StopCoroutine(doorRoutine);
+            doorRoutine = null;
+        }
+
+        if (doorPivot != null)
+        {
+            doorPivot.localRotation =
+                closedRotation;
+        }
+
+        doorEnabled =
+            route != null &&
+            route.IsValid;
+
+        if (sceneTrigger != null)
+        {
+            sceneTrigger.SetTriggerEnabled(false);
+        }
+
+        /*
+         * 경로가 잘못되어도 아이콘은 숨기지 않는다.
+         * 기존 Material과 표시 상태를 유지한다.
+         */
+        if (!doorEnabled)
+        {
+            KeepIconVisible();
+
             Debug.LogWarning(
-                "[DungeonDoor] MonsterSpawner가 연결되지 않았습니다.",
+                "[DungeonDoor] 유효하지 않은 경로가 전달되었습니다.",
                 this
             );
 
             return;
         }
 
-        if (monsterSpawner.IsCleared)
-        {
-            OpenDoor();
-        }
-    }
+        ApplyCurrentRouteMaterial();
 
-    private void OnDisable()
-    {
-        if (monsterSpawner != null)
-        {
-            monsterSpawner.OnAllPhasesCleared -= OpenDoor;
-        }
-    }
-
-    private void OpenDoor()
-    {
-        if (isOpened ||
-            isChangingScene ||
-            isDoorAnimating)
-        {
-            return;
-        }
-
-        if (doorPivot == null)
-        {
-            Debug.LogError(
-                "[DungeonDoor] Door Pivot이 없어 문을 열 수 없습니다.",
-                this
-            );
-
-            return;
-        }
-
-        isOpened = true;
-
-        if (destinationObject != null)
-        {
-            destinationObject.SetActive(true);
-        }
-
-        if (doorCoroutine != null)
-        {
-            StopCoroutine(doorCoroutine);
-        }
-
-        doorCoroutine = StartCoroutine(
-            OpenDoorRoutine()
+        Debug.Log(
+            $"[DungeonDoor] 경로 설정 완료 / " +
+            $"방: {route.TargetRoom.name} / " +
+            $"태그: {route.RewardCategory}",
+            this
         );
     }
 
-    private IEnumerator OpenDoorRoutine()
+    /// <summary>
+    /// 문 사용 가능 여부를 설정한다.
+    /// 이 값은 아이콘 표시에는 영향을 주지 않는다.
+    /// </summary>
+    public void SetDoorEnabled(
+        bool value
+    )
+    {
+        doorEnabled = value;
+
+        if (value)
+        {
+            KeepIconVisible();
+            return;
+        }
+
+        opened = false;
+        changingScene = false;
+
+        if (doorRoutine != null)
+        {
+            StopCoroutine(doorRoutine);
+            doorRoutine = null;
+        }
+
+        if (sceneTrigger != null)
+        {
+            sceneTrigger.SetTriggerEnabled(false);
+        }
+
+        if (doorPivot != null)
+        {
+            doorPivot.localRotation =
+                closedRotation;
+        }
+
+        /*
+         * 문을 비활성 상태로 바꿔도
+         * 아이콘은 계속 표시한다.
+         */
+        KeepIconVisible();
+    }
+
+    /// <summary>
+    /// 아이콘을 유지한 상태로 문을 연다.
+    /// </summary>
+    public void Open()
+    {
+        if (!doorEnabled ||
+            route == null ||
+            !route.IsValid ||
+            opened ||
+            animating)
+        {
+            KeepIconVisible();
+            return;
+        }
+
+        opened = true;
+
+        ApplyCurrentRouteMaterial();
+
+        if (doorRoutine != null)
+        {
+            StopCoroutine(doorRoutine);
+        }
+
+        doorRoutine =
+            StartCoroutine(
+                OpenRoutine()
+            );
+    }
+
+    /// <summary>
+    /// DoorSceneTrigger가 플레이어 진입 시 호출한다.
+    /// </summary>
+    public bool TryEnter(
+        Player player
+    )
+    {
+        if (player == null ||
+            !doorEnabled ||
+            !opened ||
+            animating ||
+            changingScene ||
+            route == null ||
+            !route.IsValid)
+        {
+            return false;
+        }
+
+        changingScene = true;
+
+        if (sceneTrigger != null)
+        {
+            sceneTrigger.SetTriggerEnabled(false);
+        }
+
+        if (doorRoutine != null)
+        {
+            StopCoroutine(doorRoutine);
+        }
+
+        doorRoutine =
+            StartCoroutine(
+                CloseAndMoveRoutine()
+            );
+
+        return true;
+    }
+
+    private IEnumerator OpenRoutine()
     {
         yield return RotateDoor(
             openedRotation,
             openDuration
         );
 
-        if (activationDelay > 0f)
+        if (triggerEnableDelay > 0f)
         {
             yield return new WaitForSeconds(
-                activationDelay
+                triggerEnableDelay
             );
         }
 
-        if (sceneChangeTrigger != null &&
-            !isChangingScene)
+        if (sceneTrigger != null &&
+            !changingScene)
         {
-            sceneChangeTrigger.SetTriggerEnabled(true);
+            sceneTrigger.SetTriggerEnabled(true);
         }
 
-        doorCoroutine = null;
+        KeepIconVisible();
+
+        doorRoutine = null;
     }
 
-    public void TryChangeScene(Player player)
+    private IEnumerator CloseAndMoveRoutine()
     {
-        if (!isOpened ||
-            isChangingScene ||
-            isDoorAnimating ||
-            player == null)
-        {
-            return;
-        }
-
-        if (!ValidateTargetScene())
-        {
-            return;
-        }
-
-        if (doorCoroutine != null)
-        {
-            StopCoroutine(doorCoroutine);
-        }
-
-        doorCoroutine = StartCoroutine(
-            CloseDoorAndChangeScene()
-        );
-    }
-
-    private IEnumerator CloseDoorAndChangeScene()
-    {
-        isChangingScene = true;
-
-        if (sceneChangeTrigger != null)
-        {
-            sceneChangeTrigger.SetTriggerEnabled(false);
-        }
-
-        if (destinationObject != null)
-        {
-            destinationObject.SetActive(false);
-        }
-
         /*
-         * 플레이어가 Trigger에 들어온 순간부터
-         * closeDuration 동안 문이 닫힌다.
+         * 문이 닫히는 동안에도 아이콘은 유지한다.
          */
+        KeepIconVisible();
+
         yield return RotateDoor(
             closedRotation,
             closeDuration
         );
 
-        doorCoroutine = null;
+        doorRoutine = null;
 
-        ChangeScene();
+        bool requestSucceeded =
+            RunFlowManager
+                .Instance
+                .RequestRoute(route);
+
+        if (requestSucceeded)
+        {
+            yield break;
+        }
+
+        Debug.LogError(
+            "[DungeonDoor] 다음 방 이동 요청에 실패했습니다.",
+            this
+        );
+
+        changingScene = false;
+        opened = false;
+
+        KeepIconVisible();
+        Open();
     }
 
     private IEnumerator RotateDoor(
@@ -238,7 +374,7 @@ public class DungeonDoor : MonoBehaviour
             yield break;
         }
 
-        isDoorAnimating = true;
+        animating = true;
 
         Quaternion startRotation =
             doorPivot.localRotation;
@@ -248,23 +384,21 @@ public class DungeonDoor : MonoBehaviour
             doorPivot.localRotation =
                 targetRotation;
 
-            isDoorAnimating = false;
+            animating = false;
             yield break;
         }
 
-        float elapsedTime = 0f;
+        float elapsed = 0f;
 
-        while (elapsedTime < duration)
+        while (elapsed < duration)
         {
-            elapsedTime += Time.deltaTime;
+            elapsed += Time.deltaTime;
 
-            float ratio = Mathf.Clamp01(
-                elapsedTime / duration
-            );
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed / duration
+                );
 
-            /*
-             * 시작과 끝에서 회전 속도를 줄이는 보간
-             */
             float smoothRatio =
                 ratio *
                 ratio *
@@ -283,41 +417,197 @@ public class DungeonDoor : MonoBehaviour
         doorPivot.localRotation =
             targetRotation;
 
-        isDoorAnimating = false;
+        animating = false;
     }
 
-    private bool ValidateTargetScene()
+    /// <summary>
+    /// 현재 경로에 맞는 Material만 교체한다.
+    /// 아이콘 오브젝트는 절대 끄지 않는다.
+    /// </summary>
+    private void ApplyCurrentRouteMaterial()
     {
-        if (string.IsNullOrWhiteSpace(targetSceneName))
-        {
-            Debug.LogWarning(
-                "[DungeonDoor] 이동할 씬 이름이 비어 있습니다.",
-                this
-            );
+        KeepIconVisible();
 
-            return false;
+        if (route == null ||
+            route.TargetRoom == null)
+        {
+            return;
         }
 
-        if (!Application.CanStreamedLevelBeLoaded(
-                targetSceneName
-            ))
+        if (routeIconRenderer == null)
         {
             Debug.LogError(
-                $"[DungeonDoor] '{targetSceneName}' 씬을 불러올 수 없습니다. " +
-                "Build Profiles의 Scene List를 확인하세요.",
+                "[DungeonDoor] Route Icon Quad에 MeshRenderer가 없습니다.",
                 this
             );
 
-            return false;
+            return;
         }
 
-        return true;
+        Material selectedMaterial =
+            GetRouteMaterial();
+
+        if (selectedMaterial == null)
+        {
+            Debug.LogWarning(
+                $"[DungeonDoor] 적용할 Material이 없습니다. " +
+                $"방 타입: {route.TargetRoom.RoomType}, " +
+                $"태그: {route.RewardCategory}",
+                this
+            );
+
+            return;
+        }
+
+        /*
+         * Material 복제 생성을 막기 위해
+         * sharedMaterial로 교체한다.
+         */
+        routeIconRenderer.sharedMaterial =
+            selectedMaterial;
     }
 
-    private void ChangeScene()
+    /// <summary>
+    /// 아이콘 Quad와 Renderer를 항상 활성 상태로 유지한다.
+    /// </summary>
+    private void KeepIconVisible()
     {
-        SceneManager.LoadScene(
-            targetSceneName
+        if (routeIconQuad == null)
+        {
+            return;
+        }
+
+        if (!routeIconQuad.activeSelf)
+        {
+            routeIconQuad.SetActive(true);
+        }
+
+        FindIconRenderer();
+
+        if (routeIconRenderer != null)
+        {
+            routeIconRenderer.enabled =
+                true;
+        }
+    }
+
+    private void FindIconRenderer()
+    {
+        if (routeIconQuad == null ||
+            routeIconRenderer != null)
+        {
+            return;
+        }
+
+        routeIconRenderer =
+            routeIconQuad
+                .GetComponent<MeshRenderer>();
+
+        if (routeIconRenderer == null)
+        {
+            routeIconRenderer =
+                routeIconQuad
+                    .GetComponentInChildren<
+                        MeshRenderer>(true);
+        }
+    }
+
+    private Material GetRouteMaterial()
+    {
+        RoomType roomType =
+            route.TargetRoom.RoomType;
+
+        if (roomType ==
+            RoomType.Combat)
+        {
+            return GetBoonMaterial(
+                route.RewardCategory
+            );
+        }
+
+        return GetRoomMaterial(
+            roomType
         );
+    }
+
+    private Material GetBoonMaterial(
+        BoonCategory category
+    )
+    {
+        switch (category)
+        {
+            case BoonCategory.Attack:
+                return attackMaterial;
+
+            case BoonCategory.Defense:
+                return defenseMaterial;
+
+            case BoonCategory.Mobility:
+                return mobilityMaterial;
+
+            case BoonCategory.Debuff:
+                return debuffMaterial;
+
+            default:
+                Debug.LogWarning(
+                    "[DungeonDoor] 전투방인데 득도 태그가 None입니다.",
+                    this
+                );
+
+                return null;
+        }
+    }
+
+    private Material GetRoomMaterial(
+        RoomType roomType
+    )
+    {
+        switch (roomType)
+        {
+            case RoomType.Reward:
+                return rewardRoomMaterial;
+
+            case RoomType.Shop:
+                return shopRoomMaterial;
+
+            case RoomType.Jakdu:
+                return jakduRoomMaterial;
+
+            case RoomType.Event:
+                return eventRoomMaterial;
+
+            case RoomType.Boss:
+                return bossRoomMaterial;
+
+            default:
+                return null;
+        }
+    }
+
+    private void OnEnable()
+    {
+        /*
+         * 씬 로드 또는 오브젝트 재활성화 시에도
+         * 아이콘을 즉시 다시 표시한다.
+         */
+        KeepIconVisible();
+    }
+
+    private void OnDisable()
+    {
+        if (doorRoutine != null)
+        {
+            StopCoroutine(doorRoutine);
+            doorRoutine = null;
+        }
+
+        if (sceneTrigger != null)
+        {
+            sceneTrigger.SetTriggerEnabled(false);
+        }
+
+        /*
+         * 여기서도 아이콘을 끄는 코드는 없다.
+         */
     }
 }
