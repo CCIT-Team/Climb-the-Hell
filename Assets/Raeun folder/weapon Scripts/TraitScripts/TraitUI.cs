@@ -54,7 +54,7 @@ public class TraitUI : UIBase
     private void UpdateMoneyText(int money)
     {
         // 보유한 돈 표시
-        currencyText.text = money.ToString();
+        currencyText.text = $"{money}p";
 
         // 돈이 바뀌면 특성 구매 가능 여부도 다시 계산
         traitPanel.Refresh();

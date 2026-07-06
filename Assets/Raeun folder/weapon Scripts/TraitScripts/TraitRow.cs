@@ -98,12 +98,10 @@ public class TraitRow : MonoBehaviour
 
         // 현재 레벨의 업그레이드 가격
         int price =
-            traitManager.GetPrice(
-                trait,
-                level);
+            traitManager.GetPrice(trait, level);
 
-        priceText.text =
-            price.ToString();
+        // 실제 값(5)을 화면에서는 0.5로 표시
+        priceText.text = $"{price / 10f:F1}p";
 
         // 구매 가능한지 확인
         bool canBuy =
@@ -132,11 +130,11 @@ public class TraitRow : MonoBehaviour
 
             // 치명타 데미지(배율)
             case TraitType.CritDamage:
-                return $"{value:F1}배";
+                return $"X{value:F1}";
 
             // 골드 획득 배율
             case TraitType.GoldMultiplier:
-                return $"{value:F1}배";
+                return $"X{value:F1}";
 
             // 나머지는 일반 숫자
             default:
