@@ -10,6 +10,22 @@ public class PlayerDash : MonoBehaviour
     [SerializeField]
     private KeyCode dashKey = KeyCode.Space;
 
+    [Header("입력 버퍼링")]
+    [Tooltip("대시 종료 직전 입력해도 예약되는 허용 시간")]
+    [Min(0f)]
+    [SerializeField]
+    private float dashBufferWindow = 0.15f;
+
+    [Header("테스트용 연속 대시 설정")]
+    [Tooltip("체크 시 PlayerStats.MaxDashCount 대신 아래 testMaxDashCount 값을 사용합니다. 득도/특성 확정 전 밸런스 테스트용.")]
+    [SerializeField]
+    private bool overrideDashCountForTesting;
+
+    [Tooltip("연속으로 사용 가능한 대시 횟수(테스트용). overrideDashCountForTesting이 켜져 있을 때만 적용됩니다.")]
+    [Min(1)]
+    [SerializeField]
+    private int testMaxDashCount = 1;
+
     [Header("낮은 장애물 올라가기")]
     [Tooltip("이 높이 이하의 장애물은 대시로 올라갑니다.")]
     [Min(0f)]
@@ -56,6 +72,9 @@ public class PlayerDash : MonoBehaviour
     private int cachedMaxDashCount;
 
     private Vector3 dashDirection;
+
+    private bool hasBufferedDash;
+    private float dashBufferTimer;
 
     /*
      * 낮은 장애물 위에 올라간 위치에
@@ -124,6 +143,7 @@ public class PlayerDash : MonoBehaviour
 
         HandleDashInput();
         UpdateDashTimer();
+        UpdateDashBuffer();
         UpdateCooldown();
         UpdateAnimation();
     }
@@ -138,23 +158,8 @@ public class PlayerDash : MonoBehaviour
         DashMove();
     }
 
-    private void HandleDashInput()
+    private Vector3 ComputeDashDirection()
     {
-        if (isDashing)
-        {
-            return;
-        }
-
-        if (currentDashCount <= 0)
-        {
-            return;
-        }
-
-        if (!Input.GetKeyDown(dashKey))
-        {
-            return;
-        }
-
         Vector3 moveDirection =
             playerController.GetMoveDirection();
 
@@ -164,24 +169,90 @@ public class PlayerDash : MonoBehaviour
          */
         if (moveDirection.sqrMagnitude > 0.01f)
         {
-            dashDirection =
-                moveDirection.normalized;
+            return moveDirection.normalized;
         }
-        else
+
+        Vector3 facingDirection =
+            playerController.GetFacingDirection();
+
+        facingDirection.y = 0f;
+
+        if (facingDirection.sqrMagnitude < 0.01f)
         {
-            dashDirection =
-                playerController.GetFacingDirection();
+            facingDirection =
+                transform.forward;
+        }
 
-            dashDirection.y = 0f;
+        facingDirection.Normalize();
 
-            if (dashDirection.sqrMagnitude < 0.01f)
+        return facingDirection;
+    }
+
+    private void HandleDashInput()
+    {
+        if (!Input.GetKeyDown(dashKey))
+        {
+            return;
+        }
+
+        /*
+         * 대시 중에 들어온 입력은 버리지 않고
+         * 대시 종료 시점에 즉시 이어지도록 예약.
+         */
+        if (isDashing)
+        {
+            if (currentDashCount > 0)
             {
-                dashDirection =
-                    transform.forward;
+                hasBufferedDash = true;
+                dashBufferTimer = dashBufferWindow;
             }
 
-            dashDirection.Normalize();
+            return;
         }
+
+        if (currentDashCount <= 0)
+        {
+            return;
+        }
+
+        dashDirection =
+            ComputeDashDirection();
+
+        StartDash();
+    }
+
+    private void UpdateDashBuffer()
+    {
+        if (!hasBufferedDash)
+        {
+            return;
+        }
+
+        dashBufferTimer -=
+            Time.deltaTime;
+
+        if (dashBufferTimer <= 0f)
+        {
+            hasBufferedDash = false;
+        }
+    }
+
+    private void TryConsumeBufferedDash()
+    {
+        if (!hasBufferedDash)
+        {
+            return;
+        }
+
+        hasBufferedDash = false;
+
+        if (currentDashCount <= 0)
+        {
+            return;
+        }
+
+        dashDirection =
+            ComputeDashDirection();
 
         StartDash();
     }
@@ -212,15 +283,10 @@ public class PlayerDash : MonoBehaviour
         currentDashCount--;
 
         /*
-         * 대시가 하나라도 소모되면
-         * 대시 충전 쿨타임 시작.
+         * 재충전 타이머는 여기서 시작하지 않음.
+         * 연속 대시 체인이 완전히 끊기는 시점(EndDash)에만
+         * 시작되도록 StartRechargeIfNeeded로 책임을 이전.
          */
-        if (currentDashCount < cachedMaxDashCount &&
-            cooldownTimer <= 0f)
-        {
-            cooldownTimer =
-                stats.GetEffectiveDashCooldown();
-        }
 
         playerController.FaceDirection(
             dashDirection
@@ -568,11 +634,14 @@ public class PlayerDash : MonoBehaviour
     {
         if (stats == null)
         {
-            cachedMaxDashCount = 1;
+            cachedMaxDashCount =
+                overrideDashCountForTesting
+                    ? Mathf.Max(1, testMaxDashCount)
+                    : 1;
 
             if (fillDash)
             {
-                currentDashCount = 1;
+                currentDashCount = cachedMaxDashCount;
             }
 
             return;
@@ -584,7 +653,9 @@ public class PlayerDash : MonoBehaviour
          * MaxDashCount 속성으로 반환.
          */
         int newMaxDashCount =
-            stats.MaxDashCount;
+            overrideDashCountForTesting
+                ? Mathf.Max(1, testMaxDashCount)
+                : stats.MaxDashCount;
 
         if (fillDash)
         {
@@ -653,6 +724,17 @@ public class PlayerDash : MonoBehaviour
             return;
         }
 
+        /*
+         * 연속 대시 체인이 진행 중인 동안에는
+         * 재충전이 진행되지 않도록 일시 정지.
+         * 체인이 완전히 끊기는 순간(EndDash)에
+         * StartRechargeIfNeeded가 타이머를 새로 시작함.
+         */
+        if (isDashing || hasBufferedDash)
+        {
+            return;
+        }
+
         cooldownTimer -=
             Time.deltaTime;
 
@@ -710,6 +792,33 @@ public class PlayerDash : MonoBehaviour
         {
             player.SetInvincible(false);
         }
+
+        TryConsumeBufferedDash();
+
+        /*
+         * TryConsumeBufferedDash가 다음 대시로 체인을
+         * 이어가지 못한 경우에만 진짜로 체인이 끊긴 것.
+         * 이 시점에만 재충전 타이머를 시작.
+         */
+        if (!isDashing)
+        {
+            StartRechargeIfNeeded();
+        }
+    }
+
+    private void StartRechargeIfNeeded()
+    {
+        if (stats == null)
+        {
+            return;
+        }
+
+        if (currentDashCount < cachedMaxDashCount &&
+            cooldownTimer <= 0f)
+        {
+            cooldownTimer =
+                stats.GetEffectiveDashCooldown();
+        }
     }
 
     private void UpdateAnimation()
@@ -731,6 +840,8 @@ public class PlayerDash : MonoBehaviour
         {
             EndDash();
         }
+
+        hasBufferedDash = false;
 
         if (animator != null)
         {
