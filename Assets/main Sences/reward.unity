@@ -10200,7 +10200,6 @@ MonoBehaviour:
     maxHp: 40
     attack: 0
     moveSpeed: 0
-    mana: 0
     criticalChance: 0
     criticalMultiplier: 0
     dashDistance: 0
@@ -10209,6 +10208,9 @@ MonoBehaviour:
     dashCooldownRecoveryMultiplier: 0
     extraDashCount: 0
     dashInvincible: 0
+    deathResist: 0
+    goldMultiplier: 0
+    rerollCount: 0
   roomFlow: {fileID: 1396785605978844328}
   disableAfterClaim: 1
   disappearMode: 2
@@ -10239,9 +10241,9 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 1
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
-  m_Size: {x: 0.33194345, y: 0.2367939, z: 0.29535434}
+  m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0.0000016987326, y: -0.11839695, z: 0.00005483628}
 --- !u!1 &1698213881
 GameObject:
@@ -13612,7 +13614,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   roomChoiceGenerator: {fileID: 7039369709937682192}
-  completeOnStartForTest: 0
+  completeOnStartForTest: 1
 --- !u!1 &1412426715003303701
 GameObject:
   m_ObjectHideFlags: 0
@@ -15540,7 +15542,6 @@ MonoBehaviour:
       maxHp: 100
       attack: 10
       moveSpeed: 5
-      mana: 50
       criticalChance: 0.1
       criticalMultiplier: 1.5
       dashDistance: 3
@@ -15549,11 +15550,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 1
       extraDashCount: 0
       dashInvincible: 1
+      deathResist: 0
+      goldMultiplier: 1
+      rerollCount: 0
     traitBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -15562,11 +15565,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     boonBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -15575,6 +15580,9 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     playerLevel: 1
     currentHp: 0
   player: {fileID: 0}
@@ -18751,7 +18759,6 @@ MonoBehaviour:
       maxHp: 1000
       attack: 100
       moveSpeed: 5
-      mana: 50
       criticalChance: 0.1
       criticalMultiplier: 1.5
       dashDistance: 3
@@ -18760,11 +18767,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 1
       extraDashCount: 0
       dashInvincible: 1
+      deathResist: 0
+      goldMultiplier: 1
+      rerollCount: 0
     traitBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -18773,11 +18782,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     boonBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -18786,6 +18797,9 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     playerLevel: 1
     currentHp: 0
   money:
@@ -20955,6 +20969,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dashKey: 32
+  dashBufferWindow: 0.15
+  overrideDashCountForTesting: 0
+  testMaxDashCount: 1
   maxStepHeight: 0.6
   stepForwardProbe: 0.15
   stepUpPadding: 0.03

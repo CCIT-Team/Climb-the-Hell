@@ -6,6 +6,9 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// 런의 층, 현재 방, 그래프 선택, 미등장 보정,
 /// Loading 씬을 통한 이동을 관리한다.
+///
+/// 전투 씬을 에디터에서 바로 실행한 경우에는
+/// InitializeDirectCombatScene을 통해 테스트 런을 구성할 수 있다.
 /// </summary>
 [DefaultExecutionOrder(-1000)]
 public sealed class RunFlowManager : MonoBehaviour
@@ -18,16 +21,21 @@ public sealed class RunFlowManager : MonoBehaviour
         {
             if (instance == null)
             {
-                instance = FindFirstObjectByType<RunFlowManager>();
+                instance =
+                    FindFirstObjectByType<
+                        RunFlowManager>();
             }
 
             if (instance == null)
             {
                 GameObject managerObject =
-                    new GameObject(nameof(RunFlowManager));
+                    new GameObject(
+                        nameof(RunFlowManager)
+                    );
 
                 instance =
-                    managerObject.AddComponent<RunFlowManager>();
+                    managerObject.AddComponent<
+                        RunFlowManager>();
             }
 
             return instance;
@@ -70,45 +78,94 @@ public sealed class RunFlowManager : MonoBehaviour
     private int pendingFloor;
 
     public RoomGraphData RoomGraph => roomGraph;
-    public int CurrentFloor { get; private set; }
-    public RoomNodeData CurrentRoom { get; private set; }
-    public RoomType CurrentRoomType { get; private set; } = RoomType.None;
-    public BoonCategory CurrentRewardCategory { get; private set; } =
-        BoonCategory.None;
-    public bool IsRunActive { get; private set; }
-    public bool IsTransitioning { get; private set; }
-    public bool HasPendingDestination { get; private set; }
+
+    public int CurrentFloor
+    {
+        get;
+        private set;
+    }
+
+    public RoomNodeData CurrentRoom
+    {
+        get;
+        private set;
+    }
+
+    public RoomType CurrentRoomType
+    {
+        get;
+        private set;
+    } = RoomType.None;
+
+    public BoonCategory CurrentRewardCategory
+    {
+        get;
+        private set;
+    } = BoonCategory.None;
+
+    public bool IsRunActive
+    {
+        get;
+        private set;
+    }
+
+    public bool IsTransitioning
+    {
+        get;
+        private set;
+    }
+
+    public bool HasPendingDestination
+    {
+        get;
+        private set;
+    }
+
     public int BossFloor => bossFloor;
-    public IReadOnlyList<RoomDebugStat> DebugCandidateStats =>
-        debugCandidateStats;
+
+    public IReadOnlyList<RoomDebugStat>
+        DebugCandidateStats =>
+            debugCandidateStats;
 
     private void Awake()
     {
-        if (instance != null && instance != this)
+        if (instance != null &&
+            instance != this)
         {
             Destroy(gameObject);
             return;
         }
 
         instance = this;
+
         DontDestroyOnLoad(gameObject);
+
         BuildRuntimeStats();
     }
 
     public bool GoToLobby()
     {
         ResetRun();
-        return RequestStaticScene(lobbySceneName, RoomType.Lobby);
+
+        return RequestStaticScene(
+            lobbySceneName,
+            RoomType.Lobby
+        );
     }
 
     public bool ReturnToTitle()
     {
         ResetRun();
-        return RequestStaticScene(titleSceneName, RoomType.Title);
+
+        return RequestStaticScene(
+            titleSceneName,
+            RoomType.Title
+        );
     }
 
     /// <summary>
-    /// 로비에서 1층 전투방을 시작한다.
+    /// 로비에서 정상적인 새 런을 시작한다.
+    /// Loading 씬을 거쳐 1층 전투방으로 이동한다.
     /// </summary>
     public bool StartNewRun()
     {
@@ -118,6 +175,7 @@ public sealed class RunFlowManager : MonoBehaviour
         }
 
         ResetRun();
+
         IsRunActive = true;
 
         BoonCategory firstCategory =
@@ -129,9 +187,11 @@ public sealed class RunFlowManager : MonoBehaviour
             new RoomRouteOption(
                 roomGraph.FirstCombatRoom,
                 1,
-                firstCategory);
+                firstCategory
+            );
 
-        bool requested = RequestRoute(firstRoute);
+        bool requested =
+            RequestRoute(firstRoute);
 
         if (!requested)
         {
@@ -142,15 +202,181 @@ public sealed class RunFlowManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 문에서 선택된 경로를 Loading 씬으로 전달한다.
+    /// Unity에서 Combat 씬을 직접 Play했을 때만
+    /// 씬 이동 없이 테스트용 런 상태를 만든다.
+    ///
+    /// 이미 정상 런이 진행 중이면 아무것도 변경하지 않는다.
     /// </summary>
-    public bool RequestRoute(RoomRouteOption route)
+    public bool InitializeDirectCombatScene(
+        RoomGraphData fallbackRoomGraph,
+        BoonCategory testRewardCategory,
+        int testFloor = 1)
     {
-        if (route == null || !route.IsValid)
+        if (IsRunActive)
+        {
+            return true;
+        }
+
+        if (roomGraph == null &&
+            fallbackRoomGraph != null)
+        {
+            roomGraph =
+                fallbackRoomGraph;
+        }
+
+        if (roomGraph == null)
+        {
+            Debug.LogWarning(
+                "[RunFlowManager] 직접 실행용 Room Graph가 없습니다. " +
+                "RoomChoiceGenerator의 Direct Play Room Graph를 연결하세요.",
+                this
+            );
+
+            return false;
+        }
+
+        if (!ValidateGraph())
+        {
+            Debug.LogWarning(
+                "[RunFlowManager] Room Graph 검증 실패로 " +
+                "직접 실행용 런을 만들 수 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        string activeSceneName =
+            SceneManager
+                .GetActiveScene()
+                .name;
+
+        RoomNodeData activeRoom =
+            FindRoomBySceneName(
+                activeSceneName
+            );
+
+        if (activeRoom == null ||
+            activeRoom.RoomType !=
+                RoomType.Combat)
+        {
+            activeRoom =
+                roomGraph.FirstCombatRoom;
+
+            Debug.LogWarning(
+                $"[RunFlowManager] 현재 씬 '{activeSceneName}'과 " +
+                "일치하는 Combat RoomNode를 찾지 못했습니다. " +
+                $"테스트용 현재 방으로 " +
+                $"'{activeRoom.DisplayName}'을 사용합니다.",
+                this
+            );
+        }
+
+        // 이전 Play Mode에서 남은 전환 정보를 전부 제거한다.
+        ResetRun();
+
+        IsRunActive = true;
+        IsTransitioning = false;
+
+        CurrentRoom =
+            activeRoom;
+
+        CurrentRoomType =
+            RoomType.Combat;
+
+        CurrentFloor =
+            Mathf.Clamp(
+                testFloor,
+                1,
+                Mathf.Max(
+                    1,
+                    bossFloor - 1
+                )
+            );
+
+        CurrentRewardCategory =
+            testRewardCategory ==
+            BoonCategory.None
+                ? GetRandomBoonCategory()
+                : testRewardCategory;
+
+        RoomRuntimeStat currentStat =
+            GetOrCreateStat(
+                CurrentRoom
+            );
+
+        currentStat.visitedCount++;
+        currentStat.lastVisitedFloor =
+            CurrentFloor;
+
+        Debug.Log(
+            $"[RunFlowManager] Combat 씬 직접 실행용 런 초기화 / " +
+            $"씬={activeSceneName}, " +
+            $"현재 방={CurrentRoom.DisplayName}, " +
+            $"층={CurrentFloor}, " +
+            $"보상={CurrentRewardCategory}",
+            this
+        );
+
+        return true;
+    }
+
+    /// <summary>
+    /// 현재 활성 씬 이름과 같은 RoomNode를 찾는다.
+    /// </summary>
+    private RoomNodeData FindRoomBySceneName(
+        string sceneName)
+    {
+        if (roomGraph == null ||
+            roomGraph.AllRooms == null ||
+            string.IsNullOrWhiteSpace(
+                sceneName))
+        {
+            return null;
+        }
+
+        IReadOnlyList<RoomNodeData> rooms =
+            roomGraph.AllRooms;
+
+        for (int i = 0;
+             i < rooms.Count;
+             i++)
+        {
+            RoomNodeData room =
+                rooms[i];
+
+            if (room == null)
+            {
+                continue;
+            }
+
+            if (string.Equals(
+                    room.SceneName,
+                    sceneName,
+                    System.StringComparison
+                        .OrdinalIgnoreCase))
+            {
+                return room;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 문에서 선택한 경로를 Loading 씬으로 전달한다.
+    /// </summary>
+    public bool RequestRoute(
+        RoomRouteOption route)
+    {
+        if (route == null ||
+            !route.IsValid)
         {
             Debug.LogError(
                 "[RunFlowManager] 유효하지 않은 방 경로입니다.",
-                this);
+                this
+            );
+
             return false;
         }
 
@@ -159,110 +385,159 @@ public sealed class RunFlowManager : MonoBehaviour
             return false;
         }
 
-        RoomNodeData target = route.TargetRoom;
+        RoomNodeData target =
+            route.TargetRoom;
 
-        if (!CanLoadScene(target.SceneName))
+        if (!CanLoadScene(
+                target.SceneName))
         {
             Debug.LogError(
                 $"[RunFlowManager] '{target.SceneName}' 씬을 불러올 수 없습니다. " +
                 "Build Profiles의 Scene List를 확인하세요.",
-                target);
+                target
+            );
+
             return false;
         }
 
-        pendingRoom = target;
-        pendingSceneName = target.SceneName;
-        pendingRoomType = target.RoomType;
+        pendingRoom =
+            target;
+
+        pendingSceneName =
+            target.SceneName;
+
+        pendingRoomType =
+            target.RoomType;
 
         pendingRewardCategory =
-            target.RoomType == RoomType.Combat
+            target.RoomType ==
+            RoomType.Combat
                 ? route.RewardCategory
                 : BoonCategory.None;
 
-        pendingFloor = route.TargetFloor;
+        pendingFloor =
+            route.TargetFloor;
 
         return BeginLoading();
     }
 
     /// <summary>
-    /// 현재 방 완료 후 문 두 개에 들어갈 경로를 생성한다.
+    /// 현재 방 완료 후 문에 들어갈 다음 경로를 생성한다.
     /// </summary>
-    public List<RoomRouteOption> GenerateNextRoutes(
-        int requestedCount = 2)
+    public List<RoomRouteOption>
+        GenerateNextRoutes(
+            int requestedCount = 2)
     {
         List<RoomRouteOption> routes =
             new List<RoomRouteOption>();
 
-        if (!ValidateGraph() || !IsRunActive)
+        if (!ValidateGraph() ||
+            !IsRunActive)
         {
             return routes;
         }
 
-        int nextFloor = CurrentFloor + 1;
+        int nextFloor =
+            CurrentFloor + 1;
 
-        // 9층 완료 후 10층은 무조건 보스방.
         if (nextFloor >= bossFloor)
         {
             routes.Add(
                 new RoomRouteOption(
                     roomGraph.BossRoom,
                     bossFloor,
-                    BoonCategory.None));
+                    BoonCategory.None
+                )
+            );
 
             debugCandidateStats.Clear();
+
             return routes;
         }
 
-        List<WeightedCandidate> eligibleCandidates =
-            BuildEligibleCandidates(nextFloor);
+        List<WeightedCandidate>
+            eligibleCandidates =
+                BuildEligibleCandidates(
+                    nextFloor
+                );
 
         if (eligibleCandidates.Count == 0)
         {
             Debug.LogError(
                 $"[RunFlowManager] {nextFloor}층에 등장 가능한 다음 방이 없습니다.",
-                this);
+                this
+            );
+
             return routes;
         }
 
         int selectionCount =
             Mathf.Min(
-                Mathf.Max(1, requestedCount),
-                eligibleCandidates.Count);
+                Mathf.Max(
+                    1,
+                    requestedCount
+                ),
+                eligibleCandidates.Count
+            );
 
         List<RoomNodeData> selectedRooms =
-            new List<RoomNodeData>(selectionCount);
+            new List<RoomNodeData>(
+                selectionCount
+            );
 
-        for (int i = 0; i < selectionCount; i++)
+        for (int i = 0;
+             i < selectionCount;
+             i++)
         {
             WeightedCandidate selected =
-                SelectCandidate(eligibleCandidates);
+                SelectCandidate(
+                    eligibleCandidates
+                );
 
-            if (selected == null || selected.room == null)
+            if (selected == null ||
+                selected.room == null)
             {
                 break;
             }
 
-            selectedRooms.Add(selected.room);
-            eligibleCandidates.Remove(selected);
+            selectedRooms.Add(
+                selected.room
+            );
+
+            eligibleCandidates.Remove(
+                selected
+            );
         }
 
-        UpdateOfferStats(selectedRooms, nextFloor);
+        UpdateOfferStats(
+            selectedRooms,
+            nextFloor
+        );
 
-        // 전투방 문끼리는 득도 태그가 겹치지 않게 배정.
         List<BoonCategory> categories =
             CreateShuffledCategories();
 
         int categoryIndex = 0;
 
-        for (int i = 0; i < selectedRooms.Count; i++)
+        for (int i = 0;
+             i < selectedRooms.Count;
+             i++)
         {
-            RoomNodeData room = selectedRooms[i];
-            BoonCategory category = BoonCategory.None;
+            RoomNodeData room =
+                selectedRooms[i];
 
-            if (room.RoomType == RoomType.Combat)
+            BoonCategory category =
+                BoonCategory.None;
+
+            if (room.RoomType ==
+                RoomType.Combat)
             {
                 category =
-                    categories[categoryIndex % categories.Count];
+                    categories[
+                        categoryIndex %
+                        categories.Count
+                    ];
+
                 categoryIndex++;
             }
 
@@ -270,38 +545,38 @@ public sealed class RunFlowManager : MonoBehaviour
                 new RoomRouteOption(
                     room,
                     nextFloor,
-                    category));
+                    category
+                )
+            );
         }
 
         if (printSelectionLog)
         {
-            PrintGeneratedRoutes(routes);
+            PrintGeneratedRoutes(
+                routes
+            );
         }
 
         return routes;
     }
 
-    /// <summary>
-    /// Loading 씬에서 읽을 목적지.
-    /// </summary>
     public string GetPendingSceneName()
     {
         if (HasPendingDestination &&
-            CanLoadScene(pendingSceneName))
+            CanLoadScene(
+                pendingSceneName))
         {
             return pendingSceneName;
         }
 
         Debug.LogError(
             "[RunFlowManager] 저장된 목적지 씬이 없습니다.",
-            this);
+            this
+        );
 
         return string.Empty;
     }
 
-    /// <summary>
-    /// Loading 완료 직전 현재 방 상태를 확정한다.
-    /// </summary>
     public bool CommitPendingDestination()
     {
         if (!HasPendingDestination)
@@ -310,69 +585,120 @@ public sealed class RunFlowManager : MonoBehaviour
             return false;
         }
 
-        CurrentRoom = pendingRoom;
-        CurrentFloor = pendingFloor;
-        CurrentRoomType = pendingRoomType;
+        CurrentRoom =
+            pendingRoom;
+
+        CurrentFloor =
+            pendingFloor;
+
+        CurrentRoomType =
+            pendingRoomType;
 
         CurrentRewardCategory =
-            pendingRoomType == RoomType.Combat
+            pendingRoomType ==
+            RoomType.Combat
                 ? pendingRewardCategory
                 : BoonCategory.None;
 
-        if (CurrentRoom != null && IsRunActive)
+        if (CurrentRoom != null &&
+            IsRunActive)
         {
             RoomRuntimeStat stat =
-                GetOrCreateStat(CurrentRoom);
+                GetOrCreateStat(
+                    CurrentRoom
+                );
 
             stat.visitedCount++;
-            stat.lastVisitedFloor = CurrentFloor;
+            stat.lastVisitedFloor =
+                CurrentFloor;
         }
 
         ClearPending();
+
         IsTransitioning = false;
+
         return true;
     }
 
-    /// <summary>
-    /// 전투방에서 득도 선택을 마쳤을 때 호출한다.
-    /// </summary>
     public void ConsumeCurrentRewardCategory()
     {
-        CurrentRewardCategory = BoonCategory.None;
+        CurrentRewardCategory =
+            BoonCategory.None;
     }
 
-    public RoomRuntimeStat GetRuntimeStat(RoomNodeData room)
+    public RoomRuntimeStat GetRuntimeStat(
+        RoomNodeData room)
     {
         return GetOrCreateStat(room);
     }
 
     public string GetDebugText()
     {
-        StringBuilder builder = new StringBuilder(512);
+        StringBuilder builder =
+            new StringBuilder(512);
 
-        builder.AppendLine($"층: {CurrentFloor}/{bossFloor}");
         builder.AppendLine(
-            $"현재 방: {(CurrentRoom != null ? CurrentRoom.DisplayName : "없음")}");
-        builder.AppendLine($"방 타입: {CurrentRoomType}");
-        builder.AppendLine($"전투 보상 태그: {CurrentRewardCategory}");
+            $"층: {CurrentFloor}/{bossFloor}"
+        );
+
+        builder.AppendLine(
+            $"현재 방: " +
+            $"{(CurrentRoom != null ? CurrentRoom.DisplayName : "없음")}"
+        );
+
+        builder.AppendLine(
+            $"방 타입: {CurrentRoomType}"
+        );
+
+        builder.AppendLine(
+            $"전투 보상 태그: {CurrentRewardCategory}"
+        );
+
         builder.AppendLine();
-        builder.AppendLine("다음 방 후보 가중치");
+        builder.AppendLine(
+            "다음 방 후보 가중치"
+        );
 
-        for (int i = 0; i < debugCandidateStats.Count; i++)
+        for (int i = 0;
+             i < debugCandidateStats.Count;
+             i++)
         {
-            RoomDebugStat stat = debugCandidateStats[i];
+            RoomDebugStat stat =
+                debugCandidateStats[i];
 
-            builder.Append(stat.eligible ? "[가능] " : "[제외] ");
-            builder.Append(stat.roomName);
-            builder.Append($" / 기본 {stat.baseWeight:0.##}");
-            builder.Append($" / 보정 +{stat.pityBonus:0.##}");
-            builder.Append($" / 최종 {stat.finalWeight:0.##}");
-            builder.Append($" / 미등장 {stat.missedOfferCount}");
+            builder.Append(
+                stat.eligible
+                    ? "[가능] "
+                    : "[제외] "
+            );
+
+            builder.Append(
+                stat.roomName
+            );
+
+            builder.Append(
+                $" / 기본 {stat.baseWeight:0.##}"
+            );
+
+            builder.Append(
+                $" / 보정 +{stat.pityBonus:0.##}"
+            );
+
+            builder.Append(
+                $" / 최종 {stat.finalWeight:0.##}"
+            );
+
+            builder.Append(
+                $" / 미등장 {stat.missedOfferCount}"
+            );
 
             if (!stat.eligible &&
-                !string.IsNullOrWhiteSpace(stat.reason))
+                !string.IsNullOrWhiteSpace(
+                    stat.reason))
             {
-                builder.Append($" / {stat.reason}");
+                builder.Append(
+                    $" / {stat.reason}"
+                );
             }
 
             builder.AppendLine();
@@ -386,8 +712,12 @@ public sealed class RunFlowManager : MonoBehaviour
         IsRunActive = false;
         CurrentFloor = 0;
         CurrentRoom = null;
-        CurrentRoomType = RoomType.None;
-        CurrentRewardCategory = BoonCategory.None;
+        CurrentRoomType =
+            RoomType.None;
+
+        CurrentRewardCategory =
+            BoonCategory.None;
+
         IsTransitioning = false;
 
         ClearPending();
@@ -408,14 +738,18 @@ public sealed class RunFlowManager : MonoBehaviour
         {
             Debug.LogError(
                 $"[RunFlowManager] '{sceneName}' 씬을 불러올 수 없습니다.",
-                this);
+                this
+            );
+
             return false;
         }
 
         pendingRoom = null;
         pendingSceneName = sceneName;
         pendingRoomType = roomType;
-        pendingRewardCategory = BoonCategory.None;
+        pendingRewardCategory =
+            BoonCategory.None;
+
         pendingFloor = 0;
 
         return BeginLoading();
@@ -423,13 +757,16 @@ public sealed class RunFlowManager : MonoBehaviour
 
     private bool BeginLoading()
     {
-        if (!CanLoadScene(loadingSceneName))
+        if (!CanLoadScene(
+                loadingSceneName))
         {
             Debug.LogError(
                 $"[RunFlowManager] Loading 씬 '{loadingSceneName}'을 불러올 수 없습니다.",
-                this);
+                this
+            );
 
             ClearPending();
+
             return false;
         }
 
@@ -437,22 +774,31 @@ public sealed class RunFlowManager : MonoBehaviour
         IsTransitioning = true;
         Time.timeScale = 1f;
 
-        SceneManager.LoadScene(loadingSceneName);
+        SceneManager.LoadScene(
+            loadingSceneName
+        );
+
         return true;
     }
 
-    private List<WeightedCandidate> BuildEligibleCandidates(
-        int targetFloor)
+    private List<WeightedCandidate>
+        BuildEligibleCandidates(
+            int targetFloor)
     {
-        List<RoomNodeData> sourceRooms = GetConnectedRooms();
+        List<RoomNodeData> sourceRooms =
+            GetConnectedRooms();
+
         List<WeightedCandidate> eligible =
             new List<WeightedCandidate>();
 
         debugCandidateStats.Clear();
 
-        for (int i = 0; i < sourceRooms.Count; i++)
+        for (int i = 0;
+             i < sourceRooms.Count;
+             i++)
         {
-            RoomNodeData room = sourceRooms[i];
+            RoomNodeData room =
+                sourceRooms[i];
 
             if (room == null)
             {
@@ -460,8 +806,13 @@ public sealed class RunFlowManager : MonoBehaviour
             }
 
             string reason;
+
             bool canAppear =
-                IsEligible(room, targetFloor, out reason);
+                IsEligible(
+                    room,
+                    targetFloor,
+                    out reason
+                );
 
             RoomRuntimeStat runtime =
                 GetOrCreateStat(room);
@@ -475,65 +826,89 @@ public sealed class RunFlowManager : MonoBehaviour
             float finalWeight =
                 Mathf.Max(
                     0f,
-                    room.BaseWeight + pityBonus);
+                    room.BaseWeight +
+                    pityBonus
+                );
 
             RoomDebugStat debug =
                 new RoomDebugStat
                 {
                     roomId = room.RoomId,
-                    roomName = room.DisplayName,
-                    roomType = room.RoomType,
-                    eligible = canAppear && finalWeight > 0f,
+                    roomName =
+                        room.DisplayName,
+                    roomType =
+                        room.RoomType,
+                    eligible =
+                        canAppear &&
+                        finalWeight > 0f,
                     reason = reason,
-                    baseWeight = room.BaseWeight,
-                    pityBonus = pityBonus,
-                    finalWeight = finalWeight,
-                    missedOfferCount = runtime.missedOfferCount,
-                    offeredCount = runtime.offeredCount,
-                    visitedCount = runtime.visitedCount
+                    baseWeight =
+                        room.BaseWeight,
+                    pityBonus =
+                        pityBonus,
+                    finalWeight =
+                        finalWeight,
+                    missedOfferCount =
+                        runtime
+                            .missedOfferCount,
+                    offeredCount =
+                        runtime.offeredCount,
+                    visitedCount =
+                        runtime.visitedCount
                 };
 
-            debugCandidateStats.Add(debug);
+            debugCandidateStats.Add(
+                debug
+            );
 
-            if (!canAppear || finalWeight <= 0f)
+            if (!canAppear ||
+                finalWeight <= 0f)
             {
                 continue;
             }
 
             bool guaranteed =
                 room.UsePityWeight &&
-                room.GuaranteedAfterMisses > 0 &&
+                room.GuaranteedAfterMisses >
+                0 &&
                 runtime.missedOfferCount >=
-                    room.GuaranteedAfterMisses;
+                room.GuaranteedAfterMisses;
 
             eligible.Add(
                 new WeightedCandidate(
                     room,
                     finalWeight,
                     guaranteed,
-                    runtime.missedOfferCount));
+                    runtime
+                        .missedOfferCount
+                )
+            );
         }
 
         return eligible;
     }
 
-    private List<RoomNodeData> GetConnectedRooms()
+    private List<RoomNodeData>
+        GetConnectedRooms()
     {
         List<RoomNodeData> result =
             new List<RoomNodeData>();
 
         if (CurrentRoom != null &&
             CurrentRoom.NextRooms != null &&
-            CurrentRoom.NextRooms.Count > 0)
+            CurrentRoom.NextRooms.Count >
+            0)
         {
             for (int i = 0;
-                 i < CurrentRoom.NextRooms.Count;
+                 i <
+                 CurrentRoom.NextRooms.Count;
                  i++)
             {
                 RoomNodeData room =
                     CurrentRoom.NextRooms[i];
 
-                if (room != null && !result.Contains(room))
+                if (room != null &&
+                    !result.Contains(room))
                 {
                     result.Add(room);
                 }
@@ -542,13 +917,19 @@ public sealed class RunFlowManager : MonoBehaviour
             return result;
         }
 
-        if (roomGraph != null && roomGraph.AllRooms != null)
+        if (roomGraph != null &&
+            roomGraph.AllRooms != null)
         {
-            for (int i = 0; i < roomGraph.AllRooms.Count; i++)
+            for (int i = 0;
+                 i <
+                 roomGraph.AllRooms.Count;
+                 i++)
             {
-                RoomNodeData room = roomGraph.AllRooms[i];
+                RoomNodeData room =
+                    roomGraph.AllRooms[i];
 
-                if (room != null && !result.Contains(room))
+                if (room != null &&
+                    !result.Contains(room))
                 {
                     result.Add(room);
                 }
@@ -567,36 +948,52 @@ public sealed class RunFlowManager : MonoBehaviour
 
         if (!room.CanAppearRandomly)
         {
-            reason = "랜덤 등장 비활성화";
+            reason =
+                "랜덤 등장 비활성화";
+
             return false;
         }
 
-        if (room.RoomType == RoomType.Boss)
+        if (room.RoomType ==
+            RoomType.Boss)
         {
-            reason = "보스는 10층 고정";
+            reason =
+                "보스는 10층 고정";
+
             return false;
         }
 
-        if (targetFloor < room.MinimumFloor ||
-            targetFloor > room.MaximumFloor)
+        if (targetFloor <
+            room.MinimumFloor ||
+            targetFloor >
+            room.MaximumFloor)
         {
-            reason = "등장 층 범위 밖";
+            reason =
+                "등장 층 범위 밖";
+
             return false;
         }
 
         if (!room.AllowImmediateRepeat &&
             CurrentRoom == room)
         {
-            reason = "직전 방 반복 금지";
+            reason =
+                "직전 방 반복 금지";
+
             return false;
         }
 
-        RoomRuntimeStat stat = GetOrCreateStat(room);
+        RoomRuntimeStat stat =
+            GetOrCreateStat(room);
 
-        if (room.MaximumVisitsPerRun > 0 &&
-            stat.visitedCount >= room.MaximumVisitsPerRun)
+        if (room.MaximumVisitsPerRun >
+            0 &&
+            stat.visitedCount >=
+            room.MaximumVisitsPerRun)
         {
-            reason = "런 최대 방문 횟수 도달";
+            reason =
+                "런 최대 방문 횟수 도달";
+
             return false;
         }
 
@@ -604,11 +1001,15 @@ public sealed class RunFlowManager : MonoBehaviour
             stat.lastVisitedFloor >= 0)
         {
             int floorGap =
-                targetFloor - stat.lastVisitedFloor;
+                targetFloor -
+                stat.lastVisitedFloor;
 
-            if (floorGap < room.MinimumFloorGap)
+            if (floorGap <
+                room.MinimumFloorGap)
             {
-                reason = "최소 등장 간격 미달";
+                reason =
+                    "최소 등장 간격 미달";
+
                 return false;
             }
         }
@@ -616,37 +1017,54 @@ public sealed class RunFlowManager : MonoBehaviour
         return true;
     }
 
-    private WeightedCandidate SelectCandidate(
-        List<WeightedCandidate> candidates)
+    private WeightedCandidate
+        SelectCandidate(
+            List<WeightedCandidate>
+                candidates)
     {
-        if (candidates == null || candidates.Count == 0)
+        if (candidates == null ||
+            candidates.Count == 0)
         {
             return null;
         }
 
-        List<WeightedCandidate> guaranteed =
-            new List<WeightedCandidate>();
+        List<WeightedCandidate>
+            guaranteed =
+                new List<
+                    WeightedCandidate>();
 
-        for (int i = 0; i < candidates.Count; i++)
+        for (int i = 0;
+             i < candidates.Count;
+             i++)
         {
             if (candidates[i].guaranteed)
             {
-                guaranteed.Add(candidates[i]);
+                guaranteed.Add(
+                    candidates[i]
+                );
             }
         }
 
-        // 확정 보정 후보 중 미등장 횟수가 가장 큰 방을 우선.
         if (guaranteed.Count > 0)
         {
-            WeightedCandidate best = guaranteed[0];
+            WeightedCandidate best =
+                guaranteed[0];
 
-            for (int i = 1; i < guaranteed.Count; i++)
+            for (int i = 1;
+                 i < guaranteed.Count;
+                 i++)
             {
-                WeightedCandidate current = guaranteed[i];
+                WeightedCandidate current =
+                    guaranteed[i];
 
-                if (current.missCount > best.missCount ||
-                    (current.missCount == best.missCount &&
-                     current.weight > best.weight))
+                if (current.missCount >
+                    best.missCount ||
+                    (
+                        current.missCount ==
+                        best.missCount &&
+                        current.weight >
+                        best.weight
+                    ))
                 {
                     best = current;
                 }
@@ -657,33 +1075,55 @@ public sealed class RunFlowManager : MonoBehaviour
 
         float totalWeight = 0f;
 
-        for (int i = 0; i < candidates.Count; i++)
+        for (int i = 0;
+             i < candidates.Count;
+             i++)
         {
-            totalWeight += Mathf.Max(0f, candidates[i].weight);
+            totalWeight +=
+                Mathf.Max(
+                    0f,
+                    candidates[i].weight
+                );
         }
 
         if (totalWeight <= 0f)
         {
             return candidates[
-                UnityEngine.Random.Range(0, candidates.Count)];
+                UnityEngine.Random.Range(
+                    0,
+                    candidates.Count
+                )
+            ];
         }
 
         float randomValue =
-            UnityEngine.Random.Range(0f, totalWeight);
+            UnityEngine.Random.Range(
+                0f,
+                totalWeight
+            );
 
         float accumulated = 0f;
 
-        for (int i = 0; i < candidates.Count; i++)
+        for (int i = 0;
+             i < candidates.Count;
+             i++)
         {
-            accumulated += Mathf.Max(0f, candidates[i].weight);
+            accumulated +=
+                Mathf.Max(
+                    0f,
+                    candidates[i].weight
+                );
 
-            if (randomValue <= accumulated)
+            if (randomValue <=
+                accumulated)
             {
                 return candidates[i];
             }
         }
 
-        return candidates[candidates.Count - 1];
+        return candidates[
+            candidates.Count - 1
+        ];
     }
 
     private void UpdateOfferStats(
@@ -691,11 +1131,17 @@ public sealed class RunFlowManager : MonoBehaviour
         int offeredFloor)
     {
         HashSet<RoomNodeData> selected =
-            new HashSet<RoomNodeData>(selectedRooms);
+            new HashSet<RoomNodeData>(
+                selectedRooms
+            );
 
-        for (int i = 0; i < debugCandidateStats.Count; i++)
+        for (int i = 0;
+             i <
+             debugCandidateStats.Count;
+             i++)
         {
-            RoomDebugStat debug = debugCandidateStats[i];
+            RoomDebugStat debug =
+                debugCandidateStats[i];
 
             if (!debug.eligible)
             {
@@ -703,19 +1149,24 @@ public sealed class RunFlowManager : MonoBehaviour
             }
 
             RoomNodeData room =
-                roomGraph.FindRoom(debug.roomId);
+                roomGraph.FindRoom(
+                    debug.roomId
+                );
 
             if (room == null)
             {
                 continue;
             }
 
-            RoomRuntimeStat stat = GetOrCreateStat(room);
+            RoomRuntimeStat stat =
+                GetOrCreateStat(room);
 
             if (selected.Contains(room))
             {
                 stat.offeredCount++;
-                stat.lastOfferedFloor = offeredFloor;
+                stat.lastOfferedFloor =
+                    offeredFloor;
+
                 stat.missedOfferCount = 0;
             }
             else if (room.UsePityWeight)
@@ -723,14 +1174,19 @@ public sealed class RunFlowManager : MonoBehaviour
                 stat.missedOfferCount++;
             }
 
-            // 선택 직후 인스펙터 디버그 값도 최신 상태로 맞춘다.
-            debug.missedOfferCount = stat.missedOfferCount;
-            debug.offeredCount = stat.offeredCount;
-            debug.visitedCount = stat.visitedCount;
+            debug.missedOfferCount =
+                stat.missedOfferCount;
+
+            debug.offeredCount =
+                stat.offeredCount;
+
+            debug.visitedCount =
+                stat.visitedCount;
         }
     }
 
-    private List<BoonCategory> CreateShuffledCategories()
+    private List<BoonCategory>
+        CreateShuffledCategories()
     {
         List<BoonCategory> categories =
             new List<BoonCategory>
@@ -741,48 +1197,79 @@ public sealed class RunFlowManager : MonoBehaviour
                 BoonCategory.Debuff
             };
 
-        for (int i = categories.Count - 1; i > 0; i--)
+        for (int i =
+                 categories.Count - 1;
+             i > 0;
+             i--)
         {
             int randomIndex =
-                UnityEngine.Random.Range(0, i + 1);
+                UnityEngine.Random.Range(
+                    0,
+                    i + 1
+                );
 
-            BoonCategory temp = categories[i];
-            categories[i] = categories[randomIndex];
-            categories[randomIndex] = temp;
+            BoonCategory temporary =
+                categories[i];
+
+            categories[i] =
+                categories[randomIndex];
+
+            categories[randomIndex] =
+                temporary;
         }
 
         return categories;
     }
 
-    private BoonCategory GetRandomBoonCategory()
+    private BoonCategory
+        GetRandomBoonCategory()
     {
-        switch (UnityEngine.Random.Range(0, 4))
+        switch (
+            UnityEngine.Random.Range(
+                0,
+                4
+            ))
         {
             case 0:
                 return BoonCategory.Attack;
+
             case 1:
                 return BoonCategory.Defense;
+
             case 2:
                 return BoonCategory.Mobility;
+
             default:
                 return BoonCategory.Debuff;
         }
     }
 
-    private RoomRuntimeStat GetOrCreateStat(
-        RoomNodeData room)
+    private RoomRuntimeStat
+        GetOrCreateStat(
+            RoomNodeData room)
     {
         if (room == null)
         {
-            return new RoomRuntimeStat("NULL");
+            return new RoomRuntimeStat(
+                "NULL"
+            );
         }
 
         RoomRuntimeStat stat;
 
-        if (!runtimeStats.TryGetValue(room.RoomId, out stat))
+        if (!runtimeStats.TryGetValue(
+                room.RoomId,
+                out stat))
         {
-            stat = new RoomRuntimeStat(room.RoomId);
-            runtimeStats.Add(room.RoomId, stat);
+            stat =
+                new RoomRuntimeStat(
+                    room.RoomId
+                );
+
+            runtimeStats.Add(
+                room.RoomId,
+                stat
+            );
         }
 
         return stat;
@@ -792,23 +1279,32 @@ public sealed class RunFlowManager : MonoBehaviour
     {
         runtimeStats.Clear();
 
-        if (roomGraph == null || roomGraph.AllRooms == null)
+        if (roomGraph == null ||
+            roomGraph.AllRooms == null)
         {
             return;
         }
 
-        for (int i = 0; i < roomGraph.AllRooms.Count; i++)
+        for (int i = 0;
+             i < roomGraph.AllRooms.Count;
+             i++)
         {
-            RoomNodeData room = roomGraph.AllRooms[i];
+            RoomNodeData room =
+                roomGraph.AllRooms[i];
 
             if (room == null ||
-                string.IsNullOrWhiteSpace(room.RoomId))
+                string.IsNullOrWhiteSpace(
+                    room.RoomId))
             {
                 continue;
             }
 
-            runtimeStats[room.RoomId] =
-                new RoomRuntimeStat(room.RoomId);
+            runtimeStats[
+                room.RoomId
+            ] =
+                new RoomRuntimeStat(
+                    room.RoomId
+                );
         }
     }
 
@@ -818,49 +1314,75 @@ public sealed class RunFlowManager : MonoBehaviour
         {
             Debug.LogError(
                 "[RunFlowManager] Room Graph가 연결되지 않았습니다.",
-                this);
+                this
+            );
+
             return false;
         }
 
         return roomGraph.ValidateGraph();
     }
 
-    private bool CanLoadScene(string sceneName)
+    private bool CanLoadScene(
+        string sceneName)
     {
         return
-            !string.IsNullOrWhiteSpace(sceneName) &&
-            Application.CanStreamedLevelBeLoaded(sceneName);
+            !string.IsNullOrWhiteSpace(
+                sceneName
+            ) &&
+            Application
+                .CanStreamedLevelBeLoaded(
+                    sceneName
+                );
     }
 
     private void ClearPending()
     {
         pendingRoom = null;
-        pendingSceneName = string.Empty;
-        pendingRoomType = RoomType.None;
-        pendingRewardCategory = BoonCategory.None;
+        pendingSceneName =
+            string.Empty;
+
+        pendingRoomType =
+            RoomType.None;
+
+        pendingRewardCategory =
+            BoonCategory.None;
+
         pendingFloor = 0;
+
         HasPendingDestination = false;
     }
 
     private void PrintGeneratedRoutes(
         List<RoomRouteOption> routes)
     {
-        StringBuilder builder = new StringBuilder();
+        StringBuilder builder =
+            new StringBuilder();
 
         builder.AppendLine(
-            $"[RunFlowManager] {CurrentFloor + 1}층 문 생성");
+            $"[RunFlowManager] " +
+            $"{CurrentFloor + 1}층 문 생성"
+        );
 
-        for (int i = 0; i < routes.Count; i++)
+        for (int i = 0;
+             i < routes.Count;
+             i++)
         {
-            RoomRouteOption route = routes[i];
+            RoomRouteOption route =
+                routes[i];
 
             builder.AppendLine(
-                $"{i + 1}. {route.TargetRoom.DisplayName} / " +
+                $"{i + 1}. " +
+                $"{route.TargetRoom.DisplayName} / " +
                 $"{route.TargetRoom.RoomType} / " +
-                $"태그 {route.RewardCategory}");
+                $"태그 {route.RewardCategory}"
+            );
         }
 
-        Debug.Log(builder.ToString(), this);
+        Debug.Log(
+            builder.ToString(),
+            this
+        );
     }
 
     private void OnDestroy()
@@ -886,8 +1408,11 @@ public sealed class RunFlowManager : MonoBehaviour
         {
             this.room = room;
             this.weight = weight;
-            this.guaranteed = guaranteed;
-            this.missCount = missCount;
+            this.guaranteed =
+                guaranteed;
+
+            this.missCount =
+                missCount;
         }
     }
 }

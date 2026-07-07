@@ -1,38 +1,31 @@
 using UnityEngine;
 
 /// <summary>
-/// 보상 오브젝트를 화면과 평행한 방향으로 유지한다.
+/// 보상 또는 문 위 목적지 프리팹을
+/// 카메라 화면과 평행한 방향으로 유지한다.
 ///
-/// 카메라 위치는 사용하지 않고 카메라 회전만 사용하므로,
-/// 보상이 화면 좌우에 있어도 제각각 꺾이지 않는다.
-///
-/// 위치는 전혀 변경하지 않는다.
+/// 위치는 변경하지 않고 회전만 변경한다.
 /// </summary>
 public class RewardLookAtCamera : MonoBehaviour
 {
     [Header("기준 카메라")]
     [SerializeField] private Camera targetCamera;
 
-    [Header("원판 방향 보정")]
-    [Tooltip("Unity 기본 Cylinder의 둥근 면을 카메라 쪽으로 돌리는 값")]
+    [Header("모델 방향 보정")]
     [SerializeField] private Vector3 rotationOffset =
         new Vector3(90f, 0f, 0f);
 
     [Tooltip("앞뒤가 반대일 때 체크")]
     [SerializeField] private bool reverseDirection;
 
-    [Header("카메라 회전 대응")]
-    [Tooltip("카메라 각도가 바뀔 때만 보상 각도도 갱신")]
+    [Tooltip("카메라 회전이 바뀌었을 때만 갱신")]
     [SerializeField] private bool followCameraRotation = true;
 
     private Quaternion previousCameraRotation;
 
     private void Awake()
     {
-        if (targetCamera == null)
-        {
-            targetCamera = Camera.main;
-        }
+        ResolveCamera();
     }
 
     private void Start()
@@ -42,13 +35,18 @@ public class RewardLookAtCamera : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!followCameraRotation || targetCamera == null)
+        if (!followCameraRotation)
         {
             return;
         }
 
-        // 카메라 위치 이동은 무시하고,
-        // 카메라 회전이 바뀐 경우에만 갱신한다.
+        ResolveCamera();
+
+        if (targetCamera == null)
+        {
+            return;
+        }
+
         if (Quaternion.Angle(
                 previousCameraRotation,
                 targetCamera.transform.rotation
@@ -60,8 +58,18 @@ public class RewardLookAtCamera : MonoBehaviour
         ApplyRotation();
     }
 
+    private void ResolveCamera()
+    {
+        if (targetCamera == null)
+        {
+            targetCamera = Camera.main;
+        }
+    }
+
     private void ApplyRotation()
     {
+        ResolveCamera();
+
         if (targetCamera == null)
         {
             return;
@@ -78,10 +86,11 @@ public class RewardLookAtCamera : MonoBehaviour
                 targetCamera.transform.up
             );
 
-        // 위치는 건드리지 않고 회전값만 적용
         transform.rotation =
             screenFacingRotation *
-            Quaternion.Euler(rotationOffset);
+            Quaternion.Euler(
+                rotationOffset
+            );
 
         previousCameraRotation =
             targetCamera.transform.rotation;
