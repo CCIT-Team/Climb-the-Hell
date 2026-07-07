@@ -117,7 +117,13 @@ public class BoonRewardInteractable : InteractableBase
     /// <summary>
     /// CombatRoomFlow가 보상 오브젝트를 켠 직후 호출한다.
     /// </summary>
-    public void Prepare(BoonCategory category, Action onCompleted)
+    [Header("스폰 위치 설정")]
+    [SerializeField] private float spawnForwardOffset = 1.2f; // 플레이어 발밑이 아니라 살짝 앞에 배치
+    [SerializeField] private float groundRaycastHeight = 5f;
+    [SerializeField] private LayerMask groundLayer; // 바닥 레이어 지정 필요
+
+    // 기존: public void Prepare(BoonCategory category, Action onCompleted)
+    public void Prepare(BoonCategory category, Action onCompleted, Transform playerTransform = null)
     {
         targetCategory = category;
         completedCallback = onCompleted;
@@ -129,6 +135,22 @@ public class BoonRewardInteractable : InteractableBase
         ClearPlayerReference(true);
         RestoreRewardRenderers();
 
+        // 추가: 플레이어 위치로 스폰
+        Transform resolvedPlayer = playerTransform;
+        if (resolvedPlayer == null)
+        {
+            Player fallbackPlayer = FindFirstObjectByType<Player>();
+            if (fallbackPlayer != null)
+            {
+                resolvedPlayer = fallbackPlayer.transform;
+            }
+        }
+
+        if (resolvedPlayer != null)
+        {
+            PositionAtPlayer(resolvedPlayer);
+        }
+
         if (triggerCollider == null)
         {
             triggerCollider = GetComponent<BoxCollider>();
@@ -139,11 +161,29 @@ public class BoonRewardInteractable : InteractableBase
 
         if (showLogs)
         {
-            Debug.Log(
-                $"[BoonRewardInteractable] 보상 준비 완료 / 계열: {category}",
-                this
-            );
+            Debug.Log($"[BoonRewardInteractable] 보상 준비 완료 / 계열: {category}", this);
         }
+    }
+
+    private void PositionAtPlayer(Transform playerTransform)
+    {
+        Vector3 targetPosition =
+            playerTransform.position + playerTransform.forward * spawnForwardOffset;
+
+        // 바닥 높이 스냅: 플레이어가 경사/계단 위에 있어도 보상이 붕 뜨지 않도록 처리
+        Vector3 rayOrigin = targetPosition + Vector3.up * groundRaycastHeight;
+
+        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit,
+            groundRaycastHeight * 2f, groundLayer))
+        {
+            targetPosition.y = hit.point.y;
+        }
+        else
+        {
+            targetPosition.y = playerTransform.position.y;
+        }
+
+        transform.position = targetPosition;
     }
 
     public override bool CanInteract()

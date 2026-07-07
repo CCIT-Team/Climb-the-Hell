@@ -121,19 +121,40 @@ public class CombatRoomFlow : MonoBehaviour
             return;
         }
 
+        // 추가: 이 시점에 플레이어를 확정 짓는다.
+        Transform playerTransform = ResolvePlayerTransform();
+
         // 꺼져 있던 보상 오브젝트 전체를 몬스터 전멸 후 켠다.
         boonReward.gameObject.SetActive(true);
 
-        // 활성화된 보상에 계열과 완료 콜백만 전달한다.
+        // 활성화된 보상에 계열과 완료 콜백, 플레이어 위치를 전달한다.
         boonReward.Prepare(
             rewardCategory,
-            HandleRewardCompleted
+            HandleRewardCompleted,
+            playerTransform
         );
 
         Debug.Log(
             "[CombatRoomFlow] 보상 오브젝트 ON",
             this
         );
+    }
+
+    private Transform ResolvePlayerTransform()
+    {
+        Player player = FindFirstObjectByType<Player>();
+
+        if (player == null)
+        {
+            Debug.LogWarning(
+                "[CombatRoomFlow] Player를 찾지 못해 보상이 기존 위치에 생성됩니다.",
+                this
+            );
+
+            return null;
+        }
+
+        return player.transform;
     }
 
     private void HandleRewardCompleted()

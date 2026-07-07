@@ -75,6 +75,8 @@ public class MeleeWeapon : Weapon
     private LineRenderer fanRenderer;
     private LineRenderer specialRenderer;
 
+    private Camera aimCamera;
+
     private Vector3[] fanPositions;
     private Collider[] hitBuffer;
 
@@ -106,6 +108,7 @@ public class MeleeWeapon : Weapon
     {
         ValidateValues();
         FindPlayerComponents();
+        aimCamera = Camera.main;
         SetupHitBuffer();
         SetupWaitInstructions();
         SetupRenderers();
@@ -544,11 +547,16 @@ public class MeleeWeapon : Weapon
 
     private Vector3 GetAttackForward()
     {
+        Vector3 mouseAimDirection = GetMouseAimDirection();
+
+        if (mouseAimDirection.sqrMagnitude > 0.001f)
+        {
+        return mouseAimDirection;
+        }
+
         if (playerController != null)
         {
-            Vector3 direction =
-                playerController.GetFacingDirection();
-
+            Vector3 direction = playerController.GetFacingDirection();
             direction.y = 0f;
 
             if (direction.sqrMagnitude > 0.001f)
@@ -557,17 +565,41 @@ public class MeleeWeapon : Weapon
             }
         }
 
-        Vector3 forward =
-            transform.root.forward;
-
+        Vector3 forward = transform.root.forward;
         forward.y = 0f;
 
-        if (forward.sqrMagnitude < 0.001f)
+        return forward.sqrMagnitude < 0.001f
+            ? Vector3.forward
+            : forward.normalized;
+    }
+
+    private Vector3 GetMouseAimDirection()
+    {
+        if (aimCamera == null)
         {
-            return Vector3.forward;
+            aimCamera = Camera.main;
         }
 
-        return forward.normalized;
+        if (aimCamera == null || attackPoint == null)
+        {
+            return Vector3.zero;
+        }
+
+        Ray ray = aimCamera.ScreenPointToRay(Input.mousePosition);
+        Plane aimPlane = new Plane(Vector3.up, attackPoint.position);
+
+        if (!aimPlane.Raycast(ray, out float enter))
+        {
+            return Vector3.zero;
+        }
+
+        Vector3 hitPoint = ray.GetPoint(enter);
+        Vector3 direction = hitPoint - attackPoint.position;
+        direction.y = 0f;
+
+        return direction.sqrMagnitude > 0.0001f
+            ? direction.normalized
+            : Vector3.zero;
     }
 
     public override void Use()
