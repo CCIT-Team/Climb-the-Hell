@@ -17,14 +17,14 @@ public class PlayerDash : MonoBehaviour
     private float dashBufferWindow = 0.15f;
 
     [Header("테스트용 연속 대시 설정")]
-    [Tooltip("체크 시 PlayerStats.MaxDashCount 대신 아래 testMaxDashCount 값을 사용합니다. 득도/특성 확정 전 밸런스 테스트용.")]
+    [Tooltip("체크 시 PlayerStats.MaxDashCount 대신 '기본 1회 + 아래 testBonusDashCount' 값을 사용합니다. Player/PlayerStats를 건드리지 않고 득도/특성 확정 전 밸런스만 테스트하기 위한 용도.")]
     [SerializeField]
     private bool overrideDashCountForTesting;
 
-    [Tooltip("연속으로 사용 가능한 대시 횟수(테스트용). overrideDashCountForTesting이 켜져 있을 때만 적용됩니다.")]
-    [Min(1)]
+    [Tooltip("추가로 사용 가능한 연속 대시 횟수(테스트용). 기본 1회에 더해집니다. 예: 2로 설정하면 총 3회 연속 대시. overrideDashCountForTesting이 켜져 있을 때만 적용됩니다.")]
+    [Min(0)]
     [SerializeField]
-    private int testMaxDashCount = 1;
+    private int testBonusDashCount;
 
     [Header("낮은 장애물 올라가기")]
     [Tooltip("이 높이 이하의 장애물은 대시로 올라갑니다.")]
@@ -283,10 +283,14 @@ public class PlayerDash : MonoBehaviour
         currentDashCount--;
 
         /*
-         * 재충전 타이머는 여기서 시작하지 않음.
-         * 연속 대시 체인이 완전히 끊기는 시점(EndDash)에만
-         * 시작되도록 StartRechargeIfNeeded로 책임을 이전.
+         * 대시가 하나라도 소모되면 즉시 재충전 타이머 시작.
+         * 체인이 계속 이어지는 도중에도 회복이 병렬로 진행되어야
+         * 버스트가 길어질수록 버스트 이후 대기시간이 함께 늘어나는
+         * 문제(버스트 길이에 비례한 페널티)가 발생하지 않음.
+         * StartRechargeIfNeeded는 이미 타이머가 돌고 있으면
+         * 아무 것도 하지 않으므로 매 소모마다 호출해도 안전.
          */
+        StartRechargeIfNeeded();
 
         playerController.FaceDirection(
             dashDirection
@@ -634,9 +638,15 @@ public class PlayerDash : MonoBehaviour
     {
         if (stats == null)
         {
+            /*
+             * PlayerStats가 없는 상태(예: 다른 팀원의
+             * Player 프리팹이 아직 준비되지 않은 씬)에서도
+             * 테스트 전용 필드만으로 대시 로직을 검증할 수 있도록
+             * 동일한 '기본 1회 + 추가 횟수' 공식을 적용.
+             */
             cachedMaxDashCount =
                 overrideDashCountForTesting
-                    ? Mathf.Max(1, testMaxDashCount)
+                    ? 1 + Mathf.Max(0, testBonusDashCount)
                     : 1;
 
             if (fillDash)
@@ -651,10 +661,15 @@ public class PlayerDash : MonoBehaviour
          * 최신 PlayerStats에서는
          * 기본 1회 + 추가 대시 횟수를 계산한 결과를
          * MaxDashCount 속성으로 반환.
+         *
+         * overrideDashCountForTesting이 켜져 있으면
+         * PlayerStats/Player를 전혀 건드리지 않고도
+         * 동일한 '기본 1회 + 추가 횟수' 공식을
+         * testBonusDashCount 값으로 대신 검증.
          */
         int newMaxDashCount =
             overrideDashCountForTesting
-                ? Mathf.Max(1, testMaxDashCount)
+                ? 1 + Mathf.Max(0, testBonusDashCount)
                 : stats.MaxDashCount;
 
         if (fillDash)
@@ -724,17 +739,6 @@ public class PlayerDash : MonoBehaviour
             return;
         }
 
-        /*
-         * 연속 대시 체인이 진행 중인 동안에는
-         * 재충전이 진행되지 않도록 일시 정지.
-         * 체인이 완전히 끊기는 순간(EndDash)에
-         * StartRechargeIfNeeded가 타이머를 새로 시작함.
-         */
-        if (isDashing || hasBufferedDash)
-        {
-            return;
-        }
-
         cooldownTimer -=
             Time.deltaTime;
 
@@ -744,31 +748,15 @@ public class PlayerDash : MonoBehaviour
         }
 
         /*
-         * 쿨타임이 끝날 때마다
-         * 대시 한 칸 충전.
+         * 1개씩 순차 충전하지 않고, 쿨타임이 끝나는 순간
+         * 소모했던 만큼을 전부 한 번에 복구.
+         * "N연속 소모 -> 쿨타임 1회 대기 -> N연속 다시 가능"
+         * 스펙에 맞춘 일괄 회복(Bulk Regen) 모델.
          */
-        currentDashCount++;
-
         currentDashCount =
-            Mathf.Min(
-                currentDashCount,
-                cachedMaxDashCount
-            );
+            cachedMaxDashCount;
 
-        /*
-         * 아직 덜 충전된 대시가 있다면
-         * 다음 대시 충전 타이머 시작.
-         */
-        if (currentDashCount <
-            cachedMaxDashCount)
-        {
-            cooldownTimer =
-                stats.GetEffectiveDashCooldown();
-        }
-        else
-        {
-            cooldownTimer = 0f;
-        }
+        cooldownTimer = 0f;
     }
 
     private void EndDash()
@@ -794,16 +782,6 @@ public class PlayerDash : MonoBehaviour
         }
 
         TryConsumeBufferedDash();
-
-        /*
-         * TryConsumeBufferedDash가 다음 대시로 체인을
-         * 이어가지 못한 경우에만 진짜로 체인이 끊긴 것.
-         * 이 시점에만 재충전 타이머를 시작.
-         */
-        if (!isDashing)
-        {
-            StartRechargeIfNeeded();
-        }
     }
 
     private void StartRechargeIfNeeded()
