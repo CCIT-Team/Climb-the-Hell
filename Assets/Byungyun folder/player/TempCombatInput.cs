@@ -30,6 +30,9 @@ public class TempCombatInput : MonoBehaviour
 
     private Player player;
 
+    // 공격 계열 득도(공격속도, 경직시간 등)를 읽기 위한 참조
+    private BoonInfo boonInfo;
+
     // 공격 범위를 보여주는 큐브
     private GameObject rangeVisual;
 
@@ -43,6 +46,14 @@ public class TempCombatInput : MonoBehaviour
     {
         // Player 컴포넌트 가져오기
         player = GetComponent<Player>();
+
+        // 득도 공격속도 증가 등을 적용하기 위한 참조
+        boonInfo = GetComponent<BoonInfo>();
+
+        if (boonInfo == null)
+        {
+            boonInfo = GetComponentInChildren<BoonInfo>(true);
+        }
 
         // 공격 범위 시각화 생성
         CreateRangeVisual();
@@ -107,8 +118,19 @@ public class TempCombatInput : MonoBehaviour
         // 다시 노란색으로 변경
         SetVisualColor(idleColor);
 
+        // 공격 계열 득도의 공격속도 증가율 적용
+        // (0.2면 공격속도 20% 증가 = 쿨타임 20% 감소)
+        float attackSpeedIncreaseRate =
+            boonInfo != null
+                ? boonInfo.GetTotalAttackSpeedIncreaseRate()
+                : 0f;
+
+        float effectiveCooldown =
+            attackCooldown /
+            (1f + attackSpeedIncreaseRate);
+
         float remainCooldown =
-            attackCooldown - attackVisualDuration;
+            effectiveCooldown - attackVisualDuration;
 
         if (remainCooldown > 0f)
             yield return new WaitForSeconds(remainCooldown);

@@ -29,18 +29,9 @@ public class DungeonDoor : MonoBehaviour
     [Min(0f)]
     [SerializeField] private float triggerEnableDelay = 0.2f;
 
-    [Header("문 위 프리팹 위치")]
-    [Tooltip("DungeonDoor 오브젝트 기준 로컬 위치")]
-    [SerializeField] private Vector3 destinationLocalPosition =
-        new Vector3(0f, 3f, 0f);
-
-    [Tooltip("생성된 목적지 프리팹의 로컬 회전 보정")]
-    [SerializeField] private Vector3 destinationLocalEulerAngles =
-        Vector3.zero;
-
-    [Tooltip("프리팹 원래 크기에 곱할 값")]
-    [Min(0.01f)]
-    [SerializeField] private float destinationScaleMultiplier = 1f;
+    [Header("문 위 프리팹 생성 위치")]
+    [Tooltip("씬에 배치한 빈 오브젝트를 연결합니다. 이 오브젝트의 월드 위치만 가져와 프리팹을 생성합니다.")]
+    [SerializeField] private Transform destinationSpawnPoint;
 
     [Header("전투방 계열 프리팹")]
     [Tooltip("계열 프리팹이 비어 있을 때 사용할 기본 전투방 프리팹")]
@@ -425,11 +416,37 @@ public class DungeonDoor : MonoBehaviour
             return;
         }
 
-        // 별도의 Anchor 없이 DungeonDoor 바로 아래에 생성한다.
+        /*
+         * 부모 없이 월드에 바로 생성한다.
+         *
+         * 위치:
+         * 씬에 놓은 destinationSpawnPoint의 월드 위치만 사용
+         *
+         * 회전:
+         * 프로젝트 창 프리팹의 원래 회전 유지
+         *
+         * 크기:
+         * 프로젝트 창 프리팹의 원래 크기 유지
+         */
+        if (destinationSpawnPoint == null)
+        {
+            Debug.LogError(
+                "[DungeonDoor] Destination Spawn Point가 연결되지 않았습니다. " +
+                "씬에 빈 오브젝트를 만들고 원하는 위치에 둔 뒤 연결하세요.",
+                this
+            );
+
+            return;
+        }
+
+        Vector3 spawnPosition =
+            destinationSpawnPoint.position;
+
         currentDestinationVisual =
             Instantiate(
                 selectedPrefab,
-                transform
+                spawnPosition,
+                selectedPrefab.transform.rotation
             );
 
         currentDestinationVisual.name =
@@ -438,21 +455,25 @@ public class DungeonDoor : MonoBehaviour
         Transform visualTransform =
             currentDestinationVisual.transform;
 
-        visualTransform.localPosition =
-            destinationLocalPosition;
+        // 부모 없이 월드에 생성하므로 문이나 Spawn Point의 Scale 영향을 받지 않는다.
+        visualTransform.SetParent(null, true);
 
-        visualTransform.localRotation =
-            Quaternion.Euler(
-                destinationLocalEulerAngles
-            );
+        // Instantiate 이후에도 원본 값을 명시적으로 다시 적용한다.
+        visualTransform.position =
+            spawnPosition;
 
-        visualTransform.localScale *=
-            destinationScaleMultiplier;
+        visualTransform.rotation =
+            selectedPrefab.transform.rotation;
 
-        // 문양용 프리팹이 문 충돌이나 플레이어 판정을 방해하지 않게 한다.
+        visualTransform.localScale =
+            selectedPrefab.transform.localScale;
+
+        // 목적지 표시용 프리팹의 충돌 판정을 모두 비활성화한다.
         Collider[] colliders =
             currentDestinationVisual
-                .GetComponentsInChildren<Collider>(true);
+                .GetComponentsInChildren<Collider>(
+                    true
+                );
 
         for (int i = 0;
              i < colliders.Length;
@@ -462,6 +483,18 @@ public class DungeonDoor : MonoBehaviour
         }
 
         currentDestinationVisual.SetActive(true);
+
+        if (showLogs)
+        {
+            Debug.Log(
+                $"[DungeonDoor] 목적지 프리팹 생성 완료 / " +
+                $"이름={currentDestinationVisual.name}, " +
+                $"월드 위치={visualTransform.position}, " +
+                $"회전={visualTransform.eulerAngles}, " +
+                $"크기={visualTransform.localScale}",
+                currentDestinationVisual
+            );
+        }
     }
 
     private GameObject GetDestinationPrefab()
@@ -565,6 +598,12 @@ public class DungeonDoor : MonoBehaviour
             sceneTrigger.SetTriggerEnabled(false);
         }
 
-        // 문 위 프리팹은 경로가 유지되는 동안 삭제하지 않는다.
+        // 비활성화만으로는 문 위 프리팹을 지우지 않는다.
+    }
+
+    private void OnDestroy()
+    {
+        // 프리팹이 문 자식이 아니므로 문이 파괴될 때 별도로 제거한다.
+        DestroyDestinationVisual();
     }
 }

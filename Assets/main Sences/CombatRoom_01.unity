@@ -42699,7 +42699,7 @@ Transform:
   m_GameObject: {fileID: 5977164008078773636}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.71295506, z: -0, w: 0.7012098}
-  m_LocalPosition: {x: 141.93, y: 15.96, z: -1.8999996}
+  m_LocalPosition: {x: 141.93, y: 15.96, z: -1.9}
   m_LocalScale: {x: 0.13400201, y: 6.7001, z: 0.13400201}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -43023,8 +43023,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1166160145119652473}
-  - component: {fileID: 2933483126784071351}
-  - component: {fileID: 5412749535385053435}
   - component: {fileID: 7595360454079578918}
   - component: {fileID: 5142993089935475282}
   - component: {fileID: 7595360454079578919}
@@ -44341,8 +44339,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   leftDoor: {fileID: 2807111725599865943}
   rightDoor: {fileID: 5863483477931245778}
-  prepareOnStart: 1
+  allowDirectScenePlay: 1
+  directPlayRoomGraph: {fileID: 0}
+  directPlayRewardCategory: 1
+  directPlayFloor: 1
   useSingleDoorForBoss: 1
+  prepareRetryFrames: 30
   showLogs: 1
 --- !u!1 &2688207404250708226
 GameObject:
@@ -44679,7 +44681,7 @@ MonoBehaviour:
   openDuration: 3
   closeDuration: 1
   triggerEnableDelay: 0.2
-  destinationAnchor: {fileID: 4804815525468558959}
+  destinationSpawnPoint: {fileID: 4804815525468558959}
   combatRoomPrefab: {fileID: 4625975493690886059, guid: 2bd8e7651d5bdb648b807f484ef28c1b, type: 3}
   attackCombatPrefab: {fileID: 6298446923573235986, guid: 699fe2cf126c2b4448123a99db7f4a9d, type: 3}
   defenseCombatPrefab: {fileID: 2315431345921884305, guid: fdf73a05dcee13d4c8a491e30958a001, type: 3}
@@ -44826,14 +44828,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &2933483126784071351
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2122670832691402519}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!114 &2938086701815127166
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -49093,7 +49087,7 @@ Transform:
   m_GameObject: {fileID: 2980825513738481688}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -8.8, y: 0.76864535, z: -2.2}
+  m_LocalPosition: {x: -8.799976, y: 0.76864535, z: -2.199994}
   m_LocalScale: {x: 7.462575, y: 0.1492515, z: 7.462575}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -50167,7 +50161,6 @@ MonoBehaviour:
   boonRewardUI: {fileID: 381848480677506168}
   boonDatabase: {fileID: 11400000, guid: f84a796a9ecd6e3449a0d0025611df25, type: 2}
   resourcesPath: Boons
-  visualAnchor: {fileID: 0}
   defaultRewardPrefab: {fileID: 4625975493690886059, guid: 2bd8e7651d5bdb648b807f484ef28c1b, type: 3}
   attackRewardPrefab: {fileID: 6298446923573235986, guid: 699fe2cf126c2b4448123a99db7f4a9d, type: 3}
   defenseRewardPrefab: {fileID: 2315431345921884305, guid: fdf73a05dcee13d4c8a491e30958a001, type: 3}
@@ -50696,48 +50689,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 6655848945039240194}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!23 &5412749535385053435
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2122670832691402519}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!114 &5443338260527087442
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -51838,7 +51789,7 @@ MonoBehaviour:
   openDuration: 3
   closeDuration: 1
   triggerEnableDelay: 0.2
-  destinationAnchor: {fileID: 2784972505568244743}
+  destinationSpawnPoint: {fileID: 2784972505568244743}
   combatRoomPrefab: {fileID: 4625975493690886059, guid: 2bd8e7651d5bdb648b807f484ef28c1b, type: 3}
   attackCombatPrefab: {fileID: 6298446923573235986, guid: 699fe2cf126c2b4448123a99db7f4a9d, type: 3}
   defenseCombatPrefab: {fileID: 2315431345921884305, guid: fdf73a05dcee13d4c8a491e30958a001, type: 3}
