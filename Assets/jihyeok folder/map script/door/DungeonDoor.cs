@@ -4,53 +4,80 @@ using UnityEngine;
 /// <summary>
 /// 문 하나의 경로 표시와 개방을 관리한다.
 ///
-/// 핵심:
-/// - Configure가 호출되면 문 위 목적지 프리팹을 즉시 생성한다.
-/// - 목적지 프리팹은 문이 잠겨 있어도 계속 보인다.
-/// - Open이 호출될 때만 문 회전과 이동 Trigger가 활성화된다.
-/// - 별도의 DestinationAnchor 오브젝트는 필요 없다.
+/// - Configure 호출 시 목적지 표시 프리팹을 생성한다.
+/// - Destination Spawn Point의 월드 위치에 프리팹을 생성한다.
+/// - 문이 열리면 Scene Trigger를 활성화한다.
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public class DungeonDoor : MonoBehaviour
 {
     [Header("문 회전")]
-    [SerializeField] private Transform doorPivot;
-    [SerializeField] private DoorSceneTrigger sceneTrigger;
+    [SerializeField]
+    private Transform doorPivot;
+
+    [SerializeField]
+    private DoorSceneTrigger sceneTrigger;
 
     [Tooltip("문이 열릴 Y축 각도")]
-    [SerializeField] private float openAngle = -90f;
+    [SerializeField]
+    private float openAngle = -90f;
 
     [Min(0f)]
-    [SerializeField] private float openDuration = 1.2f;
+    [SerializeField]
+    private float openDuration = 1.2f;
 
     [Min(0f)]
-    [SerializeField] private float closeDuration = 0.8f;
+    [SerializeField]
+    private float closeDuration = 0.8f;
 
     [Min(0f)]
-    [SerializeField] private float triggerEnableDelay = 0.2f;
+    [SerializeField]
+    private float triggerEnableDelay = 0.2f;
 
-    [Header("문 위 프리팹 생성 위치")]
-    [Tooltip("씬에 배치한 빈 오브젝트를 연결합니다. 이 오브젝트의 월드 위치만 가져와 프리팹을 생성합니다.")]
-    [SerializeField] private Transform destinationSpawnPoint;
+    [Header("목적지 프리팹 생성 기준점")]
+    [Tooltip(
+        "Hierarchy에 있는 빈 오브젝트 또는 Quad의 Transform을 연결하세요.\n" +
+        "목적지 프리팹은 이 Transform의 월드 위치와 회전에 생성됩니다."
+    )]
+    [SerializeField]
+    private Transform destinationSpawnPoint;
 
     [Header("전투방 계열 프리팹")]
-    [Tooltip("계열 프리팹이 비어 있을 때 사용할 기본 전투방 프리팹")]
-    [SerializeField] private GameObject combatRoomPrefab;
+    [Tooltip("계열별 프리팹이 비어 있을 때 사용하는 기본 전투방 프리팹")]
+    [SerializeField]
+    private GameObject combatRoomPrefab;
 
-    [SerializeField] private GameObject attackCombatPrefab;
-    [SerializeField] private GameObject defenseCombatPrefab;
-    [SerializeField] private GameObject mobilityCombatPrefab;
-    [SerializeField] private GameObject debuffCombatPrefab;
+    [SerializeField]
+    private GameObject attackCombatPrefab;
+
+    [SerializeField]
+    private GameObject defenseCombatPrefab;
+
+    [SerializeField]
+    private GameObject mobilityCombatPrefab;
+
+    [SerializeField]
+    private GameObject debuffCombatPrefab;
 
     [Header("비전투방 프리팹")]
-    [SerializeField] private GameObject rewardRoomPrefab;
-    [SerializeField] private GameObject shopRoomPrefab;
-    [SerializeField] private GameObject jakduRoomPrefab;
-    [SerializeField] private GameObject eventRoomPrefab;
-    [SerializeField] private GameObject bossRoomPrefab;
+    [SerializeField]
+    private GameObject rewardRoomPrefab;
+
+    [SerializeField]
+    private GameObject shopRoomPrefab;
+
+    [SerializeField]
+    private GameObject jakduRoomPrefab;
+
+    [SerializeField]
+    private GameObject eventRoomPrefab;
+
+    [SerializeField]
+    private GameObject bossRoomPrefab;
 
     [Header("디버그")]
-    [SerializeField] private bool showLogs = true;
+    [SerializeField]
+    private bool showLogs = true;
 
     private Quaternion closedRotation;
     private Quaternion openedRotation;
@@ -65,11 +92,29 @@ public class DungeonDoor : MonoBehaviour
 
     private Coroutine doorRoutine;
 
-    public bool HasValidRoute =>
-        route != null &&
-        route.IsValid;
+    /// <summary>
+    /// 현재 문에 유효한 이동 경로가 설정되어 있는지 확인한다.
+    /// </summary>
+    public bool HasValidRoute
+    {
+        get
+        {
+            return route != null &&
+                   route.IsValid &&
+                   route.TargetRoom != null;
+        }
+    }
 
     private void Awake()
+    {
+        InitializeDoorRotation();
+        InitializeSceneTrigger();
+    }
+
+    /// <summary>
+    /// 문 회전값을 초기화한다.
+    /// </summary>
+    private void InitializeDoorRotation()
     {
         if (doorPivot == null)
         {
@@ -81,8 +126,7 @@ public class DungeonDoor : MonoBehaviour
             return;
         }
 
-        closedRotation =
-            doorPivot.localRotation;
+        closedRotation = doorPivot.localRotation;
 
         openedRotation =
             closedRotation *
@@ -92,22 +136,32 @@ public class DungeonDoor : MonoBehaviour
                 0f
             );
 
-        doorPivot.localRotation =
-            closedRotation;
-
-        if (sceneTrigger != null)
-        {
-            sceneTrigger.Initialize(this);
-            sceneTrigger.SetTriggerEnabled(false);
-        }
+        doorPivot.localRotation = closedRotation;
     }
 
     /// <summary>
-    /// 다음 방 경로를 배정하고 문 위 프리팹을 즉시 생성한다.
-    /// 이 시점에는 문 이동만 잠겨 있다.
+    /// 문 진입 Trigger를 초기화한다.
     /// </summary>
-    public void Configure(
-        RoomRouteOption newRoute)
+    private void InitializeSceneTrigger()
+    {
+        if (sceneTrigger == null)
+        {
+            Debug.LogWarning(
+                "[DungeonDoor] Scene Trigger가 연결되지 않았습니다.",
+                this
+            );
+
+            return;
+        }
+
+        sceneTrigger.Initialize(this);
+        sceneTrigger.SetTriggerEnabled(false);
+    }
+
+    /// <summary>
+    /// 문의 다음 경로를 설정하고 목적지 표시를 생성한다.
+    /// </summary>
+    public void Configure(RoomRouteOption newRoute)
     {
         route = newRoute;
 
@@ -120,8 +174,7 @@ public class DungeonDoor : MonoBehaviour
 
         if (doorPivot != null)
         {
-            doorPivot.localRotation =
-                closedRotation;
+            doorPivot.localRotation = closedRotation;
         }
 
         if (sceneTrigger != null)
@@ -146,7 +199,7 @@ public class DungeonDoor : MonoBehaviour
         if (showLogs)
         {
             Debug.Log(
-                $"[DungeonDoor] 문 위 표시 생성 / " +
+                $"[DungeonDoor] 문 경로 설정 완료 / " +
                 $"방={route.TargetRoom.DisplayName}, " +
                 $"타입={route.TargetRoom.RoomType}, " +
                 $"태그={route.RewardCategory}",
@@ -156,13 +209,14 @@ public class DungeonDoor : MonoBehaviour
     }
 
     /// <summary>
-    /// 문 이동만 잠근다.
-    /// 문 위에 생성된 프리팹은 절대 숨기지 않는다.
+    /// 문을 잠그고 닫힌 상태로 되돌린다.
+    /// 목적지 표시는 유지한다.
     /// </summary>
     public void Lock()
     {
         doorUnlocked = false;
         opened = false;
+        animating = false;
         changingScene = false;
 
         StopDoorRoutine();
@@ -174,18 +228,14 @@ public class DungeonDoor : MonoBehaviour
 
         if (doorPivot != null)
         {
-            doorPivot.localRotation =
-                closedRotation;
+            doorPivot.localRotation = closedRotation;
         }
     }
 
     /// <summary>
-    /// 이전 코드 호환용.
-    /// false면 문만 잠그고, true면 경로가 있을 때 문을 열 수 있는 상태로 둔다.
-    /// 목적지 프리팹은 건드리지 않는다.
+    /// 기존 코드 호환용 함수.
     /// </summary>
-    public void SetDoorEnabled(
-        bool value)
+    public void SetDoorEnabled(bool value)
     {
         if (!value)
         {
@@ -193,12 +243,11 @@ public class DungeonDoor : MonoBehaviour
             return;
         }
 
-        doorUnlocked =
-            HasValidRoute;
+        doorUnlocked = HasValidRoute;
     }
 
     /// <summary>
-    /// 사용하지 않는 문의 경로와 표시를 전부 제거한다.
+    /// 경로와 목적지 표시를 모두 제거한다.
     /// </summary>
     public void ClearRoute()
     {
@@ -218,22 +267,28 @@ public class DungeonDoor : MonoBehaviour
 
         if (doorPivot != null)
         {
-            doorPivot.localRotation =
-                closedRotation;
+            doorPivot.localRotation = closedRotation;
         }
 
         DestroyDestinationVisual();
     }
 
     /// <summary>
-    /// 방 완료 후 문을 연다.
-    /// 문 위 표시가 없으면 같은 경로로 다시 생성한다.
+    /// 방 클리어 후 문을 연다.
     /// </summary>
     public void Open()
     {
-        if (!HasValidRoute ||
-            opened ||
-            animating)
+        if (!HasValidRoute)
+        {
+            Debug.LogWarning(
+                "[DungeonDoor] 경로가 없어서 문을 열 수 없습니다.",
+                this
+            );
+
+            return;
+        }
+
+        if (opened || animating)
         {
             return;
         }
@@ -249,19 +304,20 @@ public class DungeonDoor : MonoBehaviour
         StopDoorRoutine();
 
         doorRoutine =
-            StartCoroutine(
-                OpenRoutine()
-            );
+            StartCoroutine(OpenRoutine());
     }
 
     /// <summary>
-    /// DoorSceneTrigger가 플레이어 진입 시 호출한다.
+    /// 플레이어가 문 Trigger에 들어오면 호출된다.
     /// </summary>
-    public bool TryEnter(
-        Player player)
+    public bool TryEnter(Player player)
     {
-        if (player == null ||
-            !doorUnlocked ||
+        if (player == null)
+        {
+            return false;
+        }
+
+        if (!doorUnlocked ||
             !opened ||
             animating ||
             changingScene ||
@@ -280,13 +336,14 @@ public class DungeonDoor : MonoBehaviour
         StopDoorRoutine();
 
         doorRoutine =
-            StartCoroutine(
-                CloseAndMoveRoutine()
-            );
+            StartCoroutine(CloseAndMoveRoutine());
 
         return true;
     }
 
+    /// <summary>
+    /// 문을 연 뒤 이동 Trigger를 활성화한다.
+    /// </summary>
     private IEnumerator OpenRoutine()
     {
         yield return RotateDoor(
@@ -310,6 +367,9 @@ public class DungeonDoor : MonoBehaviour
         doorRoutine = null;
     }
 
+    /// <summary>
+    /// 문을 닫은 뒤 다음 방으로 이동을 요청한다.
+    /// </summary>
     private IEnumerator CloseAndMoveRoutine()
     {
         yield return RotateDoor(
@@ -342,9 +402,13 @@ public class DungeonDoor : MonoBehaviour
         Open();
     }
 
+    /// <summary>
+    /// 문 Pivot을 목표 회전값까지 부드럽게 회전시킨다.
+    /// </summary>
     private IEnumerator RotateDoor(
         Quaternion targetRotation,
-        float duration)
+        float duration
+    )
     {
         if (doorPivot == null)
         {
@@ -362,6 +426,7 @@ public class DungeonDoor : MonoBehaviour
                 targetRotation;
 
             animating = false;
+
             yield break;
         }
 
@@ -397,9 +462,29 @@ public class DungeonDoor : MonoBehaviour
         animating = false;
     }
 
+    /// <summary>
+    /// Destination Spawn Point의 월드 위치와 회전에
+    /// 목적지 프리팹을 생성한다.
+    /// </summary>
     private void RefreshDestinationVisual()
     {
         DestroyDestinationVisual();
+
+        if (!HasValidRoute)
+        {
+            return;
+        }
+
+        if (destinationSpawnPoint == null)
+        {
+            Debug.LogError(
+                "[DungeonDoor] Destination Spawn Point가 비어 있습니다. " +
+                "Hierarchy에 있는 위치 기준 오브젝트를 연결하세요.",
+                this
+            );
+
+            return;
+        }
 
         GameObject selectedPrefab =
             GetDestinationPrefab();
@@ -407,100 +492,97 @@ public class DungeonDoor : MonoBehaviour
         if (selectedPrefab == null)
         {
             Debug.LogError(
-                $"[DungeonDoor] 연결된 목적지 프리팹이 없습니다. " +
-                $"타입={route.TargetRoom.RoomType}, " +
-                $"태그={route.RewardCategory}",
+                $"[DungeonDoor] 목적지 프리팹이 연결되지 않았습니다. " +
+                $"방 타입={route.TargetRoom.RoomType}, " +
+                $"보상 계열={route.RewardCategory}",
                 this
             );
 
             return;
         }
 
-        /*
-         * 부모 없이 월드에 바로 생성한다.
-         *
-         * 위치:
-         * 씬에 놓은 destinationSpawnPoint의 월드 위치만 사용
-         *
-         * 회전:
-         * 프로젝트 창 프리팹의 원래 회전 유지
-         *
-         * 크기:
-         * 프로젝트 창 프리팹의 원래 크기 유지
-         */
-        if (destinationSpawnPoint == null)
-        {
-            Debug.LogError(
-                "[DungeonDoor] Destination Spawn Point가 연결되지 않았습니다. " +
-                "씬에 빈 오브젝트를 만들고 원하는 위치에 둔 뒤 연결하세요.",
-                this
-            );
-
-            return;
-        }
-
-        Vector3 spawnPosition =
+        Vector3 worldSpawnPosition =
             destinationSpawnPoint.position;
 
+        Quaternion worldSpawnRotation =
+            destinationSpawnPoint.rotation;
+
+        /*
+         * 기준 Transform의 월드 위치와 회전을 사용한다.
+         * 프리팹 원본 Transform 위치는 사용하지 않는다.
+         */
         currentDestinationVisual =
             Instantiate(
                 selectedPrefab,
-                spawnPosition,
-                selectedPrefab.transform.rotation
+                worldSpawnPosition,
+                worldSpawnRotation
             );
 
         currentDestinationVisual.name =
             $"{selectedPrefab.name}_Destination";
 
-        Transform visualTransform =
-            currentDestinationVisual.transform;
+        /*
+         * 위치 기준점의 자식으로 연결한다.
+         * true이므로 현재 월드 위치와 회전은 유지된다.
+         */
+        currentDestinationVisual.transform.SetParent(
+            destinationSpawnPoint,
+            true
+        );
 
-        // 부모 없이 월드에 생성하므로 문이나 Spawn Point의 Scale 영향을 받지 않는다.
-        visualTransform.SetParent(null, true);
+        /*
+         * 생성 직후 오차가 없도록 월드 위치와 회전을 다시 확정한다.
+         */
+        currentDestinationVisual.transform.SetPositionAndRotation(
+            worldSpawnPosition,
+            worldSpawnRotation
+        );
 
-        // Instantiate 이후에도 원본 값을 명시적으로 다시 적용한다.
-        visualTransform.position =
-            spawnPosition;
-
-        visualTransform.rotation =
-            selectedPrefab.transform.rotation;
-
-        visualTransform.localScale =
-            selectedPrefab.transform.localScale;
-
-        // 목적지 표시용 프리팹의 충돌 판정을 모두 비활성화한다.
-        Collider[] colliders =
-            currentDestinationVisual
-                .GetComponentsInChildren<Collider>(
-                    true
-                );
-
-        for (int i = 0;
-             i < colliders.Length;
-             i++)
-        {
-            colliders[i].enabled = false;
-        }
+        DisableDestinationColliders();
 
         currentDestinationVisual.SetActive(true);
 
         if (showLogs)
         {
             Debug.Log(
-                $"[DungeonDoor] 목적지 프리팹 생성 완료 / " +
-                $"이름={currentDestinationVisual.name}, " +
-                $"월드 위치={visualTransform.position}, " +
-                $"회전={visualTransform.eulerAngles}, " +
-                $"크기={visualTransform.localScale}",
+                $"[DungeonDoor] 목적지 프리팹 생성 완료\n" +
+                $"기준점 이름={destinationSpawnPoint.name}\n" +
+                $"기준점 월드 위치={destinationSpawnPoint.position}\n" +
+                $"생성된 월드 위치={currentDestinationVisual.transform.position}\n" +
+                $"기준점 월드 회전={destinationSpawnPoint.eulerAngles}\n" +
+                $"생성된 월드 회전={currentDestinationVisual.transform.eulerAngles}\n" +
+                $"프리팹={selectedPrefab.name}",
                 currentDestinationVisual
             );
         }
     }
 
+    /// <summary>
+    /// 목적지 표시 프리팹의 Collider를 비활성화한다.
+    /// </summary>
+    private void DisableDestinationColliders()
+    {
+        if (currentDestinationVisual == null)
+        {
+            return;
+        }
+
+        Collider[] colliders =
+            currentDestinationVisual
+                .GetComponentsInChildren<Collider>(true);
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            colliders[i].enabled = false;
+        }
+    }
+
+    /// <summary>
+    /// 현재 경로에 맞는 목적지 프리팹을 반환한다.
+    /// </summary>
     private GameObject GetDestinationPrefab()
     {
-        if (!HasValidRoute ||
-            route.TargetRoom == null)
+        if (!HasValidRoute)
         {
             return null;
         }
@@ -508,15 +590,13 @@ public class DungeonDoor : MonoBehaviour
         RoomType roomType =
             route.TargetRoom.RoomType;
 
-        if (roomType == RoomType.Combat)
-        {
-            return GetCombatPrefab(
-                route.RewardCategory
-            );
-        }
-
         switch (roomType)
         {
+            case RoomType.Combat:
+                return GetCombatPrefab(
+                    route.RewardCategory
+                );
+
             case RoomType.Reward:
                 return rewardRoomPrefab;
 
@@ -537,8 +617,12 @@ public class DungeonDoor : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 전투방 보상 계열에 맞는 프리팹을 반환한다.
+    /// </summary>
     private GameObject GetCombatPrefab(
-        BoonCategory category)
+        BoonCategory category
+    )
     {
         switch (category)
         {
@@ -567,6 +651,9 @@ public class DungeonDoor : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 현재 생성된 목적지 표시를 제거한다.
+    /// </summary>
     private void DestroyDestinationVisual()
     {
         if (currentDestinationVisual == null)
@@ -575,9 +662,13 @@ public class DungeonDoor : MonoBehaviour
         }
 
         Destroy(currentDestinationVisual);
+
         currentDestinationVisual = null;
     }
 
+    /// <summary>
+    /// 실행 중인 문 코루틴을 중지한다.
+    /// </summary>
     private void StopDoorRoutine()
     {
         if (doorRoutine == null)
@@ -586,7 +677,9 @@ public class DungeonDoor : MonoBehaviour
         }
 
         StopCoroutine(doorRoutine);
+
         doorRoutine = null;
+        animating = false;
     }
 
     private void OnDisable()
@@ -597,13 +690,10 @@ public class DungeonDoor : MonoBehaviour
         {
             sceneTrigger.SetTriggerEnabled(false);
         }
-
-        // 비활성화만으로는 문 위 프리팹을 지우지 않는다.
     }
 
     private void OnDestroy()
     {
-        // 프리팹이 문 자식이 아니므로 문이 파괴될 때 별도로 제거한다.
         DestroyDestinationVisual();
     }
 }
