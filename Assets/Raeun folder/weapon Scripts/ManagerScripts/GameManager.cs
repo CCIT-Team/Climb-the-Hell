@@ -51,7 +51,7 @@ public class GameManager : MonoBehaviour
         // 저장 데이터 불러오기
         saveManager.Load();
         
-        permanentMoney.SetMoney(1000); // 테스트용
+        permanentMoney.SetMoney(1000000); // 테스트용
     }
 
     // 영구 재화 획득

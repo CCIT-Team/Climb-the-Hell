@@ -26,8 +26,7 @@ public class TraitPanel : MonoBehaviour
             // 각 Row에 표시할 TraitData와 필요한 참조 전달
             rows[i].Init(
                 traitManager.allTraits[i],
-                traitManager,
-                traitUI);
+                traitManager);
         }
     }
 

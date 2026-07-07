@@ -6,6 +6,9 @@ TagManager:
   tags:
   - floor
   - Monster
+  - Weapon
+  - NPC
+  - TraitNPC
   layers:
   - Default
   - TransparentFX

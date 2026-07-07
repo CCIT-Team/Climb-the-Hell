@@ -42,6 +42,8 @@ public class PlayerStats
     public PlayerStatValues TraitBonusStats => traitBonusStats;
     public PlayerStatValues BoonBonusStats => boonBonusStats;
 
+    public event Action OnStatsChanged;
+
     public int CurrentHp => currentHp;
 
     public int MaxHp =>
@@ -329,5 +331,19 @@ public class PlayerStats
                 0,
                 MaxHp
             );
+    }
+
+    public void NotifyChange()
+    {
+        OnStatsChanged?.Invoke();
+    }
+
+    public void AddCurrentHp(int amount)
+    {
+        currentHp = Mathf.Min(
+            currentHp + amount,
+            MaxHp);
+
+        NotifyChange();
     }
 }

@@ -16,6 +16,8 @@ public class TraitUI : UIBase
     private MoneyData PermanentMoney =>
         GameManager.Instance.permanentMoney;
 
+    [SerializeField] private TraitManager traitManager;
+
     // UI가 열릴 때 호출
     public override void Open()
     {
@@ -32,22 +34,30 @@ public class TraitUI : UIBase
         // 현재 돈 표시 갱신
         UpdateMoneyText(
             PermanentMoney.CurrentMoney);
+
+        traitPanel.Refresh();
     }
 
     // UI가 활성화될 때
     private void OnEnable()
     {
-        // 돈이 변경되면 자동으로 UI 갱신
-        GameManager.Instance.permanentMoney.OnMoneyChanged
-            += UpdateMoneyText;
+        if (GameManager.Instance == null)
+            return;
+
+        GameManager.Instance.permanentMoney.OnMoneyChanged += UpdateMoneyText;
+
+        traitManager.OnTraitChanged += RefreshUI;
     }
 
     // UI가 비활성화될 때
     private void OnDisable()
     {
-        // 이벤트 해제
-        GameManager.Instance.permanentMoney.OnMoneyChanged
-            -= UpdateMoneyText;
+        if (GameManager.Instance == null)
+            return;
+
+        GameManager.Instance.permanentMoney.OnMoneyChanged -= UpdateMoneyText;
+
+        traitManager.OnTraitChanged -= RefreshUI;
     }
 
     // 돈 UI 갱신
@@ -55,9 +65,6 @@ public class TraitUI : UIBase
     {
         // 보유한 돈 표시
         currencyText.text = $"{money}p";
-
-        // 돈이 바뀌면 특성 구매 가능 여부도 다시 계산
-        traitPanel.Refresh();
     }
 
     public void OnClickClose()
