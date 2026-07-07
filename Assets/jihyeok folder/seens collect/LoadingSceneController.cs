@@ -1,112 +1,81 @@
 using System.Collections;
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 /// <summary>
 /// RunFlowManager가 저장한 목적지 씬을 비동기로 로드한다.
+/// 검은 화면(CanvasGroup)이 씬 전환 전/후로 페이드 인·아웃된다.
+/// 씬 전환 시 파괴되지 않도록 DontDestroyOnLoad로 유지된 뒤,
+/// 페이드 아웃이 끝나면 스스로 파괴된다.
 /// Loading 씬에 하나만 배치한다.
 /// </summary>
+[RequireComponent(typeof(CanvasGroup))]
 public class LoadingSceneController : MonoBehaviour
 {
-    [Header("로딩 UI")]
-    [SerializeField] private Slider progressSlider;
-    [SerializeField] private TextMeshProUGUI progressText;
+    [Header("검은 화면")]
+    [SerializeField] private CanvasGroup blackScreen;
 
-    [Header("로딩 시간")]
+    [Header("타이밍")]
+    [Min(0f)] [SerializeField] private float fadeInDuration = 0.4f;
+    [Min(0f)] [SerializeField] private float fadeOutDuration = 0.4f;
     [Min(0f)]
-    [Tooltip("실제 씬 로딩이 끝나더라도 로딩 화면을 유지할 최소 시간")]
-    [SerializeField] private float minimumDisplayTime = 2f;
+    [Tooltip("실제 씬 로딩이 끝나더라도 검은 화면을 유지할 최소 시간 (페이드 인/아웃 제외)")]
+    [SerializeField] private float minimumDisplayTime = 1f;
+
+    private void Awake()
+    {
+        // 씬 전환 이후에도 이 오브젝트(검은 화면)가 살아남아야
+        // "다음 씬 위에서 걷히는" 페이드 아웃이 성립한다.
+        DontDestroyOnLoad(gameObject);
+    }
 
     private IEnumerator Start()
     {
-        // 이전 씬에서 시간이 정지되어 있을 가능성 방지
         Time.timeScale = 1f;
 
         RunFlowManager manager = RunFlowManager.Instance;
 
         if (manager == null)
         {
-            Debug.LogError(
-                "[LoadingSceneController] RunFlowManager를 찾을 수 없습니다.",
-                this);
-
+            Debug.LogError("[LoadingSceneController] RunFlowManager를 찾을 수 없습니다.", this);
+            Destroy(gameObject);
             yield break;
         }
 
-        string targetSceneName =
-            manager.GetPendingSceneName();
+        string targetSceneName = manager.GetPendingSceneName();
 
         if (string.IsNullOrWhiteSpace(targetSceneName))
         {
-            Debug.LogError(
-                "[LoadingSceneController] 로드할 목적지 씬이 설정되지 않았습니다.",
-                this);
-
+            Debug.LogError("[LoadingSceneController] 로드할 목적지 씬이 설정되지 않았습니다.", this);
+            Destroy(gameObject);
             yield break;
         }
 
-        SetProgress(0f);
+        // 1) 완전한 검은 화면으로 페이드 인
+        yield return Fade(0f, 1f, fadeInDuration);
 
+        // 2) 목적지 씬 비동기 로드 (활성화는 보류)
         AsyncOperation operation =
-            SceneManager.LoadSceneAsync(
-                targetSceneName,
-                LoadSceneMode.Single);
+            SceneManager.LoadSceneAsync(targetSceneName, LoadSceneMode.Single);
 
         if (operation == null)
         {
-            Debug.LogError(
-                $"[LoadingSceneController] '{targetSceneName}' 씬 로드에 실패했습니다.",
-                this);
-
+            Debug.LogError($"[LoadingSceneController] '{targetSceneName}' 씬 로드에 실패했습니다.", this);
+            Destroy(gameObject);
             yield break;
         }
 
-        // 로드가 완료되어도 바로 씬을 전환하지 않는다.
         operation.allowSceneActivation = false;
 
         float startedTime = Time.unscaledTime;
 
         while (true)
         {
-            float elapsedTime =
-                Time.unscaledTime - startedTime;
-
-            // Unity 비동기 로딩은 씬 활성화 전까지 progress가 0.9에서 멈춘다.
-            float sceneLoadProgress =
-                Mathf.Clamp01(operation.progress / 0.9f);
-
-            // 최소 로딩 시간 기준 진행률
-            float timeProgress;
-
-            if (minimumDisplayTime <= 0f)
-            {
-                timeProgress = 1f;
-            }
-            else
-            {
-                timeProgress =
-                    Mathf.Clamp01(
-                        elapsedTime / minimumDisplayTime);
-            }
-
-            // 실제 로딩과 최소 시간 중 더 느린 쪽을 진행률로 사용한다.
-            float displayedProgress =
-                Mathf.Min(
-                    sceneLoadProgress,
-                    timeProgress);
-
-            SetProgress(displayedProgress);
-
-            bool sceneLoadCompleted =
-                operation.progress >= 0.9f;
-
+            bool sceneLoadCompleted = operation.progress >= 0.9f;
             bool minimumTimeCompleted =
-                elapsedTime >= minimumDisplayTime;
+                Time.unscaledTime - startedTime >= minimumDisplayTime;
 
-            if (sceneLoadCompleted &&
-                minimumTimeCompleted)
+            if (sceneLoadCompleted && minimumTimeCompleted)
             {
                 break;
             }
@@ -114,27 +83,43 @@ public class LoadingSceneController : MonoBehaviour
             yield return null;
         }
 
-        SetProgress(1f);
-
-        // 목적지 정보를 확정한 후 씬 활성화
+        // 3) 목적지 확정 후 씬 활성화 (화면은 여전히 검은 상태)
         manager.CommitPendingDestination();
-
         operation.allowSceneActivation = true;
+
+        // 활성화 직후 한 프레임 대기 → 새 씬의 Awake/Start가
+        // 최소한 한 번 돌아간 뒤 페이드 아웃을 시작한다.
+        // (카메라·라이팅 초기화 전에 걷히면 초기 프레임이 깨져 보일 수 있음)
+        yield return null;
+
+        // 4) 새 씬 위에서 검은 화면을 걷어낸다
+        yield return Fade(1f, 0f, fadeOutDuration);
+
+        Destroy(gameObject);
     }
 
-    private void SetProgress(float value)
+    private IEnumerator Fade(float from, float to, float duration)
     {
-        value = Mathf.Clamp01(value);
-
-        if (progressSlider != null)
+        if (blackScreen == null)
         {
-            progressSlider.value = value;
+            yield break;
         }
 
-        if (progressText != null)
+        if (duration <= 0f)
         {
-            progressText.text =
-                $"{value * 100f:0}%";
+            blackScreen.alpha = to;
+            yield break;
         }
+
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            blackScreen.alpha = Mathf.Lerp(from, to, elapsed / duration);
+            yield return null;
+        }
+
+        blackScreen.alpha = to;
     }
 }

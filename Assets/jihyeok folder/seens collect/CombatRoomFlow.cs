@@ -1,10 +1,17 @@
 using UnityEngine;
 
 /// <summary>
-/// 전투방 진행 관리.
-/// 몬스터 전멸 -> 꺼져 있던 보상 오브젝트 활성화
-/// -> E키로 득도 획득 -> 보상 오브젝트 비활성화
-/// -> 다음 방 문 개방.
+/// 전투방 흐름:
+///
+/// 씬 시작:
+/// RoomChoiceGenerator가 직접 실행용 런을 준비하고
+/// 문 위 목적지 프리팹을 표시한다.
+///
+/// 몬스터 전멸:
+/// 플레이어 위치 위에 득도 보상을 떨어뜨린다.
+///
+/// 득도 선택 완료:
+/// 이미 표시된 문을 개방한다.
 /// </summary>
 public class CombatRoomFlow : MonoBehaviour
 {
@@ -13,21 +20,26 @@ public class CombatRoomFlow : MonoBehaviour
     [SerializeField] private BoonRewardInteractable boonReward;
     [SerializeField] private RoomChoiceGenerator roomChoiceGenerator;
 
-    private bool battleClearHandled;
+    [Header("보정")]
+    [Tooltip("이벤트를 놓쳐도 MonsterSpawner.IsCleared를 검사")]
+    [SerializeField] private bool useClearStateFallback = true;
+
+    private bool battleHandled;
     private bool rewardCompleted;
 
     private void Awake()
     {
-        // 전투 시작 전에는 보상 오브젝트 전체를 꺼둔다.
+        // RoomChoiceGenerator가 더 이른 실행 순서에서
+        // 직접 실행용 런을 초기화하지만 한 번 더 보정한다.
+        if (roomChoiceGenerator != null)
+        {
+            roomChoiceGenerator
+                .EnsureDirectPlayInitialized();
+        }
+
         if (boonReward != null)
         {
             boonReward.gameObject.SetActive(false);
-        }
-
-        // 전투 시작 전에는 문을 사용할 수 없게 한다.
-        if (roomChoiceGenerator != null)
-        {
-            roomChoiceGenerator.HideDoors();
         }
     }
 
@@ -38,101 +50,116 @@ public class CombatRoomFlow : MonoBehaviour
             return;
         }
 
-        // 중복 구독 방지.
-        monsterSpawner.OnAllPhasesCleared -= HandleBattleCleared;
-        monsterSpawner.OnAllPhasesCleared += HandleBattleCleared;
+        monsterSpawner.OnAllPhasesCleared -=
+            HandleBattleCleared;
+
+        monsterSpawner.OnAllPhasesCleared +=
+            HandleBattleCleared;
     }
 
     private void Start()
     {
         ValidateReferences();
 
-        // 이벤트 연결 전에 이미 클리어된 예외 상황 보정.
-        if (monsterSpawner != null && monsterSpawner.IsCleared)
+        if (monsterSpawner != null &&
+            monsterSpawner.IsCleared)
         {
             HandleBattleCleared();
         }
+    }
+
+    private void LateUpdate()
+    {
+        if (!useClearStateFallback ||
+            battleHandled ||
+            monsterSpawner == null ||
+            !monsterSpawner.IsCleared)
+        {
+            return;
+        }
+
+        HandleBattleCleared();
     }
 
     private void OnDisable()
     {
         if (monsterSpawner != null)
         {
-            monsterSpawner.OnAllPhasesCleared -= HandleBattleCleared;
+            monsterSpawner.OnAllPhasesCleared -=
+                HandleBattleCleared;
         }
     }
 
     private void HandleBattleCleared()
     {
-        if (battleClearHandled)
+        if (battleHandled)
         {
             return;
         }
 
-        battleClearHandled = true;
+        RunFlowManager manager =
+            RunFlowManager.Instance;
 
-        Debug.Log(
-            "[CombatRoomFlow] 전투 클리어 이벤트 수신",
-            this
-        );
-
-        RunFlowManager manager = RunFlowManager.Instance;
-
-        if (manager == null || !manager.IsRunActive)
+        if (manager == null ||
+            !manager.IsRunActive)
         {
-            Debug.LogError(
-                "[CombatRoomFlow] 진행 중인 런이 없습니다. " +
-                "로비를 거쳐 전투방으로 진입해야 합니다.",
-                this
-            );
+            bool initialized =
+                roomChoiceGenerator != null &&
+                roomChoiceGenerator
+                    .EnsureDirectPlayInitialized();
 
-            return;
+            manager =
+                RunFlowManager.Instance;
+
+            if (!initialized ||
+                manager == null ||
+                !manager.IsRunActive)
+            {
+                // 직접 실행 테스트 때문에 Error Pause가 걸리지 않도록
+                // 예상 가능한 상태는 Warning으로만 남긴다.
+                Debug.LogWarning(
+                    "[CombatRoomFlow] 런 초기화 실패로 " +
+                    "보상과 문 개방 처리를 건너뜁니다. " +
+                    "RoomChoiceGenerator의 Direct Play Room Graph를 확인하세요.",
+                    this
+                );
+
+                return;
+            }
         }
 
-        BoonCategory rewardCategory =
+        // 런이 확인된 뒤에만 중복 처리 방지 상태를 확정한다.
+        battleHandled = true;
+
+        BoonCategory category =
             manager.CurrentRewardCategory;
 
-        Debug.Log(
-            $"[CombatRoomFlow] 현재 득도 보상 태그: {rewardCategory}",
-            this
-        );
-
-        // 전투방인데 태그가 없다면 보상을 생략하고 문을 연다.
-        if (rewardCategory == BoonCategory.None)
+        if (category == BoonCategory.None)
         {
-            Debug.LogWarning(
-                "[CombatRoomFlow] 보상 태그가 None이므로 문을 바로 엽니다.",
-                this
-            );
-
             OpenNextDoors();
             return;
         }
 
         if (boonReward == null)
         {
-            Debug.LogError(
-                "[CombatRoomFlow] Boon Reward가 연결되지 않아 문을 바로 엽니다.",
+            Debug.LogWarning(
+                "[CombatRoomFlow] 보상 오브젝트가 없어 문만 개방합니다.",
                 this
             );
 
-            manager.ConsumeCurrentRewardCategory();
+            manager
+                .ConsumeCurrentRewardCategory();
+
             OpenNextDoors();
             return;
         }
 
-        // 꺼져 있던 보상 오브젝트 전체를 몬스터 전멸 후 켠다.
-        boonReward.gameObject.SetActive(true);
+        boonReward.gameObject
+            .SetActive(true);
 
-        // 활성화된 보상에 계열과 완료 콜백만 전달한다.
         boonReward.Prepare(
-            rewardCategory,
+            category,
             HandleRewardCompleted
-        );
-
-        Debug.Log(
-            "[CombatRoomFlow] 보상 오브젝트 ON",
-            this
         );
     }
 
@@ -145,22 +172,19 @@ public class CombatRoomFlow : MonoBehaviour
 
         rewardCompleted = true;
 
-        Debug.Log(
-            "[CombatRoomFlow] 득도 선택 완료",
-            this
-        );
-
-        RunFlowManager manager = RunFlowManager.Instance;
+        RunFlowManager manager =
+            RunFlowManager.Instance;
 
         if (manager != null)
         {
-            manager.ConsumeCurrentRewardCategory();
+            manager
+                .ConsumeCurrentRewardCategory();
         }
 
-        // 보상을 획득했으므로 오브젝트 전체를 다시 끈다.
         if (boonReward != null)
         {
-            boonReward.gameObject.SetActive(false);
+            boonReward.gameObject
+                .SetActive(false);
         }
 
         OpenNextDoors();
@@ -170,44 +194,40 @@ public class CombatRoomFlow : MonoBehaviour
     {
         if (roomChoiceGenerator == null)
         {
-            Debug.LogError(
-                "[CombatRoomFlow] Room Choice Generator가 연결되지 않았습니다.",
+            Debug.LogWarning(
+                "[CombatRoomFlow] RoomChoiceGenerator가 없어 문을 열 수 없습니다.",
                 this
             );
 
             return;
         }
 
-        roomChoiceGenerator.GenerateAndOpenDoors();
-
-        Debug.Log(
-            "[CombatRoomFlow] 다음 방 문 개방",
-            this
-        );
+        roomChoiceGenerator
+            .OpenPreparedDoors();
     }
 
     private void ValidateReferences()
     {
         if (monsterSpawner == null)
         {
-            Debug.LogError(
-                "[CombatRoomFlow] Monster Spawner가 연결되지 않았습니다.",
+            Debug.LogWarning(
+                "[CombatRoomFlow] MonsterSpawner가 연결되지 않았습니다.",
                 this
             );
         }
 
         if (boonReward == null)
         {
-            Debug.LogError(
-                "[CombatRoomFlow] Boon Reward가 연결되지 않았습니다.",
+            Debug.LogWarning(
+                "[CombatRoomFlow] BoonRewardInteractable이 연결되지 않았습니다.",
                 this
             );
         }
 
         if (roomChoiceGenerator == null)
         {
-            Debug.LogError(
-                "[CombatRoomFlow] Room Choice Generator가 연결되지 않았습니다.",
+            Debug.LogWarning(
+                "[CombatRoomFlow] RoomChoiceGenerator가 연결되지 않았습니다.",
                 this
             );
         }

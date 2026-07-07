@@ -39257,7 +39257,6 @@ MonoBehaviour:
       maxHp: 1000
       attack: 10
       moveSpeed: 5
-      mana: 50
       criticalChance: 0.1
       criticalMultiplier: 1.5
       dashDistance: 3
@@ -39266,11 +39265,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 1
       extraDashCount: 0
       dashInvincible: 1
+      deathResist: 0
+      goldMultiplier: 1
+      rerollCount: 0
     traitBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -39279,11 +39280,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     boonBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -39292,6 +39295,9 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     playerLevel: 1
     currentHp: 0
   money:
@@ -42549,7 +42555,6 @@ MonoBehaviour:
       maxHp: 100
       attack: 10
       moveSpeed: 5
-      mana: 50
       criticalChance: 0.1
       criticalMultiplier: 1.5
       dashDistance: 3
@@ -42558,11 +42563,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 1
       extraDashCount: 0
       dashInvincible: 1
+      deathResist: 0
+      goldMultiplier: 1
+      rerollCount: 0
     traitBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -42571,11 +42578,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     boonBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -42584,6 +42593,9 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     playerLevel: 1
     currentHp: 0
   money:
@@ -45574,6 +45586,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dashKey: 32
+  dashBufferWindow: 0.15
+  overrideDashCountForTesting: 1
+  testMaxDashCount: 1
   maxStepHeight: 0.6
   stepForwardProbe: 0.15
   stepUpPadding: 0.03
@@ -49257,7 +49272,23 @@ MonoBehaviour:
   boonRewardUI: {fileID: 381848480677506168}
   boonDatabase: {fileID: 11400000, guid: f84a796a9ecd6e3449a0d0025611df25, type: 2}
   resourcesPath: Boons
+  playBreakEffect: 1
+  fragmentCount: 18
+  fragmentLifetime: 1.2
+  fragmentFadeStartRatio: 0.3
+  fragmentForce: 3.5
+  fragmentUpwardForce: 2
+  fragmentGravity: 4
+  fragmentMoveDamping: 1.2
+  fragmentAngularSpeed: 420
+  fragmentSizeRatio: 0.11
+  fragmentMaterialOverride: {fileID: 0}
   showLogs: 1
+  spawnForwardOffset: 1.2
+  groundRaycastHeight: 5
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 0
 --- !u!1 &5168898403227929244
 GameObject:
   m_ObjectHideFlags: 0
@@ -55401,9 +55432,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lavaPrefab: {fileID: 5274626371973168847, guid: 47c169bbc429e4a48a97f4c7155aeff3, type: 3}
+  warningPrefab: {fileID: 0}
   poolSize: 5
-  spawnInterval: 5
   arcHeight: 5
+  warningTime: 1
 --- !u!208 &7940438260480216704
 NavMeshObstacle:
   m_ObjectHideFlags: 0
@@ -56528,7 +56560,6 @@ MonoBehaviour:
       maxHp: 100
       attack: 10
       moveSpeed: 5
-      mana: 50
       criticalChance: 0.1
       criticalMultiplier: 1.5
       dashDistance: 3
@@ -56537,11 +56568,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 1
       extraDashCount: 0
       dashInvincible: 1
+      deathResist: 0
+      goldMultiplier: 1
+      rerollCount: 0
     traitBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -56550,11 +56583,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     boonBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -56563,6 +56598,9 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     playerLevel: 1
     currentHp: 0
   player: {fileID: 0}

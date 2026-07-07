@@ -2,22 +2,26 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 /// <summary>
-/// 전투 클리어 후 CombatRoomFlow가 오브젝트를 켜면
-/// 플레이어가 범위 안에서 E키로 득도 보상을 선택한다.
-/// 보상 획득 시 원본 모델을 숨기고 조각 파괴/Fade 연출을 실행한다.
+/// 전투 클리어 후 플레이어 위치 위에서 득도 보상이 낙하한다.
+///
+/// 기능:
+/// 1. BoonCategory에 맞는 월드 프리팹 생성
+/// 2. 플레이어 위에서 빠르게 낙하
+/// 3. 착지 순간 Point Light와 스케일로 발광 연출
+/// 4. 착지 완료 후에만 E키 상호작용 허용
+/// 5. 득도 선택 완료 시 간단한 파편 연출
 /// </summary>
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Rigidbody))]
 public class BoonRewardInteractable : InteractableBase
 {
-    [Header("보상 설정")]
+    [Header("보상 선택")]
     [Range(1, 3)]
     [SerializeField] private int choiceCount = 3;
 
-    [Header("UI")]
+    [Header("보상 UI")]
     [SerializeField] private BoonRewardUI boonRewardUI;
 
     [Header("득도 데이터")]
@@ -26,18 +30,58 @@ public class BoonRewardInteractable : InteractableBase
     [Tooltip("BoonDatabase가 비어 있을 때 검색할 Resources 폴더")]
     [SerializeField] private string resourcesPath = "Boons";
 
-    [Header("보상 파괴 연출")]
+    [Header("계열별 월드 프리팹")]
+    [Tooltip("보상 프리팹은 이 오브젝트의 자식으로 바로 생성됩니다.")]
+
+    [SerializeField] private GameObject defaultRewardPrefab;
+    [SerializeField] private GameObject attackRewardPrefab;
+    [SerializeField] private GameObject defenseRewardPrefab;
+    [SerializeField] private GameObject mobilityRewardPrefab;
+    [SerializeField] private GameObject debuffRewardPrefab;
+
+    [Header("플레이어 위치")]
+    [Tooltip("플레이어 Transform 위치에 더할 최종 착지 오프셋")]
+    [SerializeField] private Vector3 landingOffset =
+        new Vector3(0f, 0.5f, 0f);
+
+    [Header("낙하 연출")]
+    [Min(0f)]
+    [SerializeField] private float dropHeight = 5f;
+
+    [Min(0.01f)]
+    [SerializeField] private float dropDuration = 0.28f;
+
+    [Tooltip("낙하 후 아주 짧게 위로 튀는 높이")]
+    [Min(0f)]
+    [SerializeField] private float landingBounceHeight = 0.18f;
+
+    [Min(0.01f)]
+    [SerializeField] private float landingBounceDuration = 0.1f;
+
+    [Header("착지 발광")]
+    [Tooltip("비어 있으면 런타임에 Point Light를 자동 생성")]
+    [SerializeField] private Light landingLight;
+
+    [Min(0f)]
+    [SerializeField] private float flashIntensity = 12f;
+
+    [Min(0f)]
+    [SerializeField] private float flashRange = 5f;
+
+    [Min(0.01f)]
+    [SerializeField] private float flashDuration = 0.18f;
+
+    [Min(1f)]
+    [SerializeField] private float flashScaleMultiplier = 1.18f;
+
+    [Header("획득 파편 연출")]
     [SerializeField] private bool playBreakEffect = true;
 
-    [Range(4, 40)]
-    [SerializeField] private int fragmentCount = 18;
+    [Range(4, 30)]
+    [SerializeField] private int fragmentCount = 14;
 
     [Min(0.1f)]
-    [SerializeField] private float fragmentLifetime = 1.2f;
-
-    [Range(0f, 0.95f)]
-    [Tooltip("전체 수명 중 투명해지기 시작하는 시점")]
-    [SerializeField] private float fragmentFadeStartRatio = 0.3f;
+    [SerializeField] private float fragmentLifetime = 0.9f;
 
     [Min(0f)]
     [SerializeField] private float fragmentForce = 3.5f;
@@ -46,67 +90,82 @@ public class BoonRewardInteractable : InteractableBase
     [SerializeField] private float fragmentUpwardForce = 2f;
 
     [Min(0f)]
-    [SerializeField] private float fragmentGravity = 4f;
+    [SerializeField] private float fragmentGravity = 5f;
 
-    [Min(0f)]
-    [SerializeField] private float fragmentMoveDamping = 1.2f;
-
-    [Min(0f)]
-    [SerializeField] private float fragmentAngularSpeed = 420f;
-
-    [Range(0.03f, 0.5f)]
-    [SerializeField] private float fragmentSizeRatio = 0.11f;
-
-    [Tooltip("비워두면 보상 오브젝트의 첫 번째 머티리얼을 사용")]
-    [SerializeField] private Material fragmentMaterialOverride;
+    [Range(0.02f, 0.4f)]
+    [SerializeField] private float fragmentSizeRatio = 0.1f;
 
     [Header("디버그")]
     [SerializeField] private bool showLogs = true;
 
-    private readonly List<BoonData> allBoons = new List<BoonData>();
-    private readonly List<BoonData> availableBoons = new List<BoonData>(32);
-    private readonly List<BoonData> selectedChoices = new List<BoonData>(3);
-    private readonly HashSet<Collider> playerColliders = new HashSet<Collider>();
+    private readonly List<BoonData> allBoons =
+        new List<BoonData>();
+
+    private readonly List<BoonData> availableBoons =
+        new List<BoonData>(32);
+
+    private readonly List<BoonData> selectedChoices =
+        new List<BoonData>(3);
+
+    private readonly HashSet<Collider> playerColliders =
+        new HashSet<Collider>();
 
     private Player currentPlayer;
     private BoonInfo currentBoonInfo;
     private PlayerInteraction currentPlayerInteraction;
 
-    private BoonCategory targetCategory = BoonCategory.None;
+    private BoonCategory targetCategory =
+        BoonCategory.None;
+
     private Action completedCallback;
+
+    private BoxCollider triggerCollider;
+    private GameObject activeVisual;
+    private Renderer[] activeRenderers =
+        Array.Empty<Renderer>();
+
+    private Vector3 activeVisualBaseScale =
+        Vector3.one;
+
+    private Coroutine appearanceRoutine;
 
     private bool rewardReady;
     private bool rewardUsed;
     private bool selectionInProgress;
 
-    private BoxCollider triggerCollider;
-    private Renderer[] rewardRenderers;
-    private bool[] initialRendererStates;
-
     private void Awake()
     {
-        triggerCollider = GetComponent<BoxCollider>();
-        triggerCollider.isTrigger = true;
+        triggerCollider =
+            GetComponent<BoxCollider>();
 
-        Rigidbody body = GetComponent<Rigidbody>();
+        triggerCollider.isTrigger = true;
+        triggerCollider.enabled = false;
+
+        Rigidbody body =
+            GetComponent<Rigidbody>();
+
         body.isKinematic = true;
         body.useGravity = false;
         body.detectCollisions = true;
 
-        CacheRewardRenderers();
+        EnsureLandingLight();
         ResolveUI();
         LoadBoonData();
     }
 
     private void OnValidate()
     {
-        BoxCollider collider = GetComponent<BoxCollider>();
-        if (collider != null)
+        BoxCollider box =
+            GetComponent<BoxCollider>();
+
+        if (box != null)
         {
-            collider.isTrigger = true;
+            box.isTrigger = true;
         }
 
-        Rigidbody body = GetComponent<Rigidbody>();
+        Rigidbody body =
+            GetComponent<Rigidbody>();
+
         if (body != null)
         {
             body.isKinematic = true;
@@ -115,34 +174,113 @@ public class BoonRewardInteractable : InteractableBase
     }
 
     /// <summary>
-    /// CombatRoomFlow가 보상 오브젝트를 켠 직후 호출한다.
+    /// 기존 CombatRoomFlow와 호환되는 Prepare.
+    /// 씬의 Player를 한 번 찾아 그 위치를 착지점으로 사용한다.
     /// </summary>
-    public void Prepare(BoonCategory category, Action onCompleted)
+    public void Prepare(
+        BoonCategory category,
+        Action onCompleted)
     {
+        Player player =
+            FindFirstObjectByType<Player>();
+
+        Vector3 landingPosition =
+            player != null
+                ? player.transform.position +
+                  landingOffset
+                : transform.position;
+
+        PrepareAt(
+            category,
+            landingPosition,
+            onCompleted
+        );
+    }
+
+    /// <summary>
+    /// 외부에서 착지 위치를 정확히 지정하고 싶을 때 사용한다.
+    /// </summary>
+    public void PrepareAt(
+        BoonCategory category,
+        Vector3 landingPosition,
+        Action onCompleted)
+    {
+        if (appearanceRoutine != null)
+        {
+            StopCoroutine(appearanceRoutine);
+            appearanceRoutine = null;
+        }
+
         targetCategory = category;
         completedCallback = onCompleted;
 
-        rewardReady = true;
+        rewardReady = false;
         rewardUsed = false;
         selectionInProgress = false;
 
         ClearPlayerReference(true);
-        RestoreRewardRenderers();
+        BuildCategoryVisual(category);
 
         if (triggerCollider == null)
         {
-            triggerCollider = GetComponent<BoxCollider>();
+            triggerCollider =
+                GetComponent<BoxCollider>();
         }
 
-        triggerCollider.enabled = true;
+        triggerCollider.enabled = false;
         triggerCollider.isTrigger = true;
+
+        gameObject.SetActive(true);
+
+        appearanceRoutine =
+            StartCoroutine(
+                DropAndFlashRoutine(
+                    landingPosition
+                )
+            );
 
         if (showLogs)
         {
             Debug.Log(
-                $"[BoonRewardInteractable] 보상 준비 완료 / 계열: {category}",
+                $"[BoonRewardInteractable] 보상 준비 / " +
+                $"계열={category}, 착지={landingPosition}",
                 this
             );
+        }
+    }
+
+    /// <summary>
+    /// 전투 시작 전에 보상을 감춘다.
+    /// </summary>
+    public void HideReward()
+    {
+        if (appearanceRoutine != null)
+        {
+            StopCoroutine(appearanceRoutine);
+            appearanceRoutine = null;
+        }
+
+        rewardReady = false;
+        rewardUsed = false;
+        selectionInProgress = false;
+        completedCallback = null;
+
+        ClearPlayerReference(true);
+
+        if (triggerCollider != null)
+        {
+            triggerCollider.enabled = false;
+        }
+
+        if (activeVisual != null)
+        {
+            activeVisual.SetActive(false);
+        }
+
+        if (landingLight != null)
+        {
+            landingLight.intensity = 0f;
+            landingLight.enabled = false;
         }
     }
 
@@ -153,41 +291,24 @@ public class BoonRewardInteractable : InteractableBase
             ResolveUI();
         }
 
-        return rewardReady &&
-               !rewardUsed &&
-               !selectionInProgress &&
-               targetCategory != BoonCategory.None &&
-               currentPlayer != null &&
-               currentBoonInfo != null &&
-               currentPlayerInteraction != null &&
-               boonRewardUI != null &&
-               !boonRewardUI.IsOpen;
+        return
+            rewardReady &&
+            !rewardUsed &&
+            !selectionInProgress &&
+            targetCategory != BoonCategory.None &&
+            currentPlayer != null &&
+            currentBoonInfo != null &&
+            currentPlayerInteraction != null &&
+            boonRewardUI != null &&
+            !boonRewardUI.IsOpen;
     }
 
-    public override void Interact(Player player)
+    public override void Interact(
+        Player player)
     {
-        if (showLogs)
-        {
-            Debug.Log("[BoonRewardInteractable] E 상호작용 호출", this);
-        }
-
-        if (!CanInteract())
-        {
-            Debug.LogWarning(
-                "[BoonRewardInteractable] 현재 상호작용할 수 없습니다. " +
-                $"Ready={rewardReady}, Used={rewardUsed}, " +
-                $"Selecting={selectionInProgress}, Category={targetCategory}, " +
-                $"Player={currentPlayer != null}, " +
-                $"BoonInfo={currentBoonInfo != null}, " +
-                $"PlayerInteraction={currentPlayerInteraction != null}, " +
-                $"UI={boonRewardUI != null}",
-                this
-            );
-
-            return;
-        }
-
-        if (player == null || player != currentPlayer)
+        if (!CanInteract() ||
+            player == null ||
+            player != currentPlayer)
         {
             return;
         }
@@ -197,8 +318,8 @@ public class BoonRewardInteractable : InteractableBase
         if (selectedChoices.Count == 0)
         {
             Debug.LogWarning(
-                $"[BoonRewardInteractable] {targetCategory} 계열에서 " +
-                "획득 가능한 득도가 없어 문을 엽니다.",
+                $"[BoonRewardInteractable] " +
+                $"{targetCategory} 계열에서 획득 가능한 득도가 없습니다.",
                 this
             );
 
@@ -206,24 +327,334 @@ public class BoonRewardInteractable : InteractableBase
             return;
         }
 
-        bool opened = boonRewardUI.Open(
-            selectedChoices,
-            HandleSelected,
-            HandleCancelled
-        );
+        bool opened =
+            boonRewardUI.Open(
+                selectedChoices,
+                HandleSelected,
+                HandleCancelled
+            );
 
         if (!opened)
         {
-            Debug.LogWarning(
-                "[BoonRewardInteractable] BoonRewardUI.Open이 false를 반환했습니다.",
-                this
-            );
-
             return;
         }
 
         selectionInProgress = true;
-        currentPlayerInteraction.SetInteractionBlocked(true);
+
+        currentPlayerInteraction
+            .SetInteractionBlocked(true);
+    }
+
+    private IEnumerator DropAndFlashRoutine(
+        Vector3 landingPosition)
+    {
+        Vector3 startPosition =
+            landingPosition +
+            Vector3.up * dropHeight;
+
+        transform.position =
+            startPosition;
+
+        if (activeVisual != null)
+        {
+            activeVisual.SetActive(true);
+            activeVisual.transform.localScale =
+                activeVisualBaseScale;
+        }
+
+        float elapsed = 0f;
+
+        while (elapsed < dropDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed / dropDuration
+                );
+
+            // 처음에는 빠르게 가속하고 착지 직전까지 강하게 떨어진다.
+            float fallRatio =
+                ratio * ratio;
+
+            transform.position =
+                Vector3.LerpUnclamped(
+                    startPosition,
+                    landingPosition,
+                    fallRatio
+                );
+
+            yield return null;
+        }
+
+        transform.position =
+            landingPosition;
+
+        if (landingBounceHeight > 0f)
+        {
+            yield return BounceRoutine(
+                landingPosition
+            );
+        }
+
+        yield return FlashRoutine();
+
+        rewardReady = true;
+
+        if (triggerCollider != null)
+        {
+            triggerCollider.enabled = true;
+        }
+
+        appearanceRoutine = null;
+
+        if (showLogs)
+        {
+            Debug.Log(
+                "[BoonRewardInteractable] 낙하 완료 / 상호작용 가능",
+                this
+            );
+        }
+    }
+
+    private IEnumerator BounceRoutine(
+        Vector3 landingPosition)
+    {
+        float halfDuration =
+            landingBounceDuration * 0.5f;
+
+        if (halfDuration <= 0f)
+        {
+            yield break;
+        }
+
+        Vector3 bouncePosition =
+            landingPosition +
+            Vector3.up * landingBounceHeight;
+
+        float elapsed = 0f;
+
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed / halfDuration
+                );
+
+            transform.position =
+                Vector3.Lerp(
+                    landingPosition,
+                    bouncePosition,
+                    SmoothStep(ratio)
+                );
+
+            yield return null;
+        }
+
+        elapsed = 0f;
+
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed / halfDuration
+                );
+
+            transform.position =
+                Vector3.Lerp(
+                    bouncePosition,
+                    landingPosition,
+                    SmoothStep(ratio)
+                );
+
+            yield return null;
+        }
+
+        transform.position =
+            landingPosition;
+    }
+
+    private IEnumerator FlashRoutine()
+    {
+        EnsureLandingLight();
+
+        if (landingLight != null)
+        {
+            landingLight.range =
+                flashRange;
+
+            landingLight.intensity =
+                flashIntensity;
+
+            landingLight.enabled = true;
+        }
+
+        Transform scaleTarget =
+            activeVisual != null
+                ? activeVisual.transform
+                : transform;
+
+        Vector3 baseScale =
+            activeVisual != null
+                ? activeVisualBaseScale
+                : transform.localScale;
+
+        Vector3 flashScale =
+            baseScale *
+            flashScaleMultiplier;
+
+        if (scaleTarget != null)
+        {
+            scaleTarget.localScale =
+                flashScale;
+        }
+
+        float elapsed = 0f;
+
+        while (elapsed < flashDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed / flashDuration
+                );
+
+            float smoothRatio =
+                SmoothStep(ratio);
+
+            if (landingLight != null)
+            {
+                landingLight.intensity =
+                    Mathf.Lerp(
+                        flashIntensity,
+                        0f,
+                        smoothRatio
+                    );
+            }
+
+            if (scaleTarget != null)
+            {
+                scaleTarget.localScale =
+                    Vector3.Lerp(
+                        flashScale,
+                        baseScale,
+                        smoothRatio
+                    );
+            }
+
+            yield return null;
+        }
+
+        if (landingLight != null)
+        {
+            landingLight.intensity = 0f;
+            landingLight.enabled = false;
+        }
+
+        if (scaleTarget != null)
+        {
+            scaleTarget.localScale =
+                baseScale;
+        }
+    }
+
+    private void BuildCategoryVisual(
+        BoonCategory category)
+    {
+
+        if (activeVisual != null)
+        {
+            Destroy(activeVisual);
+            activeVisual = null;
+        }
+
+        GameObject selectedPrefab =
+            GetRewardPrefab(category);
+
+        if (selectedPrefab == null)
+        {
+            Debug.LogError(
+                $"[BoonRewardInteractable] " +
+                $"{category} 보상 프리팹이 연결되지 않았습니다.",
+                this
+            );
+
+            activeRenderers =
+                Array.Empty<Renderer>();
+
+            return;
+        }
+
+        activeVisual =
+            Instantiate(
+                selectedPrefab,
+                transform
+            );
+
+        activeVisual.name =
+            $"{selectedPrefab.name}_{category}";
+
+        activeVisual.transform.localPosition =
+            Vector3.zero;
+
+        activeVisual.transform.localRotation =
+            Quaternion.identity;
+
+        activeVisualBaseScale =
+            activeVisual.transform.localScale;
+
+        // 월드 보상 프리팹은 시각 전용으로 사용한다.
+        // 상호작용 판정은 루트의 BoxCollider 하나만 담당한다.
+        Collider[] childColliders =
+            activeVisual.GetComponentsInChildren<
+                Collider>(true);
+
+        for (int i = 0;
+             i < childColliders.Length;
+             i++)
+        {
+            childColliders[i].enabled =
+                false;
+        }
+
+        activeRenderers =
+            activeVisual.GetComponentsInChildren<
+                Renderer>(true);
+    }
+
+    private GameObject GetRewardPrefab(
+        BoonCategory category)
+    {
+        switch (category)
+        {
+            case BoonCategory.Attack:
+                return attackRewardPrefab != null
+                    ? attackRewardPrefab
+                    : defaultRewardPrefab;
+
+            case BoonCategory.Defense:
+                return defenseRewardPrefab != null
+                    ? defenseRewardPrefab
+                    : defaultRewardPrefab;
+
+            case BoonCategory.Mobility:
+                return mobilityRewardPrefab != null
+                    ? mobilityRewardPrefab
+                    : defaultRewardPrefab;
+
+            case BoonCategory.Debuff:
+                return debuffRewardPrefab != null
+                    ? debuffRewardPrefab
+                    : defaultRewardPrefab;
+
+            default:
+                return defaultRewardPrefab;
+        }
     }
 
     private void CreateChoices()
@@ -236,9 +667,12 @@ public class BoonRewardInteractable : InteractableBase
             return;
         }
 
-        for (int i = 0; i < allBoons.Count; i++)
+        for (int i = 0;
+             i < allBoons.Count;
+             i++)
         {
-            BoonData boon = allBoons[i];
+            BoonData boon =
+                allBoons[i];
 
             if (boon == null ||
                 boon.category != targetCategory ||
@@ -250,35 +684,57 @@ public class BoonRewardInteractable : InteractableBase
             availableBoons.Add(boon);
         }
 
-        int resultCount = Mathf.Min(choiceCount, availableBoons.Count);
+        int resultCount =
+            Mathf.Min(
+                choiceCount,
+                availableBoons.Count
+            );
 
-        // 필요한 수만큼 부분 Fisher-Yates 셔플.
-        for (int i = 0; i < resultCount; i++)
+        // 필요한 개수만 부분 Fisher-Yates 셔플한다.
+        for (int i = 0;
+             i < resultCount;
+             i++)
         {
-            int randomIndex = UnityEngine.Random.Range(i, availableBoons.Count);
+            int randomIndex =
+                UnityEngine.Random.Range(
+                    i,
+                    availableBoons.Count
+                );
 
-            BoonData temp = availableBoons[i];
-            availableBoons[i] = availableBoons[randomIndex];
-            availableBoons[randomIndex] = temp;
+            BoonData temporary =
+                availableBoons[i];
 
-            selectedChoices.Add(availableBoons[i]);
+            availableBoons[i] =
+                availableBoons[randomIndex];
+
+            availableBoons[randomIndex] =
+                temporary;
+
+            selectedChoices.Add(
+                availableBoons[i]
+            );
         }
     }
 
-    private void HandleSelected(BoonData selectedBoon)
+    private void HandleSelected(
+        BoonData selectedBoon)
     {
         selectionInProgress = false;
 
-        if (selectedBoon == null || currentBoonInfo == null)
+        if (selectedBoon == null ||
+            currentBoonInfo == null)
         {
             UnblockInteraction();
             return;
         }
 
-        if (!currentBoonInfo.TryAddBoon(selectedBoon))
+        if (!currentBoonInfo.TryAddBoon(
+                selectedBoon
+            ))
         {
             Debug.LogWarning(
-                $"[BoonRewardInteractable] {selectedBoon.displayName} 획득 실패",
+                $"[BoonRewardInteractable] " +
+                $"{selectedBoon.displayName} 획득 실패",
                 this
             );
 
@@ -298,7 +754,8 @@ public class BoonRewardInteractable : InteractableBase
             playerColliders.Count > 0 &&
             CanInteract())
         {
-            currentPlayerInteraction.RegisterInteractable(this);
+            currentPlayerInteraction
+                .RegisterInteractable(this);
         }
     }
 
@@ -313,28 +770,26 @@ public class BoonRewardInteractable : InteractableBase
         rewardReady = false;
         selectionInProgress = false;
 
-        if (showLogs)
-        {
-            Debug.Log("[BoonRewardInteractable] 보상 획득 완료", this);
-        }
-
-        Action callback = completedCallback;
-        completedCallback = null;
-
-        ClearPlayerReference(true);
-
         if (triggerCollider != null)
         {
             triggerCollider.enabled = false;
         }
 
-        /*
-         * 콜백이 원본 보상 오브젝트를 즉시 꺼도 연출이 중단되지 않도록
-         * 조각은 원본의 자식이 아닌 독립 오브젝트로 생성한다.
-         */
+        Action callback =
+            completedCallback;
+
+        completedCallback = null;
+
+        ClearPlayerReference(true);
+
         if (playBreakEffect)
         {
             PlayBreakEffect();
+        }
+
+        if (activeVisual != null)
+        {
+            activeVisual.SetActive(false);
         }
 
         callback?.Invoke();
@@ -342,175 +797,194 @@ public class BoonRewardInteractable : InteractableBase
 
     private void PlayBreakEffect()
     {
-        Bounds rewardBounds = CalculateRewardBounds();
-        Material sourceMaterial = FindFragmentSourceMaterial();
+        Bounds bounds =
+            CalculateVisualBounds();
 
-        SetRewardRenderersEnabled(false);
+        Material sourceMaterial =
+            FindSourceMaterial();
 
         float averageSize =
-            (rewardBounds.size.x + rewardBounds.size.y + rewardBounds.size.z) / 3f;
+            (
+                bounds.size.x +
+                bounds.size.y +
+                bounds.size.z
+            ) / 3f;
 
-        float baseFragmentSize =
-            Mathf.Max(0.02f, averageSize * fragmentSizeRatio);
+        float baseSize =
+            Mathf.Max(
+                0.03f,
+                averageSize *
+                fragmentSizeRatio
+            );
 
-        for (int i = 0; i < fragmentCount; i++)
+        for (int i = 0;
+             i < fragmentCount;
+             i++)
         {
-            CreateFragment(
-                rewardBounds,
-                sourceMaterial,
-                baseFragmentSize
+            GameObject fragment =
+                GameObject.CreatePrimitive(
+                    PrimitiveType.Cube
+                );
+
+            fragment.name =
+                "BoonRewardFragment";
+
+            Collider fragmentCollider =
+                fragment.GetComponent<Collider>();
+
+            if (fragmentCollider != null)
+            {
+                Destroy(fragmentCollider);
+            }
+
+            Vector3 randomOffset =
+                new Vector3(
+                    UnityEngine.Random.Range(
+                        -bounds.extents.x,
+                        bounds.extents.x
+                    ),
+                    UnityEngine.Random.Range(
+                        -bounds.extents.y,
+                        bounds.extents.y
+                    ),
+                    UnityEngine.Random.Range(
+                        -bounds.extents.z,
+                        bounds.extents.z
+                    )
+                );
+
+            fragment.transform.position =
+                bounds.center +
+                randomOffset;
+
+            fragment.transform.rotation =
+                UnityEngine.Random.rotation;
+
+            float randomSize =
+                baseSize *
+                UnityEngine.Random.Range(
+                    0.65f,
+                    1.35f
+                );
+
+            fragment.transform.localScale =
+                Vector3.one *
+                randomSize;
+
+            Renderer renderer =
+                fragment.GetComponent<Renderer>();
+
+            if (renderer != null &&
+                sourceMaterial != null)
+            {
+                renderer.sharedMaterial =
+                    sourceMaterial;
+            }
+
+            Vector3 direction =
+                fragment.transform.position -
+                bounds.center;
+
+            if (direction.sqrMagnitude <
+                0.001f)
+            {
+                direction =
+                    UnityEngine.Random.onUnitSphere;
+            }
+
+            direction.Normalize();
+
+            Vector3 velocity =
+                direction *
+                fragmentForce +
+                Vector3.up *
+                fragmentUpwardForce +
+                UnityEngine.Random.insideUnitSphere *
+                fragmentForce *
+                0.25f;
+
+            RewardFragmentMotion motion =
+                fragment.AddComponent<
+                    RewardFragmentMotion>();
+
+            motion.Initialize(
+                velocity,
+                fragmentLifetime,
+                fragmentGravity
             );
         }
     }
 
-    private void CreateFragment(
-        Bounds rewardBounds,
-        Material sourceMaterial,
-        float baseFragmentSize)
-    {
-        GameObject fragment =
-            GameObject.CreatePrimitive(PrimitiveType.Cube);
-
-        fragment.name = "BoonRewardFragment";
-        fragment.layer = gameObject.layer;
-
-        Vector3 randomOffset = new Vector3(
-            UnityEngine.Random.Range(
-                -rewardBounds.extents.x,
-                rewardBounds.extents.x
-            ),
-            UnityEngine.Random.Range(
-                -rewardBounds.extents.y,
-                rewardBounds.extents.y
-            ),
-            UnityEngine.Random.Range(
-                -rewardBounds.extents.z,
-                rewardBounds.extents.z
-            )
-        );
-
-        fragment.transform.position = rewardBounds.center + randomOffset;
-        fragment.transform.rotation = UnityEngine.Random.rotation;
-
-        float randomSize =
-            baseFragmentSize *
-            UnityEngine.Random.Range(0.65f, 1.35f);
-
-        fragment.transform.localScale = new Vector3(
-            randomSize * UnityEngine.Random.Range(0.45f, 1.25f),
-            randomSize * UnityEngine.Random.Range(0.45f, 1.45f),
-            randomSize * UnityEngine.Random.Range(0.45f, 1.25f)
-        );
-
-        Renderer fragmentRenderer = fragment.GetComponent<Renderer>();
-
-        if (sourceMaterial != null)
-        {
-            fragmentRenderer.sharedMaterial = sourceMaterial;
-        }
-
-        Collider fragmentCollider = fragment.GetComponent<Collider>();
-        if (fragmentCollider != null)
-        {
-            Destroy(fragmentCollider);
-        }
-
-        Vector3 outwardDirection =
-            fragment.transform.position - rewardBounds.center;
-
-        if (outwardDirection.sqrMagnitude < 0.001f)
-        {
-            outwardDirection = UnityEngine.Random.onUnitSphere;
-        }
-        else
-        {
-            outwardDirection.Normalize();
-        }
-
-        Vector3 velocity =
-            outwardDirection * fragmentForce +
-            Vector3.up * fragmentUpwardForce +
-            UnityEngine.Random.insideUnitSphere *
-            fragmentForce * 0.35f;
-
-        Vector3 angularVelocity =
-            UnityEngine.Random.insideUnitSphere *
-            fragmentAngularSpeed;
-
-        BoonRewardFragment fragmentEffect =
-            fragment.AddComponent<BoonRewardFragment>();
-
-        fragmentEffect.Initialize(
-            velocity,
-            angularVelocity,
-            fragmentLifetime,
-            fragmentFadeStartRatio,
-            fragmentGravity,
-            fragmentMoveDamping
-        );
-    }
-
-    private Bounds CalculateRewardBounds()
+    private Bounds CalculateVisualBounds()
     {
         bool hasBounds = false;
-        Bounds combinedBounds = new Bounds(transform.position, Vector3.one);
 
-        if (rewardRenderers != null)
+        Bounds combined =
+            new Bounds(
+                transform.position,
+                Vector3.one
+            );
+
+        for (int i = 0;
+             i < activeRenderers.Length;
+             i++)
         {
-            for (int i = 0; i < rewardRenderers.Length; i++)
-            {
-                Renderer targetRenderer = rewardRenderers[i];
+            Renderer renderer =
+                activeRenderers[i];
 
-                if (targetRenderer == null ||
-                    !targetRenderer.gameObject.activeInHierarchy)
-                {
-                    continue;
-                }
-
-                if (!hasBounds)
-                {
-                    combinedBounds = targetRenderer.bounds;
-                    hasBounds = true;
-                }
-                else
-                {
-                    combinedBounds.Encapsulate(targetRenderer.bounds);
-                }
-            }
-        }
-
-        if (!hasBounds && triggerCollider != null)
-        {
-            combinedBounds = triggerCollider.bounds;
-        }
-
-        return combinedBounds;
-    }
-
-    private Material FindFragmentSourceMaterial()
-    {
-        if (fragmentMaterialOverride != null)
-        {
-            return fragmentMaterialOverride;
-        }
-
-        if (rewardRenderers == null)
-        {
-            return null;
-        }
-
-        for (int i = 0; i < rewardRenderers.Length; i++)
-        {
-            Renderer targetRenderer = rewardRenderers[i];
-
-            if (targetRenderer == null)
+            if (renderer == null ||
+                !renderer.enabled ||
+                !renderer.gameObject
+                    .activeInHierarchy)
             {
                 continue;
             }
 
-            Material[] materials = targetRenderer.sharedMaterials;
+            if (!hasBounds)
+            {
+                combined =
+                    renderer.bounds;
 
-            for (int j = 0; j < materials.Length; j++)
+                hasBounds = true;
+            }
+            else
+            {
+                combined.Encapsulate(
+                    renderer.bounds
+                );
+            }
+        }
+
+        if (!hasBounds &&
+            triggerCollider != null)
+        {
+            combined =
+                triggerCollider.bounds;
+        }
+
+        return combined;
+    }
+
+    private Material FindSourceMaterial()
+    {
+        for (int i = 0;
+             i < activeRenderers.Length;
+             i++)
+        {
+            Renderer renderer =
+                activeRenderers[i];
+
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            Material[] materials =
+                renderer.sharedMaterials;
+
+            for (int j = 0;
+                 j < materials.Length;
+                 j++)
             {
                 if (materials[j] != null)
                 {
@@ -522,78 +996,38 @@ public class BoonRewardInteractable : InteractableBase
         return null;
     }
 
-    private void CacheRewardRenderers()
-    {
-        rewardRenderers = GetComponentsInChildren<Renderer>(true);
-        initialRendererStates = new bool[rewardRenderers.Length];
-
-        for (int i = 0; i < rewardRenderers.Length; i++)
-        {
-            initialRendererStates[i] =
-                rewardRenderers[i] != null &&
-                rewardRenderers[i].enabled;
-        }
-    }
-
-    private void RestoreRewardRenderers()
-    {
-        if (rewardRenderers == null ||
-            initialRendererStates == null ||
-            rewardRenderers.Length != initialRendererStates.Length)
-        {
-            CacheRewardRenderers();
-        }
-
-        for (int i = 0; i < rewardRenderers.Length; i++)
-        {
-            if (rewardRenderers[i] != null)
-            {
-                rewardRenderers[i].enabled = initialRendererStates[i];
-            }
-        }
-    }
-
-    private void SetRewardRenderersEnabled(bool value)
-    {
-        if (rewardRenderers == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < rewardRenderers.Length; i++)
-        {
-            if (rewardRenderers[i] != null)
-            {
-                rewardRenderers[i].enabled = value;
-            }
-        }
-    }
-
-    private void OnTriggerEnter(Collider other)
+    private void OnTriggerEnter(
+        Collider other)
     {
         TryRegisterPlayer(other);
     }
 
-    private void OnTriggerStay(Collider other)
+    private void OnTriggerStay(
+        Collider other)
     {
         TryRegisterPlayer(other);
     }
 
-    private void TryRegisterPlayer(Collider other)
+    private void TryRegisterPlayer(
+        Collider other)
     {
-        if (!rewardReady || rewardUsed || other == null)
+        if (!rewardReady ||
+            rewardUsed ||
+            other == null)
         {
             return;
         }
 
-        Player player = other.GetComponentInParent<Player>();
+        Player player =
+            other.GetComponentInParent<Player>();
 
         if (player == null)
         {
             return;
         }
 
-        if (currentPlayer != null && currentPlayer != player)
+        if (currentPlayer != null &&
+            currentPlayer != player)
         {
             return;
         }
@@ -607,27 +1041,33 @@ public class BoonRewardInteractable : InteractableBase
             return;
         }
 
-        BoonInfo boonInfo = player.GetComponent<BoonInfo>();
+        BoonInfo boonInfo =
+            player.GetComponent<BoonInfo>();
 
         if (boonInfo == null)
         {
-            boonInfo = player.GetComponentInChildren<BoonInfo>(true);
+            boonInfo =
+                player.GetComponentInChildren<
+                    BoonInfo>(true);
         }
 
         PlayerInteraction interaction =
-            player.GetComponent<PlayerInteraction>();
+            player.GetComponent<
+                PlayerInteraction>();
 
         if (interaction == null)
         {
             interaction =
-                player.GetComponentInChildren<PlayerInteraction>(true);
+                player.GetComponentInChildren<
+                    PlayerInteraction>(true);
         }
 
-        if (boonInfo == null || interaction == null)
+        if (boonInfo == null ||
+            interaction == null)
         {
             Debug.LogError(
-                "[BoonRewardInteractable] Player에 BoonInfo와 " +
-                "PlayerInteraction이 필요합니다.",
+                "[BoonRewardInteractable] Player에 " +
+                "BoonInfo와 PlayerInteraction이 필요합니다.",
                 player
             );
 
@@ -636,24 +1076,21 @@ public class BoonRewardInteractable : InteractableBase
 
         currentPlayer = player;
         currentBoonInfo = boonInfo;
-        currentPlayerInteraction = interaction;
+        currentPlayerInteraction =
+            interaction;
 
-        currentPlayerInteraction.RegisterInteractable(this);
-
-        if (showLogs)
-        {
-            Debug.Log(
-                "[BoonRewardInteractable] 플레이어 등록 완료 / E키 상호작용 가능",
-                this
-            );
-        }
+        currentPlayerInteraction
+            .RegisterInteractable(this);
     }
 
-    private void OnTriggerExit(Collider other)
+    private void OnTriggerExit(
+        Collider other)
     {
-        Player player = other.GetComponentInParent<Player>();
+        Player player =
+            other.GetComponentInParent<Player>();
 
-        if (player == null || player != currentPlayer)
+        if (player == null ||
+            player != currentPlayer)
         {
             return;
         }
@@ -668,19 +1105,23 @@ public class BoonRewardInteractable : InteractableBase
         ClearPlayerReference(false);
     }
 
-    private void ClearPlayerReference(bool unblockInteraction)
+    private void ClearPlayerReference(
+        bool unblockInteraction)
     {
         if (currentPlayerInteraction != null)
         {
-            currentPlayerInteraction.UnregisterInteractable(this);
+            currentPlayerInteraction
+                .UnregisterInteractable(this);
 
             if (unblockInteraction)
             {
-                currentPlayerInteraction.SetInteractionBlocked(false);
+                currentPlayerInteraction
+                    .SetInteractionBlocked(false);
             }
         }
 
         playerColliders.Clear();
+
         currentPlayer = null;
         currentBoonInfo = null;
         currentPlayerInteraction = null;
@@ -690,8 +1131,63 @@ public class BoonRewardInteractable : InteractableBase
     {
         if (currentPlayerInteraction != null)
         {
-            currentPlayerInteraction.SetInteractionBlocked(false);
+            currentPlayerInteraction
+                .SetInteractionBlocked(false);
         }
+    }
+
+    private void EnsureLandingLight()
+    {
+        if (landingLight != null)
+        {
+            return;
+        }
+
+        Transform found =
+            transform.Find(
+                "RuntimeLandingLight"
+            );
+
+        GameObject lightObject;
+
+        if (found != null)
+        {
+            lightObject =
+                found.gameObject;
+        }
+        else
+        {
+            lightObject =
+                new GameObject(
+                    "RuntimeLandingLight"
+                );
+
+            lightObject.transform.SetParent(
+                transform,
+                false
+            );
+
+            lightObject.transform.localPosition =
+                Vector3.up * 0.5f;
+        }
+
+        landingLight =
+            lightObject.GetComponent<Light>();
+
+        if (landingLight == null)
+        {
+            landingLight =
+                lightObject.AddComponent<Light>();
+        }
+
+        landingLight.type =
+            LightType.Point;
+
+        landingLight.shadows =
+            LightShadows.None;
+
+        landingLight.intensity = 0f;
+        landingLight.enabled = false;
     }
 
     private void ResolveUI()
@@ -701,14 +1197,17 @@ public class BoonRewardInteractable : InteractableBase
             return;
         }
 
-        boonRewardUI = FindFirstObjectByType<BoonRewardUI>(
-            FindObjectsInactive.Include
-        );
+        boonRewardUI =
+            FindFirstObjectByType<
+                BoonRewardUI>(
+                    FindObjectsInactive.Include
+                );
 
         if (boonRewardUI == null)
         {
             Debug.LogError(
-                "[BoonRewardInteractable] BoonRewardUI를 찾지 못했습니다.",
+                "[BoonRewardInteractable] " +
+                "BoonRewardUI를 찾지 못했습니다.",
                 this
             );
         }
@@ -718,9 +1217,12 @@ public class BoonRewardInteractable : InteractableBase
     {
         allBoons.Clear();
 
-        if (boonDatabase != null && boonDatabase.Boons != null)
+        if (boonDatabase != null &&
+            boonDatabase.Boons != null)
         {
-            allBoons.AddRange(boonDatabase.Boons);
+            allBoons.AddRange(
+                boonDatabase.Boons
+            );
         }
 
         if (allBoons.Count > 0)
@@ -729,9 +1231,12 @@ public class BoonRewardInteractable : InteractableBase
         }
 
         BoonData[] loaded =
-            Resources.LoadAll<BoonData>(resourcesPath);
+            Resources.LoadAll<BoonData>(
+                resourcesPath
+            );
 
-        if (loaded != null && loaded.Length > 0)
+        if (loaded != null &&
+            loaded.Length > 0)
         {
             allBoons.AddRange(loaded);
         }
@@ -739,206 +1244,194 @@ public class BoonRewardInteractable : InteractableBase
         if (allBoons.Count == 0)
         {
             Debug.LogError(
-                "[BoonRewardInteractable] BoonDatabase 또는 " +
-                $"Resources/{resourcesPath}에 득도 데이터가 없습니다.",
+                "[BoonRewardInteractable] " +
+                "득도 데이터가 없습니다.",
                 this
             );
         }
     }
 
+    private static float SmoothStep(
+        float value)
+    {
+        value =
+            Mathf.Clamp01(value);
+
+        return
+            value *
+            value *
+            (3f - 2f * value);
+    }
+
     private void OnDisable()
     {
+        if (appearanceRoutine != null)
+        {
+            StopCoroutine(appearanceRoutine);
+            appearanceRoutine = null;
+        }
+
         rewardReady = false;
         selectionInProgress = false;
         completedCallback = null;
+
+        if (landingLight != null)
+        {
+            landingLight.intensity = 0f;
+            landingLight.enabled = false;
+        }
 
         ClearPlayerReference(true);
     }
 }
 
 /// <summary>
-/// 코드로 생성된 조각 하나를 이동시키고 점점 사라지게 한다.
-/// 원본 보상 오브젝트와 분리되어 있으므로 원본이 꺼져도 계속 실행된다.
+/// 획득 시 생성된 작은 파편을 이동시키고 제거한다.
+/// 원본 보상 오브젝트가 꺼져도 독립적으로 계속 실행된다.
 /// </summary>
-internal sealed class BoonRewardFragment : MonoBehaviour
+internal sealed class RewardFragmentMotion :
+    MonoBehaviour
 {
     private Vector3 velocity;
-    private Vector3 angularVelocity;
-    private Vector3 originalScale;
-
     private float lifetime;
-    private float fadeStartRatio;
     private float gravity;
-    private float moveDamping;
+    private float elapsed;
 
+    private Vector3 initialScale;
+    private Renderer targetRenderer;
     private Material runtimeMaterial;
     private string colorProperty;
-    private Color originalColor;
+    private Color initialColor;
 
     public void Initialize(
         Vector3 startVelocity,
-        Vector3 startAngularVelocity,
-        float effectLifetime,
-        float effectFadeStartRatio,
-        float effectGravity,
-        float effectMoveDamping)
+        float duration,
+        float gravityStrength)
     {
         velocity = startVelocity;
-        angularVelocity = startAngularVelocity;
-        originalScale = transform.localScale;
+        lifetime =
+            Mathf.Max(0.1f, duration);
 
-        lifetime = Mathf.Max(0.05f, effectLifetime);
-        fadeStartRatio = Mathf.Clamp(effectFadeStartRatio, 0f, 0.95f);
-        gravity = Mathf.Max(0f, effectGravity);
-        moveDamping = Mathf.Max(0f, effectMoveDamping);
+        gravity =
+            Mathf.Max(0f, gravityStrength);
 
-        PrepareMaterial();
+        initialScale =
+            transform.localScale;
 
-        StartCoroutine(PlayRoutine());
+        targetRenderer =
+            GetComponent<Renderer>();
+
+        PrepareFadeMaterial();
     }
 
-    private IEnumerator PlayRoutine()
+    private void Update()
     {
-        float elapsedTime = 0f;
+        elapsed += Time.deltaTime;
 
-        while (elapsedTime < lifetime)
-        {
-            float deltaTime = Time.unscaledDeltaTime;
-            elapsedTime += deltaTime;
+        velocity +=
+            Vector3.down *
+            gravity *
+            Time.deltaTime;
 
-            velocity += Vector3.down * gravity * deltaTime;
-            velocity *= Mathf.Exp(-moveDamping * deltaTime);
+        transform.position +=
+            velocity *
+            Time.deltaTime;
 
-            transform.position += velocity * deltaTime;
-            transform.Rotate(
-                angularVelocity * deltaTime,
-                Space.Self
+        transform.Rotate(
+            280f * Time.deltaTime,
+            360f * Time.deltaTime,
+            220f * Time.deltaTime,
+            Space.Self
+        );
+
+        float ratio =
+            Mathf.Clamp01(
+                elapsed / lifetime
             );
 
-            float lifeProgress =
-                Mathf.Clamp01(elapsedTime / lifetime);
+        float remaining =
+            1f - ratio;
 
-            float fadeProgress =
-                Mathf.InverseLerp(
-                    fadeStartRatio,
-                    1f,
-                    lifeProgress
-                );
+        transform.localScale =
+            initialScale *
+            Mathf.Max(
+                0.001f,
+                remaining
+            );
 
-            float smoothFade =
-                Mathf.SmoothStep(0f, 1f, fadeProgress);
+        ApplyAlpha(remaining);
 
-            transform.localScale =
-                originalScale *
-                Mathf.Lerp(1f, 0.05f, smoothFade);
+        if (elapsed >= lifetime)
+        {
+            Destroy(gameObject);
+        }
+    }
 
-            SetAlpha(1f - smoothFade);
-
-            yield return null;
+    private void PrepareFadeMaterial()
+    {
+        if (targetRenderer == null ||
+            targetRenderer.sharedMaterial == null)
+        {
+            return;
         }
 
+        runtimeMaterial =
+            new Material(
+                targetRenderer.sharedMaterial
+            );
+
+        targetRenderer.sharedMaterial =
+            runtimeMaterial;
+
+        if (runtimeMaterial.HasProperty(
+                "_BaseColor"))
+        {
+            colorProperty =
+                "_BaseColor";
+        }
+        else if (runtimeMaterial.HasProperty(
+                     "_Color"))
+        {
+            colorProperty =
+                "_Color";
+        }
+        else
+        {
+            return;
+        }
+
+        initialColor =
+            runtimeMaterial.GetColor(
+                colorProperty
+            );
+    }
+
+    private void ApplyAlpha(
+        float alpha)
+    {
+        if (runtimeMaterial == null ||
+            string.IsNullOrEmpty(
+                colorProperty))
+        {
+            return;
+        }
+
+        Color color =
+            initialColor;
+
+        color.a *= alpha;
+
+        runtimeMaterial.SetColor(
+            colorProperty,
+            color
+        );
+    }
+
+    private void OnDestroy()
+    {
         if (runtimeMaterial != null)
         {
             Destroy(runtimeMaterial);
         }
-
-        Destroy(gameObject);
-    }
-
-    private void PrepareMaterial()
-    {
-        Renderer targetRenderer = GetComponent<Renderer>();
-
-        if (targetRenderer == null)
-        {
-            return;
-        }
-
-        /*
-         * renderer.material을 사용해 조각 전용 머티리얼 인스턴스를 만든다.
-         * 원본 보상 머티리얼의 투명도가 변경되는 것을 막는다.
-         */
-        runtimeMaterial = targetRenderer.material;
-
-        if (runtimeMaterial.HasProperty("_BaseColor"))
-        {
-            colorProperty = "_BaseColor";
-        }
-        else if (runtimeMaterial.HasProperty("_Color"))
-        {
-            colorProperty = "_Color";
-        }
-
-        if (!string.IsNullOrEmpty(colorProperty))
-        {
-            originalColor =
-                runtimeMaterial.GetColor(colorProperty);
-        }
-
-        ConfigureTransparentMaterial(runtimeMaterial);
-    }
-
-    private void ConfigureTransparentMaterial(Material material)
-    {
-        if (material == null)
-        {
-            return;
-        }
-
-        // URP Lit
-        if (material.HasProperty("_Surface"))
-        {
-            material.SetFloat("_Surface", 1f);
-            material.SetFloat("_Blend", 0f);
-            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            material.DisableKeyword("_SURFACE_TYPE_OPAQUE");
-        }
-
-        // Built-in Standard
-        if (material.HasProperty("_Mode"))
-        {
-            material.SetFloat("_Mode", 2f);
-            material.DisableKeyword("_ALPHATEST_ON");
-            material.EnableKeyword("_ALPHABLEND_ON");
-            material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-        }
-
-        if (material.HasProperty("_SrcBlend"))
-        {
-            material.SetFloat(
-                "_SrcBlend",
-                (float)BlendMode.SrcAlpha
-            );
-        }
-
-        if (material.HasProperty("_DstBlend"))
-        {
-            material.SetFloat(
-                "_DstBlend",
-                (float)BlendMode.OneMinusSrcAlpha
-            );
-        }
-
-        if (material.HasProperty("_ZWrite"))
-        {
-            material.SetFloat("_ZWrite", 0f);
-        }
-
-        material.renderQueue = (int)RenderQueue.Transparent;
-        material.SetShaderPassEnabled("ShadowCaster", false);
-    }
-
-    private void SetAlpha(float alpha)
-    {
-        if (runtimeMaterial == null ||
-            string.IsNullOrEmpty(colorProperty))
-        {
-            return;
-        }
-
-        Color color = originalColor;
-        color.a = originalColor.a * Mathf.Clamp01(alpha);
-
-        runtimeMaterial.SetColor(colorProperty, color);
     }
 }

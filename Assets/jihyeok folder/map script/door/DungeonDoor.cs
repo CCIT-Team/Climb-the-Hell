@@ -2,12 +2,13 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// 씬에 이미 배치된 문을 관리한다.
+/// 문 하나의 경로 표시와 개방을 관리한다.
 ///
-/// 문 위 아이콘 Quad는 씬 로드 직후부터 계속 표시한다.
-/// 문 상태와 상관없이 아이콘을 끄지 않으며,
-/// 경로가 설정되면 Material만 교체한다.
+/// - Configure 호출 시 목적지 표시 프리팹을 생성한다.
+/// - Destination Spawn Point의 월드 위치에 프리팹을 생성한다.
+/// - 문이 열리면 Scene Trigger를 활성화한다.
 /// </summary>
+[DefaultExecutionOrder(-100)]
 public class DungeonDoor : MonoBehaviour
 {
     [Header("문 회전")]
@@ -33,66 +34,87 @@ public class DungeonDoor : MonoBehaviour
     [SerializeField]
     private float triggerEnableDelay = 0.2f;
 
-    [Header("문 위 아이콘 Quad")]
+    [Header("목적지 프리팹 생성 기준점")]
     [Tooltip(
-        "씬 시작부터 계속 표시할 문 위 Quad 오브젝트"
+        "Hierarchy에 있는 빈 오브젝트 또는 Quad의 Transform을 연결하세요.\n" +
+        "목적지 프리팹은 이 Transform의 월드 위치와 회전에 생성됩니다."
     )]
     [SerializeField]
-    private GameObject routeIconQuad;
+    private Transform destinationSpawnPoint;
 
-    [Tooltip(
-        "Route Icon Quad의 MeshRenderer. 비워두면 자동 탐색"
-    )]
+    [Header("전투방 계열 프리팹")]
+    [Tooltip("계열별 프리팹이 비어 있을 때 사용하는 기본 전투방 프리팹")]
     [SerializeField]
-    private MeshRenderer routeIconRenderer;
-
-    [Header("전투방 득도 태그 Material")]
-    [SerializeField]
-    private Material attackMaterial;
+    private GameObject combatRoomPrefab;
 
     [SerializeField]
-    private Material defenseMaterial;
+    private GameObject attackCombatPrefab;
 
     [SerializeField]
-    private Material mobilityMaterial;
+    private GameObject defenseCombatPrefab;
 
     [SerializeField]
-    private Material debuffMaterial;
-
-    [Header("비전투방 아이콘 Material")]
-    [SerializeField]
-    private Material rewardRoomMaterial;
+    private GameObject mobilityCombatPrefab;
 
     [SerializeField]
-    private Material shopRoomMaterial;
+    private GameObject debuffCombatPrefab;
+
+    [Header("비전투방 프리팹")]
+    [SerializeField]
+    private GameObject rewardRoomPrefab;
 
     [SerializeField]
-    private Material jakduRoomMaterial;
+    private GameObject shopRoomPrefab;
 
     [SerializeField]
-    private Material eventRoomMaterial;
+    private GameObject jakduRoomPrefab;
 
     [SerializeField]
-    private Material bossRoomMaterial;
+    private GameObject eventRoomPrefab;
+
+    [SerializeField]
+    private GameObject bossRoomPrefab;
+
+    [Header("디버그")]
+    [SerializeField]
+    private bool showLogs = true;
 
     private Quaternion closedRotation;
     private Quaternion openedRotation;
 
     private RoomRouteOption route;
+    private GameObject currentDestinationVisual;
 
-    private bool doorEnabled;
+    private bool doorUnlocked;
     private bool opened;
     private bool animating;
     private bool changingScene;
 
     private Coroutine doorRoutine;
 
-    private void Reset()
+    /// <summary>
+    /// 현재 문에 유효한 이동 경로가 설정되어 있는지 확인한다.
+    /// </summary>
+    public bool HasValidRoute
     {
-        FindIconRenderer();
+        get
+        {
+            return route != null &&
+                   route.IsValid &&
+                   route.TargetRoom != null;
+        }
     }
 
     private void Awake()
+    {
+        InitializeDoorRotation();
+        InitializeSceneTrigger();
+    }
+
+    /// <summary>
+    /// 문 회전값을 초기화한다.
+    /// </summary>
+    private void InitializeDoorRotation()
     {
         if (doorPivot == null)
         {
@@ -101,14 +123,10 @@ public class DungeonDoor : MonoBehaviour
                 this
             );
 
-            enabled = false;
             return;
         }
 
-        FindIconRenderer();
-
-        closedRotation =
-            doorPivot.localRotation;
+        closedRotation = doorPivot.localRotation;
 
         openedRotation =
             closedRotation *
@@ -118,63 +136,57 @@ public class DungeonDoor : MonoBehaviour
                 0f
             );
 
-        if (sceneTrigger != null)
-        {
-            sceneTrigger.Initialize(this);
-            sceneTrigger.SetTriggerEnabled(false);
-        }
-
-        /*
-         * 아이콘은 씬 로드 직후부터 항상 표시한다.
-         * Inspector에서 설정한 기본 Material도 그대로 보인다.
-         */
-        KeepIconVisible();
+        doorPivot.localRotation = closedRotation;
     }
 
     /// <summary>
-    /// RoomChoiceGenerator가 다음 방 정보를 전달한다.
-    /// 아이콘은 끄지 않고 Material만 교체한다.
+    /// 문 진입 Trigger를 초기화한다.
     /// </summary>
-    public void Configure(
-        RoomRouteOption newRoute
-    )
+    private void InitializeSceneTrigger()
+    {
+        if (sceneTrigger == null)
+        {
+            Debug.LogWarning(
+                "[DungeonDoor] Scene Trigger가 연결되지 않았습니다.",
+                this
+            );
+
+            return;
+        }
+
+        sceneTrigger.Initialize(this);
+        sceneTrigger.SetTriggerEnabled(false);
+    }
+
+    /// <summary>
+    /// 문의 다음 경로를 설정하고 목적지 표시를 생성한다.
+    /// </summary>
+    public void Configure(RoomRouteOption newRoute)
     {
         route = newRoute;
 
+        doorUnlocked = false;
         opened = false;
         animating = false;
         changingScene = false;
 
-        if (doorRoutine != null)
-        {
-            StopCoroutine(doorRoutine);
-            doorRoutine = null;
-        }
+        StopDoorRoutine();
 
         if (doorPivot != null)
         {
-            doorPivot.localRotation =
-                closedRotation;
+            doorPivot.localRotation = closedRotation;
         }
-
-        doorEnabled =
-            route != null &&
-            route.IsValid;
 
         if (sceneTrigger != null)
         {
             sceneTrigger.SetTriggerEnabled(false);
         }
 
-        /*
-         * 경로가 잘못되어도 아이콘은 숨기지 않는다.
-         * 기존 Material과 표시 상태를 유지한다.
-         */
-        if (!doorEnabled)
+        if (!HasValidRoute)
         {
-            KeepIconVisible();
+            DestroyDestinationVisual();
 
-            Debug.LogWarning(
+            Debug.LogError(
                 "[DungeonDoor] 유효하지 않은 경로가 전달되었습니다.",
                 this
             );
@@ -182,40 +194,32 @@ public class DungeonDoor : MonoBehaviour
             return;
         }
 
-        ApplyCurrentRouteMaterial();
+        RefreshDestinationVisual();
 
-        Debug.Log(
-            $"[DungeonDoor] 경로 설정 완료 / " +
-            $"방: {route.TargetRoom.name} / " +
-            $"태그: {route.RewardCategory}",
-            this
-        );
+        if (showLogs)
+        {
+            Debug.Log(
+                $"[DungeonDoor] 문 경로 설정 완료 / " +
+                $"방={route.TargetRoom.DisplayName}, " +
+                $"타입={route.TargetRoom.RoomType}, " +
+                $"태그={route.RewardCategory}",
+                this
+            );
+        }
     }
 
     /// <summary>
-    /// 문 사용 가능 여부를 설정한다.
-    /// 이 값은 아이콘 표시에는 영향을 주지 않는다.
+    /// 문을 잠그고 닫힌 상태로 되돌린다.
+    /// 목적지 표시는 유지한다.
     /// </summary>
-    public void SetDoorEnabled(
-        bool value
-    )
+    public void Lock()
     {
-        doorEnabled = value;
-
-        if (value)
-        {
-            KeepIconVisible();
-            return;
-        }
-
+        doorUnlocked = false;
         opened = false;
+        animating = false;
         changingScene = false;
 
-        if (doorRoutine != null)
-        {
-            StopCoroutine(doorRoutine);
-            doorRoutine = null;
-        }
+        StopDoorRoutine();
 
         if (sceneTrigger != null)
         {
@@ -224,61 +228,100 @@ public class DungeonDoor : MonoBehaviour
 
         if (doorPivot != null)
         {
-            doorPivot.localRotation =
-                closedRotation;
+            doorPivot.localRotation = closedRotation;
         }
-
-        /*
-         * 문을 비활성 상태로 바꿔도
-         * 아이콘은 계속 표시한다.
-         */
-        KeepIconVisible();
     }
 
     /// <summary>
-    /// 아이콘을 유지한 상태로 문을 연다.
+    /// 기존 코드 호환용 함수.
     /// </summary>
-    public void Open()
+    public void SetDoorEnabled(bool value)
     {
-        if (!doorEnabled ||
-            route == null ||
-            !route.IsValid ||
-            opened ||
-            animating)
+        if (!value)
         {
-            KeepIconVisible();
+            Lock();
             return;
         }
 
-        opened = true;
-
-        ApplyCurrentRouteMaterial();
-
-        if (doorRoutine != null)
-        {
-            StopCoroutine(doorRoutine);
-        }
-
-        doorRoutine =
-            StartCoroutine(
-                OpenRoutine()
-            );
+        doorUnlocked = HasValidRoute;
     }
 
     /// <summary>
-    /// DoorSceneTrigger가 플레이어 진입 시 호출한다.
+    /// 경로와 목적지 표시를 모두 제거한다.
     /// </summary>
-    public bool TryEnter(
-        Player player
-    )
+    public void ClearRoute()
     {
-        if (player == null ||
-            !doorEnabled ||
+        route = null;
+
+        doorUnlocked = false;
+        opened = false;
+        animating = false;
+        changingScene = false;
+
+        StopDoorRoutine();
+
+        if (sceneTrigger != null)
+        {
+            sceneTrigger.SetTriggerEnabled(false);
+        }
+
+        if (doorPivot != null)
+        {
+            doorPivot.localRotation = closedRotation;
+        }
+
+        DestroyDestinationVisual();
+    }
+
+    /// <summary>
+    /// 방 클리어 후 문을 연다.
+    /// </summary>
+    public void Open()
+    {
+        if (!HasValidRoute)
+        {
+            Debug.LogWarning(
+                "[DungeonDoor] 경로가 없어서 문을 열 수 없습니다.",
+                this
+            );
+
+            return;
+        }
+
+        if (opened || animating)
+        {
+            return;
+        }
+
+        doorUnlocked = true;
+        opened = true;
+
+        if (currentDestinationVisual == null)
+        {
+            RefreshDestinationVisual();
+        }
+
+        StopDoorRoutine();
+
+        doorRoutine =
+            StartCoroutine(OpenRoutine());
+    }
+
+    /// <summary>
+    /// 플레이어가 문 Trigger에 들어오면 호출된다.
+    /// </summary>
+    public bool TryEnter(Player player)
+    {
+        if (player == null)
+        {
+            return false;
+        }
+
+        if (!doorUnlocked ||
             !opened ||
             animating ||
             changingScene ||
-            route == null ||
-            !route.IsValid)
+            !HasValidRoute)
         {
             return false;
         }
@@ -290,19 +333,17 @@ public class DungeonDoor : MonoBehaviour
             sceneTrigger.SetTriggerEnabled(false);
         }
 
-        if (doorRoutine != null)
-        {
-            StopCoroutine(doorRoutine);
-        }
+        StopDoorRoutine();
 
         doorRoutine =
-            StartCoroutine(
-                CloseAndMoveRoutine()
-            );
+            StartCoroutine(CloseAndMoveRoutine());
 
         return true;
     }
 
+    /// <summary>
+    /// 문을 연 뒤 이동 Trigger를 활성화한다.
+    /// </summary>
     private IEnumerator OpenRoutine()
     {
         yield return RotateDoor(
@@ -323,18 +364,14 @@ public class DungeonDoor : MonoBehaviour
             sceneTrigger.SetTriggerEnabled(true);
         }
 
-        KeepIconVisible();
-
         doorRoutine = null;
     }
 
+    /// <summary>
+    /// 문을 닫은 뒤 다음 방으로 이동을 요청한다.
+    /// </summary>
     private IEnumerator CloseAndMoveRoutine()
     {
-        /*
-         * 문이 닫히는 동안에도 아이콘은 유지한다.
-         */
-        KeepIconVisible();
-
         yield return RotateDoor(
             closedRotation,
             closeDuration
@@ -342,12 +379,14 @@ public class DungeonDoor : MonoBehaviour
 
         doorRoutine = null;
 
-        bool requestSucceeded =
-            RunFlowManager
-                .Instance
-                .RequestRoute(route);
+        RunFlowManager manager =
+            RunFlowManager.Instance;
 
-        if (requestSucceeded)
+        bool requested =
+            manager != null &&
+            manager.RequestRoute(route);
+
+        if (requested)
         {
             yield break;
         }
@@ -360,10 +399,12 @@ public class DungeonDoor : MonoBehaviour
         changingScene = false;
         opened = false;
 
-        KeepIconVisible();
         Open();
     }
 
+    /// <summary>
+    /// 문 Pivot을 목표 회전값까지 부드럽게 회전시킨다.
+    /// </summary>
     private IEnumerator RotateDoor(
         Quaternion targetRotation,
         float duration
@@ -385,6 +426,7 @@ public class DungeonDoor : MonoBehaviour
                 targetRotation;
 
             animating = false;
+
             yield break;
         }
 
@@ -421,193 +463,237 @@ public class DungeonDoor : MonoBehaviour
     }
 
     /// <summary>
-    /// 현재 경로에 맞는 Material만 교체한다.
-    /// 아이콘 오브젝트는 절대 끄지 않는다.
+    /// Destination Spawn Point의 월드 위치와 회전에
+    /// 목적지 프리팹을 생성한다.
     /// </summary>
-    private void ApplyCurrentRouteMaterial()
+    private void RefreshDestinationVisual()
     {
-        KeepIconVisible();
+        DestroyDestinationVisual();
 
-        if (route == null ||
-            route.TargetRoom == null)
+        if (!HasValidRoute)
         {
             return;
         }
 
-        if (routeIconRenderer == null)
+        if (destinationSpawnPoint == null)
         {
             Debug.LogError(
-                "[DungeonDoor] Route Icon Quad에 MeshRenderer가 없습니다.",
+                "[DungeonDoor] Destination Spawn Point가 비어 있습니다. " +
+                "Hierarchy에 있는 위치 기준 오브젝트를 연결하세요.",
                 this
             );
 
             return;
         }
 
-        Material selectedMaterial =
-            GetRouteMaterial();
+        GameObject selectedPrefab =
+            GetDestinationPrefab();
 
-        if (selectedMaterial == null)
+        if (selectedPrefab == null)
         {
-            Debug.LogWarning(
-                $"[DungeonDoor] 적용할 Material이 없습니다. " +
-                $"방 타입: {route.TargetRoom.RoomType}, " +
-                $"태그: {route.RewardCategory}",
+            Debug.LogError(
+                $"[DungeonDoor] 목적지 프리팹이 연결되지 않았습니다. " +
+                $"방 타입={route.TargetRoom.RoomType}, " +
+                $"보상 계열={route.RewardCategory}",
                 this
             );
 
             return;
         }
+
+        Vector3 worldSpawnPosition =
+            destinationSpawnPoint.position;
+
+        Quaternion worldSpawnRotation =
+            destinationSpawnPoint.rotation;
 
         /*
-         * Material 복제 생성을 막기 위해
-         * sharedMaterial로 교체한다.
+         * 기준 Transform의 월드 위치와 회전을 사용한다.
+         * 프리팹 원본 Transform 위치는 사용하지 않는다.
          */
-        routeIconRenderer.sharedMaterial =
-            selectedMaterial;
+        currentDestinationVisual =
+            Instantiate(
+                selectedPrefab,
+                worldSpawnPosition,
+                worldSpawnRotation
+            );
+
+        currentDestinationVisual.name =
+            $"{selectedPrefab.name}_Destination";
+
+        /*
+         * 위치 기준점의 자식으로 연결한다.
+         * true이므로 현재 월드 위치와 회전은 유지된다.
+         */
+        currentDestinationVisual.transform.SetParent(
+            destinationSpawnPoint,
+            true
+        );
+
+        /*
+         * 생성 직후 오차가 없도록 월드 위치와 회전을 다시 확정한다.
+         */
+        currentDestinationVisual.transform.SetPositionAndRotation(
+            worldSpawnPosition,
+            worldSpawnRotation
+        );
+
+        DisableDestinationColliders();
+
+        currentDestinationVisual.SetActive(true);
+
+        if (showLogs)
+        {
+            Debug.Log(
+                $"[DungeonDoor] 목적지 프리팹 생성 완료\n" +
+                $"기준점 이름={destinationSpawnPoint.name}\n" +
+                $"기준점 월드 위치={destinationSpawnPoint.position}\n" +
+                $"생성된 월드 위치={currentDestinationVisual.transform.position}\n" +
+                $"기준점 월드 회전={destinationSpawnPoint.eulerAngles}\n" +
+                $"생성된 월드 회전={currentDestinationVisual.transform.eulerAngles}\n" +
+                $"프리팹={selectedPrefab.name}",
+                currentDestinationVisual
+            );
+        }
     }
 
     /// <summary>
-    /// 아이콘 Quad와 Renderer를 항상 활성 상태로 유지한다.
+    /// 목적지 표시 프리팹의 Collider를 비활성화한다.
     /// </summary>
-    private void KeepIconVisible()
+    private void DisableDestinationColliders()
     {
-        if (routeIconQuad == null)
+        if (currentDestinationVisual == null)
         {
             return;
         }
 
-        if (!routeIconQuad.activeSelf)
-        {
-            routeIconQuad.SetActive(true);
-        }
+        Collider[] colliders =
+            currentDestinationVisual
+                .GetComponentsInChildren<Collider>(true);
 
-        FindIconRenderer();
-
-        if (routeIconRenderer != null)
+        for (int i = 0; i < colliders.Length; i++)
         {
-            routeIconRenderer.enabled =
-                true;
+            colliders[i].enabled = false;
         }
     }
 
-    private void FindIconRenderer()
+    /// <summary>
+    /// 현재 경로에 맞는 목적지 프리팹을 반환한다.
+    /// </summary>
+    private GameObject GetDestinationPrefab()
     {
-        if (routeIconQuad == null ||
-            routeIconRenderer != null)
+        if (!HasValidRoute)
         {
-            return;
+            return null;
         }
 
-        routeIconRenderer =
-            routeIconQuad
-                .GetComponent<MeshRenderer>();
-
-        if (routeIconRenderer == null)
-        {
-            routeIconRenderer =
-                routeIconQuad
-                    .GetComponentInChildren<
-                        MeshRenderer>(true);
-        }
-    }
-
-    private Material GetRouteMaterial()
-    {
         RoomType roomType =
             route.TargetRoom.RoomType;
 
-        if (roomType ==
-            RoomType.Combat)
+        switch (roomType)
         {
-            return GetBoonMaterial(
-                route.RewardCategory
-            );
-        }
+            case RoomType.Combat:
+                return GetCombatPrefab(
+                    route.RewardCategory
+                );
 
-        return GetRoomMaterial(
-            roomType
-        );
+            case RoomType.Reward:
+                return rewardRoomPrefab;
+
+            case RoomType.Shop:
+                return shopRoomPrefab;
+
+            case RoomType.Jakdu:
+                return jakduRoomPrefab;
+
+            case RoomType.Event:
+                return eventRoomPrefab;
+
+            case RoomType.Boss:
+                return bossRoomPrefab;
+
+            default:
+                return null;
+        }
     }
 
-    private Material GetBoonMaterial(
+    /// <summary>
+    /// 전투방 보상 계열에 맞는 프리팹을 반환한다.
+    /// </summary>
+    private GameObject GetCombatPrefab(
         BoonCategory category
     )
     {
         switch (category)
         {
             case BoonCategory.Attack:
-                return attackMaterial;
+                return attackCombatPrefab != null
+                    ? attackCombatPrefab
+                    : combatRoomPrefab;
 
             case BoonCategory.Defense:
-                return defenseMaterial;
+                return defenseCombatPrefab != null
+                    ? defenseCombatPrefab
+                    : combatRoomPrefab;
 
             case BoonCategory.Mobility:
-                return mobilityMaterial;
+                return mobilityCombatPrefab != null
+                    ? mobilityCombatPrefab
+                    : combatRoomPrefab;
 
             case BoonCategory.Debuff:
-                return debuffMaterial;
+                return debuffCombatPrefab != null
+                    ? debuffCombatPrefab
+                    : combatRoomPrefab;
 
             default:
-                Debug.LogWarning(
-                    "[DungeonDoor] 전투방인데 득도 태그가 None입니다.",
-                    this
-                );
-
-                return null;
+                return combatRoomPrefab;
         }
     }
 
-    private Material GetRoomMaterial(
-        RoomType roomType
-    )
+    /// <summary>
+    /// 현재 생성된 목적지 표시를 제거한다.
+    /// </summary>
+    private void DestroyDestinationVisual()
     {
-        switch (roomType)
+        if (currentDestinationVisual == null)
         {
-            case RoomType.Reward:
-                return rewardRoomMaterial;
-
-            case RoomType.Shop:
-                return shopRoomMaterial;
-
-            case RoomType.Jakdu:
-                return jakduRoomMaterial;
-
-            case RoomType.Event:
-                return eventRoomMaterial;
-
-            case RoomType.Boss:
-                return bossRoomMaterial;
-
-            default:
-                return null;
+            return;
         }
+
+        Destroy(currentDestinationVisual);
+
+        currentDestinationVisual = null;
     }
 
-    private void OnEnable()
+    /// <summary>
+    /// 실행 중인 문 코루틴을 중지한다.
+    /// </summary>
+    private void StopDoorRoutine()
     {
-        /*
-         * 씬 로드 또는 오브젝트 재활성화 시에도
-         * 아이콘을 즉시 다시 표시한다.
-         */
-        KeepIconVisible();
+        if (doorRoutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(doorRoutine);
+
+        doorRoutine = null;
+        animating = false;
     }
 
     private void OnDisable()
     {
-        if (doorRoutine != null)
-        {
-            StopCoroutine(doorRoutine);
-            doorRoutine = null;
-        }
+        StopDoorRoutine();
 
         if (sceneTrigger != null)
         {
             sceneTrigger.SetTriggerEnabled(false);
         }
+    }
 
-        /*
-         * 여기서도 아이콘을 끄는 코드는 없다.
-         */
+    private void OnDestroy()
+    {
+        DestroyDestinationVisual();
     }
 }

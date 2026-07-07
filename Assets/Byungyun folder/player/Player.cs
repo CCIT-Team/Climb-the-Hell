@@ -45,6 +45,9 @@ public class Player : MonoBehaviour, IDamageable
     // 남은 부활 횟수(죽음 저항)
     private int remainDeathResist;
 
+    // 득도(수비 계열) 피해 감소율을 읽기 위한 참조
+    private BoonInfo boonInfo;
+
     private void Awake()
     {
         // 플레이어 스탯 초기화
@@ -52,6 +55,14 @@ public class Player : MonoBehaviour, IDamageable
 
         // 죽음 저항 횟수 초기화
         remainDeathResist = stats.DeathResist;
+
+        // 득도 피해 감소를 적용하려면 BoonInfo 참조가 필요
+        boonInfo = GetComponent<BoonInfo>();
+
+        if (boonInfo == null)
+        {
+            boonInfo = GetComponentInChildren<BoonInfo>(true);
+        }
     }
 
     private void Update()
@@ -71,6 +82,21 @@ public class Player : MonoBehaviour, IDamageable
             IsInvincible())
         {
             return;
+        }
+
+        // 수비 계열 득도의 피해 감소율 적용
+        if (boonInfo != null)
+        {
+            float reductionRate =
+                boonInfo.GetTotalDamageReductionRate();
+
+            if (reductionRate > 0f)
+            {
+                damage =
+                    Mathf.RoundToInt(
+                        damage * (1f - reductionRate)
+                    );
+            }
         }
 
         // 실제 HP 감소

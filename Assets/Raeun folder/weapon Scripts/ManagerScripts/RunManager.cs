@@ -32,14 +32,20 @@ public class RunManager : MonoBehaviour
 
         IsRunning = true;
 
-        // 플레이어 스탯 초기화
-        player.stats.Init();
-
-        // 소지금을 0으로 초기화
-        player.money.SetMoney(0);
-
-        // 허브에서 구매한 모든 특성 적용
+        // 허브에서 구매한 특성 적용
         traitManager.ApplyAllTraits();
+
+        // 체력 초기화
+        player.stats.Init(true);
+
+        player.RefreshDeathResist();
+
+        // 런 시작 골드 지급
+        player.money.SetMoney(
+            traitManager.GetStartGold());
+
+        // 런 시작 이벤트
+        OnRunStarted?.Invoke();
 
         // 런 시작 이벤트 호출
         OnRunStarted?.Invoke();

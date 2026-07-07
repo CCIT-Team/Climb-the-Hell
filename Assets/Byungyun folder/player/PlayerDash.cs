@@ -10,6 +10,22 @@ public class PlayerDash : MonoBehaviour
     [SerializeField]
     private KeyCode dashKey = KeyCode.Space;
 
+    [Header("입력 버퍼링")]
+    [Tooltip("대시 종료 직전 입력해도 예약되는 허용 시간")]
+    [Min(0f)]
+    [SerializeField]
+    private float dashBufferWindow = 0.15f;
+
+    [Header("테스트용 연속 대시 설정")]
+    [Tooltip("체크 시 PlayerStats.MaxDashCount 대신 '기본 1회 + 아래 testBonusDashCount' 값을 사용합니다. Player/PlayerStats를 건드리지 않고 득도/특성 확정 전 밸런스만 테스트하기 위한 용도.")]
+    [SerializeField]
+    private bool overrideDashCountForTesting;
+
+    [Tooltip("추가로 사용 가능한 연속 대시 횟수(테스트용). 기본 1회에 더해집니다. 예: 2로 설정하면 총 3회 연속 대시. overrideDashCountForTesting이 켜져 있을 때만 적용됩니다.")]
+    [Min(0)]
+    [SerializeField]
+    private int testBonusDashCount;
+
     [Header("낮은 장애물 올라가기")]
     [Tooltip("이 높이 이하의 장애물은 대시로 올라갑니다.")]
     [Min(0f)]
@@ -56,6 +72,9 @@ public class PlayerDash : MonoBehaviour
     private int cachedMaxDashCount;
 
     private Vector3 dashDirection;
+
+    private bool hasBufferedDash;
+    private float dashBufferTimer;
 
     /*
      * 낮은 장애물 위에 올라간 위치에
@@ -124,6 +143,7 @@ public class PlayerDash : MonoBehaviour
 
         HandleDashInput();
         UpdateDashTimer();
+        UpdateDashBuffer();
         UpdateCooldown();
         UpdateAnimation();
     }
@@ -138,23 +158,8 @@ public class PlayerDash : MonoBehaviour
         DashMove();
     }
 
-    private void HandleDashInput()
+    private Vector3 ComputeDashDirection()
     {
-        if (isDashing)
-        {
-            return;
-        }
-
-        if (currentDashCount <= 0)
-        {
-            return;
-        }
-
-        if (!Input.GetKeyDown(dashKey))
-        {
-            return;
-        }
-
         Vector3 moveDirection =
             playerController.GetMoveDirection();
 
@@ -164,24 +169,90 @@ public class PlayerDash : MonoBehaviour
          */
         if (moveDirection.sqrMagnitude > 0.01f)
         {
-            dashDirection =
-                moveDirection.normalized;
+            return moveDirection.normalized;
         }
-        else
+
+        Vector3 facingDirection =
+            playerController.GetFacingDirection();
+
+        facingDirection.y = 0f;
+
+        if (facingDirection.sqrMagnitude < 0.01f)
         {
-            dashDirection =
-                playerController.GetFacingDirection();
+            facingDirection =
+                transform.forward;
+        }
 
-            dashDirection.y = 0f;
+        facingDirection.Normalize();
 
-            if (dashDirection.sqrMagnitude < 0.01f)
+        return facingDirection;
+    }
+
+    private void HandleDashInput()
+    {
+        if (!Input.GetKeyDown(dashKey))
+        {
+            return;
+        }
+
+        /*
+         * 대시 중에 들어온 입력은 버리지 않고
+         * 대시 종료 시점에 즉시 이어지도록 예약.
+         */
+        if (isDashing)
+        {
+            if (currentDashCount > 0)
             {
-                dashDirection =
-                    transform.forward;
+                hasBufferedDash = true;
+                dashBufferTimer = dashBufferWindow;
             }
 
-            dashDirection.Normalize();
+            return;
         }
+
+        if (currentDashCount <= 0)
+        {
+            return;
+        }
+
+        dashDirection =
+            ComputeDashDirection();
+
+        StartDash();
+    }
+
+    private void UpdateDashBuffer()
+    {
+        if (!hasBufferedDash)
+        {
+            return;
+        }
+
+        dashBufferTimer -=
+            Time.deltaTime;
+
+        if (dashBufferTimer <= 0f)
+        {
+            hasBufferedDash = false;
+        }
+    }
+
+    private void TryConsumeBufferedDash()
+    {
+        if (!hasBufferedDash)
+        {
+            return;
+        }
+
+        hasBufferedDash = false;
+
+        if (currentDashCount <= 0)
+        {
+            return;
+        }
+
+        dashDirection =
+            ComputeDashDirection();
 
         StartDash();
     }
@@ -212,15 +283,14 @@ public class PlayerDash : MonoBehaviour
         currentDashCount--;
 
         /*
-         * 대시가 하나라도 소모되면
-         * 대시 충전 쿨타임 시작.
+         * 대시가 하나라도 소모되면 즉시 재충전 타이머 시작.
+         * 체인이 계속 이어지는 도중에도 회복이 병렬로 진행되어야
+         * 버스트가 길어질수록 버스트 이후 대기시간이 함께 늘어나는
+         * 문제(버스트 길이에 비례한 페널티)가 발생하지 않음.
+         * StartRechargeIfNeeded는 이미 타이머가 돌고 있으면
+         * 아무 것도 하지 않으므로 매 소모마다 호출해도 안전.
          */
-        if (currentDashCount < cachedMaxDashCount &&
-            cooldownTimer <= 0f)
-        {
-            cooldownTimer =
-                stats.GetEffectiveDashCooldown();
-        }
+        StartRechargeIfNeeded();
 
         playerController.FaceDirection(
             dashDirection
@@ -568,11 +638,20 @@ public class PlayerDash : MonoBehaviour
     {
         if (stats == null)
         {
-            cachedMaxDashCount = 1;
+            /*
+             * PlayerStats가 없는 상태(예: 다른 팀원의
+             * Player 프리팹이 아직 준비되지 않은 씬)에서도
+             * 테스트 전용 필드만으로 대시 로직을 검증할 수 있도록
+             * 동일한 '기본 1회 + 추가 횟수' 공식을 적용.
+             */
+            cachedMaxDashCount =
+                overrideDashCountForTesting
+                    ? 1 + Mathf.Max(0, testBonusDashCount)
+                    : 1;
 
             if (fillDash)
             {
-                currentDashCount = 1;
+                currentDashCount = cachedMaxDashCount;
             }
 
             return;
@@ -582,9 +661,16 @@ public class PlayerDash : MonoBehaviour
          * 최신 PlayerStats에서는
          * 기본 1회 + 추가 대시 횟수를 계산한 결과를
          * MaxDashCount 속성으로 반환.
+         *
+         * overrideDashCountForTesting이 켜져 있으면
+         * PlayerStats/Player를 전혀 건드리지 않고도
+         * 동일한 '기본 1회 + 추가 횟수' 공식을
+         * testBonusDashCount 값으로 대신 검증.
          */
         int newMaxDashCount =
-            stats.MaxDashCount;
+            overrideDashCountForTesting
+                ? 1 + Mathf.Max(0, testBonusDashCount)
+                : stats.MaxDashCount;
 
         if (fillDash)
         {
@@ -662,31 +748,15 @@ public class PlayerDash : MonoBehaviour
         }
 
         /*
-         * 쿨타임이 끝날 때마다
-         * 대시 한 칸 충전.
+         * 1개씩 순차 충전하지 않고, 쿨타임이 끝나는 순간
+         * 소모했던 만큼을 전부 한 번에 복구.
+         * "N연속 소모 -> 쿨타임 1회 대기 -> N연속 다시 가능"
+         * 스펙에 맞춘 일괄 회복(Bulk Regen) 모델.
          */
-        currentDashCount++;
-
         currentDashCount =
-            Mathf.Min(
-                currentDashCount,
-                cachedMaxDashCount
-            );
+            cachedMaxDashCount;
 
-        /*
-         * 아직 덜 충전된 대시가 있다면
-         * 다음 대시 충전 타이머 시작.
-         */
-        if (currentDashCount <
-            cachedMaxDashCount)
-        {
-            cooldownTimer =
-                stats.GetEffectiveDashCooldown();
-        }
-        else
-        {
-            cooldownTimer = 0f;
-        }
+        cooldownTimer = 0f;
     }
 
     private void EndDash()
@@ -710,6 +780,23 @@ public class PlayerDash : MonoBehaviour
         {
             player.SetInvincible(false);
         }
+
+        TryConsumeBufferedDash();
+    }
+
+    private void StartRechargeIfNeeded()
+    {
+        if (stats == null)
+        {
+            return;
+        }
+
+        if (currentDashCount < cachedMaxDashCount &&
+            cooldownTimer <= 0f)
+        {
+            cooldownTimer =
+                stats.GetEffectiveDashCooldown();
+        }
     }
 
     private void UpdateAnimation()
@@ -731,6 +818,8 @@ public class PlayerDash : MonoBehaviour
         {
             EndDash();
         }
+
+        hasBufferedDash = false;
 
         if (animator != null)
         {

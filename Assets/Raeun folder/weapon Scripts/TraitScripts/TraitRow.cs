@@ -9,9 +9,6 @@ public class TraitRow : MonoBehaviour
     // 특성 구매 및 레벨 관리
     public TraitManager traitManager;
 
-    // 전체 특성 UI
-    public TraitUI traitUI;
-
     [Header("Data")]
     // 이 Row가 표시할 특성 데이터
     public TraitData trait;
@@ -35,20 +32,23 @@ public class TraitRow : MonoBehaviour
     // Row 초기화
     public void Init(
         TraitData traitData,
-        TraitManager manager,
-        TraitUI ui)
+        TraitManager manager)
     {
         trait = traitData;
         traitManager = manager;
-        traitUI = ui;
 
-        // 초기 UI 갱신
+        // 버튼 클릭 이벤트 연결
+        upgradeButton.onClick.RemoveAllListeners();
+        upgradeButton.onClick.AddListener(Buy);
+
         Refresh();
     }
 
     // 구매 버튼이 눌렸을 때 호출
     public void Buy()
     {
+        Debug.Log("구매 버튼 클릭!");
+
         traitManager.BuyTrait(trait);
     }
 
@@ -67,21 +67,17 @@ public class TraitRow : MonoBehaviour
             $"Lv. {level}/{trait.maxLevel}";
 
         // 현재 효과
-        float currentValue =
-            trait.valuePerLevel * level;
+        string currentText = GetDisplayValue(level);
 
         // 다음 레벨 효과
-        float nextValue =
-            trait.valuePerLevel *
-            Mathf.Min(
-                level + 1,
-                trait.maxLevel);
+        string nextText =  GetDisplayValue(
+            Mathf.Min(level + 1, trait.maxLevel));
 
         // 최대 레벨인 경우
         if (level >= trait.maxLevel)
         {
             // 현재 효과만 표시
-            effectText.text = GetValueText(currentValue);
+            effectText.text = currentText;
 
             // 가격 대신 MAX 표시
             priceText.text = "MAX";
@@ -94,14 +90,14 @@ public class TraitRow : MonoBehaviour
 
         // 현재 효과 → 다음 효과 표시
         effectText.text =
-            $"{GetValueText(currentValue)} → {GetValueText(nextValue)}";
+            $"{currentText} → {nextText}";
 
         // 현재 레벨의 업그레이드 가격
         int price =
             traitManager.GetPrice(trait, level);
 
-        // 실제 값(5)을 화면에서는 0.5로 표시
-        priceText.text = $"{price / 10f:F1}p";
+        // 실제 값
+        priceText.text = $"{price}";
 
         // 구매 가능한지 확인
         bool canBuy =
@@ -114,36 +110,124 @@ public class TraitRow : MonoBehaviour
         // 돈이 부족하면 빨간색
         priceText.color =
             canBuy
-                ? Color.white
+                ? Color.black
                 : Color.red;
     }
 
-    // 특성 종류에 맞게 수치를 문자열로 변환
-    private string GetValueText(
-        float value)
+    private string GetDisplayValue(int level)
     {
         switch (trait.type)
         {
-            // 치명타 확률(%)
-            case TraitType.CritChance:
-                return $"{value * 100:F0}%";
-
-            // 치명타 데미지(배율)
-            case TraitType.CritDamage:
-                return $"X{value:F1}";
-
-            // 골드 획득 배율
-            case TraitType.GoldMultiplier:
-                return $"X{value:F1}";
-
-            // 나머지는 일반 숫자
-            default:
-                if (value % 1 == 0)
+            // 시작 골드
+            case TraitType.StartGold:
                 {
-                    return ((int)value).ToString();
+                    int baseValue = 100;
+
+                    int value =
+                        Mathf.RoundToInt(
+                            baseValue *
+                            (1 +
+                            trait.valuePerLevel *
+                            level));
+
+                    return value.ToString();
                 }
 
-                return value.ToString("F1");
+            // 체력
+            case TraitType.MaxHp:
+                {
+                    int baseValue =
+                        traitManager.player.stats.BaseStats.maxHp;
+
+                    int value =
+                        Mathf.RoundToInt(
+                            baseValue *
+                            (1 +
+                            trait.valuePerLevel *
+                            level));
+
+                    return value.ToString();
+                }
+
+            // 공격력
+            case TraitType.Attack:
+                {
+                    int baseValue =
+                        traitManager.player.stats.BaseStats.attack;
+
+                    int value =
+                        Mathf.RoundToInt(
+                            baseValue *
+                            (1 +
+                            trait.valuePerLevel *
+                            level));
+
+                    return value.ToString();
+                }
+
+            // 치확
+            case TraitType.CritChance:
+                {
+                    float baseValue =
+                        traitManager.player.stats.BaseStats.criticalChance;
+
+                    float value =
+                        baseValue *
+                        (1 +
+                        trait.valuePerLevel *
+                        level);
+
+                    return $"{value * 100:F0}%";
+                }
+
+            // 치피
+            case TraitType.CritDamage:
+                {
+                    float baseValue =
+                        traitManager.player.stats.BaseStats.criticalMultiplier;
+
+                    float value =
+                        baseValue *
+                        (1 +
+                        trait.valuePerLevel *
+                        level);
+
+                    return $"{value:F1}";
+                }
+
+            // 골드 획득량
+            case TraitType.GoldMultiplier:
+                {
+                    float baseValue =
+                        traitManager.player.stats.BaseStats.goldMultiplier;
+
+                    float value =
+                        baseValue *
+                        (1 +
+                        trait.valuePerLevel *
+                        level);
+
+                    return $"{value:F1}";
+                }
+
+            // 죽음 저항
+            case TraitType.DeathResist:
+                return $"{level}";
+
+            // 리롤
+            case TraitType.Reroll:
+                return $"{level}";
+
+            // 대시
+            case TraitType.ExtraDash:
+                {
+                    if (level == 0)
+                        return $"{level}";
+
+                    return "1";
+                }
         }
+
+        return "";
     }
 }
