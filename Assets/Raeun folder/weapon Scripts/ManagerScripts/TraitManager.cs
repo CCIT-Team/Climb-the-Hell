@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 // 플레이어의 특성(업그레이드)을 관리하는 클래스
 public class TraitManager : MonoBehaviour
@@ -15,6 +16,8 @@ public class TraitManager : MonoBehaviour
 
     // 게임에 존재하는 모든 특성 데이터
     public List<TraitData> allTraits;
+
+    public event Action OnTraitChanged;
 
     // 특성 구매
     public bool BuyTrait(TraitData trait)
@@ -61,13 +64,18 @@ public class TraitManager : MonoBehaviour
         // 변경 내용 저장
         GameManager.Instance.SaveGame();
 
+        // UI 갱신 이벤트
+        OnTraitChanged?.Invoke();
+
         return true;
     }
 
     // 현재 레벨의 업그레이드 가격 반환
+    // 현재 레벨의 업그레이드 가격 반환
     public int GetPrice(TraitData trait, int currentLevel)
     {
-        return Mathf.RoundToInt(trait.levelPrices[currentLevel]);
+        return Mathf.RoundToInt(
+            trait.levelPrices[currentLevel] * 700);
     }
 
     // 특성 효과를 플레이어에게 적용
@@ -80,13 +88,28 @@ public class TraitManager : MonoBehaviour
                 break;
 
             case TraitType.MaxHp:
-                player.stats.TraitBonusStats.maxHp =
-                    Mathf.RoundToInt(trait.valuePerLevel * level);
-                break;
+                {
+                    int beforeMaxHp = player.stats.MaxHp;
+
+                    player.stats.TraitBonusStats.maxHp =
+                        Mathf.RoundToInt(
+                            player.stats.BaseStats.maxHp *
+                            trait.valuePerLevel *
+                            level);
+
+                    int afterMaxHp = player.stats.MaxHp;
+
+                    player.stats.AddCurrentHp(afterMaxHp - beforeMaxHp);
+
+                    break;
+                }
 
             case TraitType.Attack:
                 player.stats.TraitBonusStats.attack =
-                    Mathf.RoundToInt(trait.valuePerLevel * level);
+                    Mathf.RoundToInt(
+                        player.stats.BaseStats.attack *
+                        trait.valuePerLevel *
+                        level);
                 break;
 
             case TraitType.DeathResist:
@@ -95,12 +118,16 @@ public class TraitManager : MonoBehaviour
 
             case TraitType.CritChance:
                 player.stats.TraitBonusStats.criticalChance =
-                    trait.valuePerLevel * level;
+                    player.stats.BaseStats.criticalChance *
+                    trait.valuePerLevel *
+                    level;
                 break;
 
             case TraitType.CritDamage:
                 player.stats.TraitBonusStats.criticalMultiplier =
-                    trait.valuePerLevel * level;
+                    player.stats.BaseStats.criticalMultiplier *
+                    trait.valuePerLevel *
+                    level;
                 break;
 
             case TraitType.ExtraDash:
@@ -109,7 +136,9 @@ public class TraitManager : MonoBehaviour
 
             case TraitType.GoldMultiplier:
                 player.stats.TraitBonusStats.goldMultiplier =
-                    trait.valuePerLevel * level;
+                    player.stats.BaseStats.goldMultiplier *
+                    trait.valuePerLevel *
+                    level;
                 break;
 
             case TraitType.Reroll:
@@ -119,6 +148,12 @@ public class TraitManager : MonoBehaviour
 
         // 죽음 저항 수치 갱신
         player.RefreshDeathResist();
+
+        player.stats.Init(false);
+
+        player.stats.NotifyChange();
+
+        OnTraitChanged?.Invoke();
     }
 
     // 구매한 모든 특성 적용
@@ -227,15 +262,21 @@ public class TraitManager : MonoBehaviour
             playerTraits.Find(
                 x => x.trait.type == TraitType.StartGold);
 
+        int baseStartGold = 100;
+
         // 구매하지 않았다면 0
         if (playerTrait == null)
         {
-            return 0;
+            return baseStartGold;
         }
+
+        float multiplier =
+            1f +
+            playerTrait.level *
+            playerTrait.trait.valuePerLevel;
 
         // 시작 골드 계산
         return Mathf.RoundToInt(
-            playerTrait.trait.valuePerLevel *
-            playerTrait.level);
+            baseStartGold * multiplier);
     }
 }
