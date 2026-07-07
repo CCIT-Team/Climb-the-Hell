@@ -10,17 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 696e5383fc7d3c2448ac7b226d5d4221, type: 3}
-  m_Name: C - MonsterSpeed
+  m_Name: JD - Gold
   m_EditorClassIdentifier: 
-  boonId: MonsterSpeed
-  displayName: MonsterSpeed
-  description: MonsterSpeed
-  icon: {fileID: 21300000, guid: db0e4dad922b34d48a54a4310d9e9307, type: 3}
-  rewardTitle: "\uC18D\uBC15\uC0B4"
-  rewardDescription: "\uBAAC\uC2A4\uD130 \uCCAB \uD0C0\uACA9 \uC2DC \uBAAC\uC2A4\uD130\uC758
-    \uC774\uB3D9\uC18D\uB3C4\uAC00 5\uCD08\uAC04 20%\uAC10\uC18C\uD569\uB2C8\uB2E4"
+  boonId: GoldDebuff
+  displayName: GoldDebuff
+  description: GoldDebuff
+  icon: {fileID: 0}
+  rewardTitle: GoldDebuff
+  rewardDescription: GoldDebuff
   grade: 0
-  category: 4
+  category: 0
   stackable: 1
   maxStack: 1
   categoryRequirements: []
@@ -70,15 +69,15 @@ MonoBehaviour:
     attackReductionRate: 0
     maxHpReductionRate: 0
   debuffEffect:
-    enabled: 1
+    enabled: 0
     triggerType: 1
-    type: 2
-    duration: 5
+    type: 0
+    duration: 3
     applyChance: 1
     maxStack: 1
     damagePerTick: 0
     tickInterval: 1
-    moveSpeedReductionRate: 0.2
+    moveSpeedReductionRate: 0
     attackReductionRate: 0
     maxHpReductionRate: 0
     stunDuration: 0

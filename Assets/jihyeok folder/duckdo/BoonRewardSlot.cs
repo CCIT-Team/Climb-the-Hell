@@ -1,291 +1,308 @@
 using System;
-using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// 보상 선택 화면의 목록바 하나를 관리한다.
-/// 득도 표시, 마우스 오버 투명도 반복 효과,
-/// 클릭 선택 전달을 담당한다.
+/// 일반 득도와 작두점이 함께 사용하는 보상 카드.
 /// </summary>
-[RequireComponent(typeof(CanvasGroup))]
-public class BoonRewardSlot : MonoBehaviour,
+public class BoonRewardSlot :
+    MonoBehaviour,
     IPointerEnterHandler,
-    IPointerExitHandler,
-    IPointerClickHandler
+    IPointerExitHandler
 {
-    [Header("보상 표시")]
+    private static readonly Color
+        NormalBackgroundColor =
+            new Color(
+                0.08f,
+                0.08f,
+                0.1f,
+                0.96f
+            );
 
-    [Tooltip("BoonData의 아이콘을 표시할 Image")]
-    [SerializeField]
-    private Image rewardImage;
+    private static readonly Color
+        JakduBackgroundColor =
+            new Color(
+                0.12f,
+                0.045f,
+                0.055f,
+                0.98f
+            );
 
-    [Tooltip("득도 이름을 표시할 TMP Text")]
-    [SerializeField]
+    private Image background;
+    private Image iconImage;
+    private Image highlight;
+
     private TextMeshProUGUI titleText;
-
-    [Tooltip("득도 설명. 설명 UI가 없다면 비워도 됨")]
-    [SerializeField]
     private TextMeshProUGUI descriptionText;
 
-    [Header("마우스 오버 투명도 효과")]
+    private Button button;
 
-    [Range(0.5f, 1f)]
-    [Tooltip("마우스를 올렸을 때 가장 흐려지는 투명도")]
-    [SerializeField]
-    private float hoverMinAlpha = 0.82f;
-
-    [Range(0.5f, 1f)]
-    [Tooltip("마우스를 올렸을 때 가장 선명해지는 투명도")]
-    [SerializeField]
-    private float hoverMaxAlpha = 1f;
-
-    [Min(0.1f)]
-    [Tooltip("투명도가 한 번 왕복하는 속도")]
-    [SerializeField]
-    private float hoverPulseSpeed = 2.5f;
-
-    [Range(0.5f, 1f)]
-    [Tooltip("마우스가 없을 때 기본 투명도")]
-    [SerializeField]
-    private float normalAlpha = 0.95f;
-
-    private CanvasGroup canvasGroup;
-
-    // 현재 슬롯에 표시된 득도
     private BoonData currentBoon;
-
-    /*
-     * 클릭하면 선택된 슬롯과 득도 데이터를
-     * BoonRewardUI로 전달한다.
-     */
-    private Action<BoonRewardSlot, BoonData>
-        selectedCallback;
-
-    private Coroutine hoverRoutine;
+    private Action<BoonData> onSelected;
 
     private bool selectable;
-    private bool pointerInside;
 
-    private void Awake()
+    public void Build(
+        RectTransform parent,
+        int index)
     {
-        InitializeReferences();
+        RectTransform rect =
+            GetComponent<RectTransform>();
 
-        SetAlpha(normalAlpha);
-    }
-
-    /// <summary>
-    /// CanvasGroup 참조를 확보한다.
-    /// </summary>
-    private bool InitializeReferences()
-    {
-        if (canvasGroup == null)
-        {
-            canvasGroup =
-                GetComponent<CanvasGroup>();
-        }
-
-        if (canvasGroup == null)
+        if (rect == null)
         {
             Debug.LogError(
-                "[BoonRewardSlot] " +
-                "슬롯 루트에 CanvasGroup이 없습니다.",
+                "[BoonRewardSlot] RectTransform이 필요합니다.",
                 this
             );
 
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// 슬롯에 득도 데이터를 표시한다.
-    /// </summary>
-    public void Setup(
-        BoonData boon,
-        Action<BoonRewardSlot, BoonData> onSelected
-    )
-    {
-        if (!InitializeReferences())
-        {
             return;
         }
 
-        StopHoverRoutine();
+        rect.SetParent(
+            parent,
+            false
+        );
 
+        rect.anchorMin =
+            new Vector2(0.5f, 0.5f);
+
+        rect.anchorMax =
+            new Vector2(0.5f, 0.5f);
+
+        rect.pivot =
+            new Vector2(0.5f, 0.5f);
+
+        rect.sizeDelta =
+            new Vector2(360f, 540f);
+
+        rect.anchoredPosition =
+            new Vector2(
+                (index - 1) * 400f,
+                -5f
+            );
+
+        background =
+            gameObject.AddComponent<Image>();
+
+        background.color =
+            NormalBackgroundColor;
+
+        button =
+            gameObject.AddComponent<Button>();
+
+        button.targetGraphic =
+            background;
+
+        button.onClick.AddListener(
+            HandleClick
+        );
+
+        CreateHighlight(rect);
+        CreateIcon(rect);
+        CreateTexts(rect);
+
+        gameObject.SetActive(false);
+    }
+
+    private void CreateHighlight(
+        RectTransform parent)
+    {
+        RectTransform highlightRect =
+            CreateUIObject(
+                "Highlight",
+                parent
+            );
+
+        highlightRect.anchorMin =
+            Vector2.zero;
+
+        highlightRect.anchorMax =
+            Vector2.one;
+
+        highlightRect.offsetMin =
+            new Vector2(-8f, -8f);
+
+        highlightRect.offsetMax =
+            new Vector2(8f, 8f);
+
+        highlight =
+            highlightRect.gameObject
+                .AddComponent<Image>();
+
+        highlight.color =
+            new Color(
+                1f,
+                0.78f,
+                0.2f,
+                0.35f
+            );
+
+        highlight.raycastTarget = false;
+
+        highlight.gameObject
+            .SetActive(false);
+    }
+
+    private void CreateIcon(
+        RectTransform parent)
+    {
+        RectTransform iconRect =
+            CreateUIObject(
+                "Icon",
+                parent
+            );
+
+        iconRect.anchorMin =
+            new Vector2(0.5f, 1f);
+
+        iconRect.anchorMax =
+            new Vector2(0.5f, 1f);
+
+        iconRect.pivot =
+            new Vector2(0.5f, 1f);
+
+        iconRect.sizeDelta =
+            new Vector2(200f, 200f);
+
+        iconRect.anchoredPosition =
+            new Vector2(0f, -28f);
+
+        iconImage =
+            iconRect.gameObject
+                .AddComponent<Image>();
+
+        iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false;
+    }
+
+    private void CreateTexts(
+        RectTransform parent)
+    {
+        titleText =
+            CreateText(
+                "Title",
+                parent,
+                29f,
+                FontStyles.Bold,
+                TextAlignmentOptions.Center
+            );
+
+        RectTransform titleRect =
+            titleText.rectTransform;
+
+        titleRect.anchorMin =
+            new Vector2(0.05f, 1f);
+
+        titleRect.anchorMax =
+            new Vector2(0.95f, 1f);
+
+        titleRect.pivot =
+            new Vector2(0.5f, 1f);
+
+        titleRect.sizeDelta =
+            new Vector2(0f, 58f);
+
+        titleRect.anchoredPosition =
+            new Vector2(0f, -238f);
+
+        descriptionText =
+            CreateText(
+                "Description",
+                parent,
+                20f,
+                FontStyles.Normal,
+                TextAlignmentOptions.TopLeft
+            );
+
+        RectTransform descriptionRect =
+            descriptionText.rectTransform;
+
+        descriptionRect.anchorMin =
+            new Vector2(0.075f, 0.055f);
+
+        descriptionRect.anchorMax =
+            new Vector2(0.925f, 0.44f);
+
+        descriptionRect.offsetMin =
+            Vector2.zero;
+
+        descriptionRect.offsetMax =
+            Vector2.zero;
+
+        descriptionText.enableWordWrapping =
+            true;
+
+        descriptionText.richText = true;
+    }
+
+    public void Setup(
+        BoonData boon,
+        Action<BoonData> selectedCallback)
+    {
         currentBoon = boon;
-        selectedCallback = onSelected;
+
+        onSelected =
+            selectedCallback;
 
         selectable =
             boon != null;
 
-        pointerInside = false;
-
-        gameObject.SetActive(selectable);
+        gameObject.SetActive(
+            selectable
+        );
 
         if (!selectable)
         {
             return;
         }
 
-        canvasGroup.interactable = true;
-        canvasGroup.blocksRaycasts = true;
+        iconImage.sprite =
+            boon.icon;
 
-        SetAlpha(normalAlpha);
+        iconImage.enabled =
+            boon.icon != null;
 
-        if (rewardImage != null)
-        {
-            rewardImage.sprite =
-                boon.icon;
+        titleText.text =
+            boon.GetRewardTitle();
 
-            rewardImage.enabled =
-                boon.icon != null;
-        }
-        else
-        {
-            Debug.LogError(
-                "[BoonRewardSlot] " +
-                "Reward Image가 연결되지 않았습니다.",
-                this
-            );
-        }
+        descriptionText.text =
+            boon.GetContextRewardDescription();
 
-        if (titleText != null)
-        {
-            titleText.text =
-                boon.GetRewardTitle();
-        }
+        background.color =
+            boon.IsJakduPoint
+                ? JakduBackgroundColor
+                : NormalBackgroundColor;
 
-        if (descriptionText != null)
-        {
-            descriptionText.text =
-                boon.GetRewardDescription();
-        }
+        button.interactable = true;
+
+        highlight.gameObject
+            .SetActive(false);
     }
 
-    /// <summary>
-    /// 선택되지 않은 슬롯을 즉시 숨긴다.
-    /// </summary>
-    public void HideImmediately()
-    {
-        selectable = false;
-        pointerInside = false;
-
-        StopHoverRoutine();
-
-        if (canvasGroup != null)
-        {
-            canvasGroup.interactable = false;
-            canvasGroup.blocksRaycasts = false;
-        }
-
-        gameObject.SetActive(false);
-    }
-
-    /// <summary>
-    /// 선택된 슬롯을 선명한 상태로 유지한다.
-    /// </summary>
-    public void ShowSelectedEffect()
-    {
-        selectable = false;
-        pointerInside = false;
-
-        StopHoverRoutine();
-
-        if (canvasGroup != null)
-        {
-            canvasGroup.interactable = false;
-            canvasGroup.blocksRaycasts = false;
-        }
-
-        SetAlpha(1f);
-    }
-
-    /// <summary>
-    /// 슬롯을 초기화하고 숨긴다.
-    /// </summary>
     public void Clear()
     {
-        selectable = false;
-        pointerInside = false;
-
         currentBoon = null;
-        selectedCallback = null;
+        onSelected = null;
+        selectable = false;
 
-        StopHoverRoutine();
-
-        if (rewardImage != null)
+        if (button != null)
         {
-            rewardImage.sprite = null;
-            rewardImage.enabled = false;
+            button.interactable = false;
         }
 
-        if (titleText != null)
+        if (highlight != null)
         {
-            titleText.text =
-                string.Empty;
+            highlight.gameObject
+                .SetActive(false);
         }
-
-        if (descriptionText != null)
-        {
-            descriptionText.text =
-                string.Empty;
-        }
-
-        if (canvasGroup != null)
-        {
-            canvasGroup.interactable = false;
-            canvasGroup.blocksRaycasts = false;
-        }
-
-        SetAlpha(normalAlpha);
 
         gameObject.SetActive(false);
     }
 
-    /// <summary>
-    /// 마우스가 슬롯 위에 들어왔을 때 호출된다.
-    /// </summary>
-    public void OnPointerEnter(
-        PointerEventData eventData
-    )
-    {
-        if (!selectable)
-        {
-            return;
-        }
-
-        pointerInside = true;
-
-        StartHoverRoutine();
-    }
-
-    /// <summary>
-    /// 마우스가 슬롯에서 나갔을 때 호출된다.
-    /// </summary>
-    public void OnPointerExit(
-        PointerEventData eventData
-    )
-    {
-        pointerInside = false;
-
-        StopHoverRoutine();
-
-        if (selectable)
-        {
-            SetAlpha(normalAlpha);
-        }
-    }
-
-    /// <summary>
-    /// 슬롯을 클릭했을 때 선택 정보를 UI에 전달한다.
-    /// </summary>
-    public void OnPointerClick(
-        PointerEventData eventData
-    )
+    private void HandleClick()
     {
         if (!selectable ||
             currentBoon == null)
@@ -294,138 +311,84 @@ public class BoonRewardSlot : MonoBehaviour,
         }
 
         selectable = false;
-        pointerInside = false;
+        button.interactable = false;
 
-        StopHoverRoutine();
-
-        SetAlpha(1f);
-
-        if (canvasGroup != null)
-        {
-            canvasGroup.interactable = false;
-            canvasGroup.blocksRaycasts = false;
-        }
-
-        selectedCallback?.Invoke(
-            this,
+        onSelected?.Invoke(
             currentBoon
         );
     }
 
-    /// <summary>
-    /// 마우스 오버 반복 효과를 시작한다.
-    /// </summary>
-    private void StartHoverRoutine()
+    public void OnPointerEnter(
+        PointerEventData eventData)
     {
-        StopHoverRoutine();
-
-        hoverRoutine =
-            StartCoroutine(
-                HoverPulseRoutine()
-            );
-    }
-
-    /// <summary>
-    /// 0.82~1.0 사이에서 투명도를 반복 변경한다.
-    /// </summary>
-    private IEnumerator HoverPulseRoutine()
-    {
-        float elapsed = 0f;
-
-        while (pointerInside &&
-               selectable)
+        if (selectable &&
+            highlight != null)
         {
-            elapsed +=
-                Time.unscaledDeltaTime *
-                hoverPulseSpeed;
-
-            /*
-             * Sin 값은 -1~1로 움직이므로
-             * 0~1 범위로 변환한다.
-             */
-            float normalized =
-                (Mathf.Sin(elapsed) + 1f) *
-                0.5f;
-
-            float alpha =
-                Mathf.Lerp(
-                    hoverMinAlpha,
-                    hoverMaxAlpha,
-                    normalized
-                );
-
-            SetAlpha(alpha);
-
-            yield return null;
+            highlight.gameObject
+                .SetActive(true);
         }
-
-        hoverRoutine = null;
     }
 
-    /// <summary>
-    /// 실행 중인 마우스 오버 코루틴을 중단한다.
-    /// </summary>
-    private void StopHoverRoutine()
+    public void OnPointerExit(
+        PointerEventData eventData)
     {
-        if (hoverRoutine == null)
+        if (highlight != null)
         {
-            return;
+            highlight.gameObject
+                .SetActive(false);
         }
-
-        StopCoroutine(hoverRoutine);
-
-        hoverRoutine = null;
     }
 
-    private void SetAlpha(
-        float alpha
-    )
+    private static RectTransform
+        CreateUIObject(
+            string objectName,
+            RectTransform parent)
     {
-        if (!InitializeReferences())
-        {
-            return;
-        }
+        GameObject child =
+            new GameObject(
+                objectName,
+                typeof(RectTransform)
+            );
 
-        canvasGroup.alpha =
-            Mathf.Clamp01(alpha);
+        RectTransform rect =
+            child.GetComponent<
+                RectTransform
+            >();
+
+        rect.SetParent(
+            parent,
+            false
+        );
+
+        return rect;
     }
 
-    private void OnDisable()
+    private static TextMeshProUGUI
+        CreateText(
+            string objectName,
+            RectTransform parent,
+            float fontSize,
+            FontStyles fontStyle,
+            TextAlignmentOptions alignment)
     {
-        pointerInside = false;
+        RectTransform rect =
+            CreateUIObject(
+                objectName,
+                parent
+            );
 
-        StopHoverRoutine();
+        TextMeshProUGUI text =
+            rect.gameObject
+                .AddComponent<
+                    TextMeshProUGUI
+                >();
+
+        text.fontSize = fontSize;
+        text.fontStyle = fontStyle;
+        text.alignment = alignment;
+        text.color = Color.white;
+        text.raycastTarget = false;
+
+        return text;
     }
-
-#if UNITY_EDITOR
-    private void OnValidate()
-    {
-        hoverMinAlpha =
-            Mathf.Clamp(
-                hoverMinAlpha,
-                0.5f,
-                1f
-            );
-
-        hoverMaxAlpha =
-            Mathf.Clamp(
-                hoverMaxAlpha,
-                hoverMinAlpha,
-                1f
-            );
-
-        normalAlpha =
-            Mathf.Clamp(
-                normalAlpha,
-                hoverMinAlpha,
-                1f
-            );
-
-        hoverPulseSpeed =
-            Mathf.Max(
-                0.1f,
-                hoverPulseSpeed
-            );
-    }
-#endif
 }
