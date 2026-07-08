@@ -226,11 +226,11 @@ public sealed class RunFlowManager : MonoBehaviour
 
         if (roomGraph == null)
         {
-            Debug.LogWarning(
-                "[RunFlowManager] 직접 실행용 Room Graph가 없습니다. " +
-                "RoomChoiceGenerator의 Direct Play Room Graph를 연결하세요.",
-                this
-            );
+            //Debug.LogWarning(
+            //    "[RunFlowManager] 직접 실행용 Room Graph가 없습니다. " +
+            //    "RoomChoiceGenerator의 Direct Play Room Graph를 연결하세요.",
+            //    this
+            //);
 
             return false;
         }
