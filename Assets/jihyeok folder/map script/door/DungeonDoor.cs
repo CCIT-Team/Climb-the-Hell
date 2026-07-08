@@ -43,6 +43,15 @@ public class DungeonDoor : MonoBehaviour
     [SerializeField]
     private string targetSpawnId = "Default";
 
+    [Header("Jakdu Entry Cost")]
+    [Min(0)]
+    [SerializeField]
+    private int jakduEntryHpCost = 10;
+
+    [Min(0)]
+    [SerializeField]
+    private int minimumHpAfterJakduEntry = 1;
+
     [Header("목적지 프리팹 생성 기준점")]
     [Tooltip(
         "Hierarchy에 있는 빈 오브젝트 또는 Quad의 Transform을 연결하세요.\n" +
@@ -375,6 +384,9 @@ public class DungeonDoor : MonoBehaviour
 
         PlayerSpawnContext.SetSpawnId(targetSpawnId);
 
+        int consumedJakduEntryHp =
+            ApplyJakduEntryCost();
+
         bool requested =
             manager.RequestRoute(route);
 
@@ -384,6 +396,10 @@ public class DungeonDoor : MonoBehaviour
         }
 
         PlayerSpawnContext.Clear();
+
+        RefundJakduEntryCost(
+            consumedJakduEntryHp
+        );
 
         Debug.LogError(
             "[DungeonDoor] 다음 방 이동 요청에 실패했습니다.",
@@ -582,6 +598,86 @@ public class DungeonDoor : MonoBehaviour
             default:
                 return null;
         }
+    }
+
+    private int ApplyJakduEntryCost()
+    {
+        if (jakduEntryHpCost <= 0 ||
+            route == null ||
+            route.TargetRoom == null ||
+            route.TargetRoom.RoomType != RoomType.Jakdu)
+        {
+            return 0;
+        }
+
+        Player player =
+            PlayerSceneMover.Instance != null
+                ? PlayerSceneMover.Instance.CurrentPlayer
+                : null;
+
+        if (player == null)
+        {
+            player =
+                FindFirstObjectByType<Player>(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (player == null)
+        {
+            Debug.LogWarning(
+                "[DungeonDoor] Jakdu entry HP cost skipped because Player was not found.",
+                this
+            );
+
+            return 0;
+        }
+
+        int consumed =
+            player.ConsumeHp(
+                jakduEntryHpCost,
+                minimumHpAfterJakduEntry
+            );
+
+        if (showLogs)
+        {
+            Debug.Log(
+                $"[DungeonDoor] Jakdu entry HP cost consumed: {consumed}",
+                player
+            );
+        }
+
+        return consumed;
+    }
+
+    private void RefundJakduEntryCost(
+        int amount
+    )
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        Player player =
+            PlayerSceneMover.Instance != null
+                ? PlayerSceneMover.Instance.CurrentPlayer
+                : null;
+
+        if (player == null)
+        {
+            player =
+                FindFirstObjectByType<Player>(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (player == null)
+        {
+            return;
+        }
+
+        player.HealHp(amount);
     }
 
     private GameObject GetCombatPrefab(

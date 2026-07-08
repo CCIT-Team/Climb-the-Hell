@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,26 +21,54 @@ public class PlayerUI : MonoBehaviour
     [SerializeField] private GameObject movement;
     [SerializeField] private GameObject debuff;
 
+    [Min(1)]
+    [SerializeField] private int playerResolveRetryFrames = 120;
+
+    private bool subscribed;
 
     private void Start()
     {
-        RefreshHP();
-        RefreshGold();
-
-        player.OnHpChanged += UpdateHP;
-
-        player.money.OnMoneyChanged += UpdateGold;
-
-        player.stats.OnStatsChanged += RefreshStats;
+        StartCoroutine(BindWhenPlayerIsReady());
     }
 
     private void OnDestroy()
     {
-        player.OnHpChanged -= UpdateHP;
+        Unsubscribe();
+    }
 
-        player.money.OnMoneyChanged -= UpdateGold;
+    private IEnumerator BindWhenPlayerIsReady()
+    {
+        for (int i = 0;
+             i < playerResolveRetryFrames &&
+             player == null;
+             i++)
+        {
+            ResolvePlayer();
 
-        player.stats.OnStatsChanged -= RefreshStats;
+            if (player != null)
+            {
+                break;
+            }
+
+            yield return null;
+        }
+
+        ResolvePlayer();
+
+        if (player == null)
+        {
+            Debug.LogError(
+                "[PlayerUI] Player reference is missing.",
+                this
+            );
+
+            yield break;
+        }
+
+        RefreshHP();
+        RefreshGold();
+
+        Subscribe();
     }
 
     private void UpdateHP(int hp)
@@ -54,6 +83,13 @@ public class PlayerUI : MonoBehaviour
 
     private void RefreshHP()
     {
+        if (player == null ||
+            hpText == null ||
+            hpSlider == null)
+        {
+            return;
+        }
+
         hpText.text =
             $"{player.GetCurrentHp()} / {player.GetMaxHp()}";
 
@@ -66,6 +102,13 @@ public class PlayerUI : MonoBehaviour
 
     private void RefreshGold()
     {
+        if (player == null ||
+            player.money == null ||
+            goldText == null)
+        {
+            return;
+        }
+
         goldText.text =
             $"{player.money.CurrentMoney}";
     }
@@ -105,5 +148,74 @@ public class PlayerUI : MonoBehaviour
     private void RefreshStats()
     {
         RefreshHP();
+    }
+
+    private void ResolvePlayer()
+    {
+        if (player != null)
+        {
+            return;
+        }
+
+        if (PlayerSceneMover.Instance != null)
+        {
+            player =
+                PlayerSceneMover.Instance.CurrentPlayer;
+        }
+
+        if (player == null)
+        {
+            player =
+                FindFirstObjectByType<Player>(
+                    FindObjectsInactive.Include
+                );
+        }
+    }
+
+    private void Subscribe()
+    {
+        if (subscribed ||
+            player == null)
+        {
+            return;
+        }
+
+        player.OnHpChanged += UpdateHP;
+
+        if (player.money != null)
+        {
+            player.money.OnMoneyChanged += UpdateGold;
+        }
+
+        if (player.stats != null)
+        {
+            player.stats.OnStatsChanged += RefreshStats;
+        }
+
+        subscribed = true;
+    }
+
+    private void Unsubscribe()
+    {
+        if (!subscribed ||
+            player == null)
+        {
+            subscribed = false;
+            return;
+        }
+
+        player.OnHpChanged -= UpdateHP;
+
+        if (player.money != null)
+        {
+            player.money.OnMoneyChanged -= UpdateGold;
+        }
+
+        if (player.stats != null)
+        {
+            player.stats.OnStatsChanged -= RefreshStats;
+        }
+
+        subscribed = false;
     }
 }

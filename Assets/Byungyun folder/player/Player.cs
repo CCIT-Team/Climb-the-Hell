@@ -167,6 +167,45 @@ public class Player : MonoBehaviour, IDamageable
     }
 
     // 대시 무적 설정
+    public int ConsumeHp(
+        int amount,
+        int minimumHp = 1
+    )
+    {
+        if (amount <= 0 ||
+            stats.IsDead())
+        {
+            return 0;
+        }
+
+        int safeMinimum =
+            Mathf.Clamp(
+                minimumHp,
+                0,
+                stats.CurrentHp
+            );
+
+        int consumed =
+            Mathf.Min(
+                amount,
+                Mathf.Max(
+                    0,
+                    stats.CurrentHp - safeMinimum
+                )
+            );
+
+        if (consumed <= 0)
+        {
+            return 0;
+        }
+
+        stats.AddCurrentHp(-consumed);
+
+        OnHpChanged?.Invoke(stats.CurrentHp);
+
+        return consumed;
+    }
+
     public void SetInvincible(bool value)
     {
         isDashInvincible = value;
