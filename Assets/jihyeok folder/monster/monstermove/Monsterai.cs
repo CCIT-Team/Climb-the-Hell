@@ -1473,8 +1473,15 @@ public class MonsterAI : MonsterStats
     public void DropReward()
     {
         GrantGoldToPlayer(rewardGold);
+        GrantFlowerLeafToPlayer(rewardflowerleaf);
+
         ShowGoldNumber(
             rewardGold,
+            transform.position
+        );
+
+        ShowFlowerNumber(
+            rewardflowerleaf,
             transform.position
         );
 

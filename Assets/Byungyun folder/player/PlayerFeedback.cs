@@ -234,7 +234,7 @@ public class PlayerFeedback : MonoBehaviour
 
         if (player != null)
         {
-            player.Revive();
+            player.ResetRunGoldAndHeal();
         }
 
         Quaternion rotation =

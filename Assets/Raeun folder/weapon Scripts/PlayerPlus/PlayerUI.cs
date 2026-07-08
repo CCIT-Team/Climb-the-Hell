@@ -25,10 +25,16 @@ public class PlayerUI : MonoBehaviour
     [SerializeField] private int playerResolveRetryFrames = 120;
 
     private bool subscribed;
+    private int shownFloor = int.MinValue;
 
     private void Start()
     {
         StartCoroutine(BindWhenPlayerIsReady());
+    }
+
+    private void Update()
+    {
+        RefreshFloor();
     }
 
     private void OnDestroy()
@@ -67,6 +73,8 @@ public class PlayerUI : MonoBehaviour
 
         RefreshHP();
         RefreshGold();
+        RefreshFlower();
+        RefreshFloor();
 
         Subscribe();
     }
@@ -79,6 +87,11 @@ public class PlayerUI : MonoBehaviour
     private void UpdateGold(int gold)
     {
         RefreshGold();
+    }
+
+    private void UpdateFlower(int flower)
+    {
+        RefreshFlower();
     }
 
     private void RefreshHP()
@@ -111,6 +124,47 @@ public class PlayerUI : MonoBehaviour
 
         goldText.text =
             $"{player.money.CurrentMoney}";
+    }
+
+    private void RefreshFlower()
+    {
+        if (player == null ||
+            flowerText == null)
+        {
+            return;
+        }
+
+        flowerText.text =
+            player.FlowerLeaf.ToString();
+    }
+
+    private void RefreshFloor()
+    {
+        if (floorText == null)
+        {
+            return;
+        }
+
+        int floor = 0;
+
+        if (RunFlowManager.Instance != null &&
+            RunFlowManager.Instance.IsRunActive)
+        {
+            floor =
+                RunFlowManager.Instance.CurrentFloor;
+        }
+
+        if (shownFloor == floor)
+        {
+            return;
+        }
+
+        shownFloor = floor;
+
+        floorText.text =
+            floor > 0
+                ? "Floor " + floor
+                : "Lobby";
     }
 
     public void SetHP(float current, float max)
@@ -187,6 +241,8 @@ public class PlayerUI : MonoBehaviour
             player.money.OnMoneyChanged += UpdateGold;
         }
 
+        player.OnFlowerLeafChanged += UpdateFlower;
+
         if (player.stats != null)
         {
             player.stats.OnStatsChanged += RefreshStats;
@@ -210,6 +266,8 @@ public class PlayerUI : MonoBehaviour
         {
             player.money.OnMoneyChanged -= UpdateGold;
         }
+
+        player.OnFlowerLeafChanged -= UpdateFlower;
 
         if (player.stats != null)
         {

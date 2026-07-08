@@ -12,6 +12,39 @@ public class PlayerSpawnPoint : MonoBehaviour
 
     public string SpawnId => spawnId;
 
+    public void HideAfterSpawn()
+    {
+        Renderer[] renderers =
+            GetComponentsInChildren<Renderer>(
+                true
+            );
+
+        for (int i = 0;
+             i < renderers.Length;
+             i++)
+        {
+            if (renderers[i] != null)
+            {
+                renderers[i].enabled = false;
+            }
+        }
+
+        Collider[] colliders =
+            GetComponentsInChildren<Collider>(
+                true
+            );
+
+        for (int i = 0;
+             i < colliders.Length;
+             i++)
+        {
+            if (colliders[i] != null)
+            {
+                colliders[i].enabled = false;
+            }
+        }
+    }
+
 #if UNITY_EDITOR
     private void OnValidate()
     {

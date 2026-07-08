@@ -15,6 +15,15 @@ public class Player : MonoBehaviour, IDamageable
     public MoneyData money =
         new MoneyData();
 
+    [SerializeField]
+    [Min(0)]
+    private int flowerLeaf;
+
+    public int FlowerLeaf =>
+        flowerLeaf;
+
+    public event Action<int> OnFlowerLeafChanged;
+
     [Header("플레이어 상태")]
     // 현재 위치
     public Vector3 playerPosition;
@@ -287,6 +296,43 @@ public class Player : MonoBehaviour, IDamageable
         Debug.Log($"남은 부활 횟수 : {remainDeathResist}");
 
         OnHpChanged?.Invoke(stats.CurrentHp);
+    }
+
+    public void ResetRunGoldAndHeal()
+    {
+        StopHitInvincible();
+
+        isDashInvincible = false;
+        deathSequenceStarted = false;
+
+        stats.Init(true);
+
+        if (money != null)
+        {
+            money.SetMoney(0);
+        }
+
+        OnHpChanged?.Invoke(stats.CurrentHp);
+    }
+
+    public void AddFlowerLeaf(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        flowerLeaf += amount;
+
+        OnFlowerLeafChanged?.Invoke(flowerLeaf);
+    }
+
+    public void SetFlowerLeaf(int amount)
+    {
+        flowerLeaf =
+            Mathf.Max(0, amount);
+
+        OnFlowerLeafChanged?.Invoke(flowerLeaf);
     }
 
     // 피격 무적 시작

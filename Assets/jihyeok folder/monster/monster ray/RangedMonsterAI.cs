@@ -1378,8 +1378,15 @@ public class RangedMonsterAI : MonsterStats
     private void DropReward()
     {
         GrantGoldToPlayer(rewardGold);
+        GrantFlowerLeafToPlayer(rewardflowerleaf);
+
         ShowGoldNumber(
             rewardGold,
+            transform.position
+        );
+
+        ShowFlowerNumber(
+            rewardflowerleaf,
             transform.position
         );
 

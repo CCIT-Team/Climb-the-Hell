@@ -220,6 +220,8 @@ public class PlayerSceneMover : MonoBehaviour
             spawnPoint.transform.rotation
         );
 
+        spawnPoint.HideAfterSpawn();
+
         StopPlayerMovement();
 
         PlayerFeedback feedback =

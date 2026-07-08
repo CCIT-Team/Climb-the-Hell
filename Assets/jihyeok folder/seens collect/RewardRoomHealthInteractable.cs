@@ -268,9 +268,33 @@ public class RewardRoomHealthInteractable : InteractableBase
         PlayerStatValues appliedBonus =
             permanentHealthBonus.Clone();
 
-        player.stats.AddRuntimeModifier(
+        player.stats.AddBoonBonus(
             appliedBonus
         );
+
+        DamageNumberManager damageNumberManager =
+            DamageNumberManager.Instance;
+
+        if (damageNumberManager != null)
+        {
+            int amount =
+                Mathf.Max(
+                    1,
+                    Mathf.RoundToInt(
+                        appliedBonus.maxHp
+                    )
+                );
+
+            damageNumberManager.ShowHeal(
+                amount,
+                player.transform.position +
+                Vector3.up * 2.2f,
+                UnityEngine.Random.Range(
+                    0,
+                    damageNumberManager.GetSlotCount()
+                )
+            );
+        }
 
         /*
          * 보상을 획득한 순간부터
