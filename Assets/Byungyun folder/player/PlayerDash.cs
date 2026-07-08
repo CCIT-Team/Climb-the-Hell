@@ -138,6 +138,15 @@ public class PlayerDash : MonoBehaviour
         /*
          * 득도로 추가 대시 횟수가 바뀌었을 수 있으므로
          * 현재 최대 대시 횟수를 갱신.
+         *
+         * [연결 확인 2026.07] PlayerStats.OnStatsChanged 이벤트가
+         * 존재하지만, AddBoonBonus/AddTraitBonus/AddRuntimeModifier
+         * 등 실제 값 변경 지점에서 NotifyChange()를 호출하지 않아
+         * 아직 이벤트가 발행되지 않음. 이벤트 구독으로 전환하면
+         * 득도 획득 시 대시 횟수가 갱신되지 않는 정합성 버그로
+         * 이어지므로, 해당 배선이 완료되기 전까지는 매 프레임
+         * 폴링이 더 안전한 선택. (1개체 float 3개 합산 수준의
+         * 연산이라 비용 자체는 무시 가능한 수준)
          */
         RefreshDashCount(false);
 
@@ -661,6 +670,12 @@ public class PlayerDash : MonoBehaviour
          * 최신 PlayerStats에서는
          * 기본 1회 + 추가 대시 횟수를 계산한 결과를
          * MaxDashCount 속성으로 반환.
+         *
+         * [연결 확인 2026.07] PlayerStats.MaxDashCount =
+         * Mathf.Max(1, 1 + extraDashCount 합산)로 실제 구현되어
+         * 있음을 확인함. baseStats/traitBonusStats/boonBonusStats/
+         * runtimeModifiers의 extraDashCount가 모두 합산된 값이므로
+         * 득도·특성·작두 효과가 반영되면 자동으로 여기 그대로 들어옴.
          *
          * overrideDashCountForTesting이 켜져 있으면
          * PlayerStats/Player를 전혀 건드리지 않고도

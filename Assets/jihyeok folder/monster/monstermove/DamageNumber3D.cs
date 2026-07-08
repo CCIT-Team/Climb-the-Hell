@@ -46,11 +46,12 @@ public class DamageNumber3D : MonoBehaviour
         int damage,
         Color color,
         float scale,
-        bool isCritical
+        bool isCritical,
+        string prefix = ""
     )
     {
         damageText.text =
-            damage.ToString();
+            prefix + damage.ToString();
 
         damageText.color =
             color;
