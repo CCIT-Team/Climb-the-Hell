@@ -1,16 +1,12 @@
 using UnityEngine;
 
 /// <summary>
-/// 씬 이동 후 Player가 나타날 위치.
-/// 씬마다 하나 이상 배치한다.
+/// 씬 안에서 Player가 생성/배치될 위치.
+/// Lobby, CombatRoom, Shop, Boss 씬마다 하나 이상 배치한다.
 /// </summary>
 public class PlayerSpawnPoint : MonoBehaviour
 {
     [Header("스폰 지점 ID")]
-    [Tooltip(
-        "문에서 요청한 Spawn ID와 같은 지점을 사용합니다.\n" +
-        "예: Default, Entrance, LeftDoor, BossEntrance"
-    )]
     [SerializeField]
     private string spawnId = "Default";
 

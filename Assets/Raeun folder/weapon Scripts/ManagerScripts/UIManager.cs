@@ -1,27 +1,36 @@
 using UnityEngine;
 
-// 게임의 모든 UI를 관리하는 클래스
 public class UIManager : MonoBehaviour
 {
     [SerializeField]
-    // 관리할 UI 목록
     private UIBase[] uiList;
 
-    // 특정 UI 열기
     public void Open(UIBase ui)
     {
-        // 현재 열려있는 모든 UI 닫기
-        CloseAll();
+        if (ui == null)
+        {
+            Debug.LogWarning("[UIManager] 열 UI가 없습니다.", this);
+            return;
+        }
 
-        // 원하는 UI만 열기
+        CloseAll();
         ui.Open();
     }
 
-    // 모든 UI 닫기
     public void CloseAll()
     {
+        if (uiList == null)
+        {
+            return;
+        }
+
         foreach (UIBase ui in uiList)
         {
+            if (ui == null)
+            {
+                continue;
+            }
+
             ui.Close();
         }
     }

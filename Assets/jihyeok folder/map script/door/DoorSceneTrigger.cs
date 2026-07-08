@@ -39,7 +39,8 @@ public class DoorSceneTrigger : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (isProcessing || owner == null)
+        if (isProcessing ||
+            owner == null)
         {
             return;
         }

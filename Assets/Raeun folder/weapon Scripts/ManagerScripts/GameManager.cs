@@ -1,23 +1,18 @@
-using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 게임 전체를 관리하는 중앙 매니저.
 ///
-/// 기존 기능:
+/// 역할:
 /// - 저장/불러오기
-/// - 특성 관리
-/// - 런 진행 관리
-/// - UI 관리
-/// - 허브 관리
-/// - 결과 UI
 /// - 영구 재화
+/// - TraitManager / RunManager / UIManager / HubManager / ResultUI 참조 갱신
 ///
-/// 추가 기능:
-/// - Player를 씬 이동 후에도 유지
-/// - 새 씬의 PlayerSpawnPoint 위치로 이동
-/// - 씬 이동 중 플레이어 조작 차단
+/// 주의:
+/// - Player 생성, Player 씬 이동, PlayerSpawnPoint 배치는 PlayerSceneMover가 담당한다.
+/// - GameManager는 Player를 직접 이동시키지 않는다.
+/// - 기존 코드 호환을 위해 Player 이동 관련 래퍼 함수만 남겨둔다.
 /// </summary>
 [DefaultExecutionOrder(-1000)]
 public class GameManager : MonoBehaviour
@@ -48,40 +43,19 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     private int testMoneyAmount = 1000000;
 
-    [Header("플레이어 유지")]
-    [Tooltip(
-        "시작 씬의 Player를 연결하세요.\n" +
-        "비워두면 현재 씬에서 자동으로 찾습니다."
-    )]
+    [Header("디버그")]
     [SerializeField]
-    private Player player;
+    private bool showLogs = true;
 
-    [Header("씬 이동")]
-    [Min(0f)]
-    [Tooltip("씬 로드 완료 후 최소 대기 시간")]
-    [SerializeField]
-    private float minimumLoadingTime = 0.3f;
-
-    [Tooltip(
-        "요청한 Spawn ID를 찾지 못했을 때 " +
-        "첫 번째 PlayerSpawnPoint를 사용할지 여부"
-    )]
-    [SerializeField]
-    private bool useFirstSpawnAsFallback = true;
-
-    [Header("씬 이동 디버그")]
-    [SerializeField]
-    private bool showSceneLogs = true;
-
-    private bool isChangingScene;
-    private string pendingSpawnId = "Default";
-    private Coroutine sceneRoutine;
-
-    public bool IsChangingScene =>
-        isChangingScene;
-
-    public Player CurrentPlayer =>
-        player;
+    public Player CurrentPlayer
+    {
+        get
+        {
+            return PlayerSceneMover.Instance != null
+                ? PlayerSceneMover.Instance.CurrentPlayer
+                : null;
+        }
+    }
 
     private void Awake()
     {
@@ -96,16 +70,19 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        FindPlayer();
+        RefreshSceneReferences();
+    }
 
-        if (player != null)
-        {
-            KeepPlayerBetweenScenes();
-        }
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        SceneManager.sceneLoaded += HandleSceneLoaded;
     }
 
     private void Start()
     {
+        RefreshSceneReferences();
+
         if (saveManager != null)
         {
             saveManager.Load();
@@ -124,13 +101,23 @@ public class GameManager : MonoBehaviour
                 testMoneyAmount
             );
         }
+
+        RefreshSceneReferences();
     }
 
-    private void OnDestroy()
+    private void HandleSceneLoaded(
+        Scene scene,
+        LoadSceneMode mode
+    )
     {
-        if (Instance == this)
+        RefreshSceneReferences();
+
+        if (showLogs)
         {
-            Instance = null;
+            Debug.Log(
+                $"[GameManager] 씬 참조 갱신 완료 / Scene={scene.name}",
+                this
+            );
         }
     }
 
@@ -192,6 +179,10 @@ public class GameManager : MonoBehaviour
         saveManager.Save();
     }
 
+    /// <summary>
+    /// 기존 코드 호환용.
+    /// 실제 등록은 PlayerSceneMover가 담당한다.
+    /// </summary>
     public void RegisterPlayer(Player newPlayer)
     {
         if (newPlayer == null)
@@ -199,377 +190,74 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        player = newPlayer;
-        KeepPlayerBetweenScenes();
+        if (PlayerSceneMover.Instance != null)
+        {
+            PlayerSceneMover.Instance.RegisterPlayer(newPlayer);
+        }
+
+        RefreshSceneReferences();
     }
 
-    private void FindPlayer()
+    /// <summary>
+    /// 기존 코드 호환용.
+    /// 실제 Player 보호는 PlayerSceneMover가 담당한다.
+    /// </summary>
+    public void PreparePlayerForSceneTransition()
     {
-        if (player != null)
+        if (PlayerSceneMover.Instance != null)
         {
-            return;
+            PlayerSceneMover.Instance.PreparePlayerForSceneTransition();
         }
-
-        player =
-            FindObjectOfType<Player>(true);
-
-        if (player != null)
+        else
         {
-            KeepPlayerBetweenScenes();
+            Debug.LogWarning(
+                "[GameManager] PlayerSceneMover가 없어 Player 보호 처리를 건너뜁니다.",
+                this
+            );
         }
     }
 
-    private void KeepPlayerBetweenScenes()
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        if (player.transform.parent != null)
-        {
-            player.transform.SetParent(null);
-        }
-
-        DontDestroyOnLoad(
-            player.gameObject
-        );
-    }
-
-    public bool ChangeScene(
-        string sceneName,
+    /// <summary>
+    /// 기존 코드 호환용.
+    /// 실제 Player 생성/이동은 PlayerSceneMover가 담당한다.
+    /// </summary>
+    public bool MoveExistingPlayerToCurrentSceneSpawn(
         string spawnId = "Default"
     )
     {
-        if (isChangingScene)
-        {
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(sceneName))
+        if (PlayerSceneMover.Instance == null)
         {
             Debug.LogError(
-                "[GameManager] 이동할 씬 이름이 비어 있습니다.",
+                "[GameManager] PlayerSceneMover가 없어 Player를 이동시킬 수 없습니다.",
                 this
             );
             return false;
         }
 
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
-        {
-            Debug.LogError(
-                $"[GameManager] 씬을 불러올 수 없습니다: {sceneName}\n" +
-                "Build Settings 또는 Build Profiles에 씬이 등록됐는지 확인하세요.",
-                this
-            );
-            return false;
-        }
-
-        pendingSpawnId =
-            string.IsNullOrWhiteSpace(spawnId)
-                ? "Default"
-                : spawnId;
-
-        if (sceneRoutine != null)
-        {
-            StopCoroutine(sceneRoutine);
-        }
-
-        sceneRoutine =
-            StartCoroutine(
-                ChangeSceneRoutine(sceneName)
-            );
-
-        return true;
+        return PlayerSceneMover.Instance
+            .SpawnOrMovePlayerToActiveScene(spawnId);
     }
 
-    private IEnumerator ChangeSceneRoutine(
-        string sceneName
+    /// <summary>
+    /// 기존 코드 호환용.
+    /// </summary>
+    public bool SpawnPersistentPlayerAtSpawn(
+        string spawnId = "Default"
     )
     {
-        isChangingScene = true;
-
-        FindPlayer();
-        SetPlayerControl(false);
-        StopPlayerMovement();
-
-        float loadStartTime =
-            Time.realtimeSinceStartup;
-
-        AsyncOperation loadOperation =
-            SceneManager.LoadSceneAsync(sceneName);
-
-        if (loadOperation == null)
-        {
-            Debug.LogError(
-                $"[GameManager] 씬 로드 요청 실패: {sceneName}",
-                this
-            );
-
-            FinishFailedSceneChange();
-            yield break;
-        }
-
-        while (!loadOperation.isDone)
-        {
-            yield return null;
-        }
-
-        float elapsedTime =
-            Time.realtimeSinceStartup -
-            loadStartTime;
-
-        float remainingTime =
-            minimumLoadingTime -
-            elapsedTime;
-
-        if (remainingTime > 0f)
-        {
-            yield return
-                new WaitForSecondsRealtime(
-                    remainingTime
-                );
-        }
-
-        yield return null;
-
-        RemoveDuplicatePlayers();
-        FindPlayer();
-        RefreshSceneReferences();
-
-        bool moved =
-            MovePlayerToSpawnPoint(
-                pendingSpawnId
-            );
-
-        StopPlayerMovement();
-        SetPlayerControl(true);
-
-        isChangingScene = false;
-        sceneRoutine = null;
-
-        if (showSceneLogs)
-        {
-            Debug.Log(
-                $"[GameManager] 씬 이동 완료 / " +
-                $"씬={sceneName}, " +
-                $"Spawn ID={pendingSpawnId}, " +
-                $"Player 이동={moved}",
-                this
-            );
-        }
+        return MoveExistingPlayerToCurrentSceneSpawn(spawnId);
     }
 
-    private bool MovePlayerToSpawnPoint(
-        string spawnId
-    )
-    {
-        if (player == null)
-        {
-            Debug.LogError(
-                "[GameManager] 이동시킬 Player가 없습니다.",
-                this
-            );
-            return false;
-        }
-
-        PlayerSpawnPoint[] spawnPoints =
-            FindObjectsOfType<PlayerSpawnPoint>(true);
-
-        PlayerSpawnPoint selectedPoint =
-            null;
-
-        for (int i = 0;
-             i < spawnPoints.Length;
-             i++)
-        {
-            PlayerSpawnPoint point =
-                spawnPoints[i];
-
-            if (point == null)
-            {
-                continue;
-            }
-
-            if (point.SpawnId == spawnId)
-            {
-                selectedPoint = point;
-                break;
-            }
-        }
-
-        if (selectedPoint == null &&
-            useFirstSpawnAsFallback &&
-            spawnPoints.Length > 0)
-        {
-            selectedPoint =
-                spawnPoints[0];
-
-            Debug.LogWarning(
-                $"[GameManager] Spawn ID '{spawnId}'를 찾지 못해 " +
-                "첫 번째 Spawn Point를 사용합니다.",
-                selectedPoint
-            );
-        }
-
-        if (selectedPoint == null)
-        {
-            Debug.LogError(
-                $"[GameManager] 새 씬에 PlayerSpawnPoint가 없습니다. " +
-                $"요청 ID={spawnId}",
-                this
-            );
-            return false;
-        }
-
-        TeleportPlayer(
-            selectedPoint.transform.position,
-            selectedPoint.transform.rotation
-        );
-
-        return true;
-    }
-
-    private void TeleportPlayer(
-        Vector3 targetPosition,
-        Quaternion targetRotation
-    )
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        CharacterController characterController =
-            player.GetComponent<CharacterController>();
-
-        bool controllerWasEnabled =
-            characterController != null &&
-            characterController.enabled;
-
-        if (controllerWasEnabled)
-        {
-            characterController.enabled = false;
-        }
-
-        Rigidbody body =
-            player.GetComponent<Rigidbody>();
-
-        if (body != null)
-        {
-            body.velocity =
-                Vector3.zero;
-
-            body.angularVelocity =
-                Vector3.zero;
-
-            body.position =
-                targetPosition;
-
-            body.rotation =
-                targetRotation;
-        }
-
-        player.transform.SetPositionAndRotation(
-            targetPosition,
-            targetRotation
-        );
-
-        Physics.SyncTransforms();
-
-        if (controllerWasEnabled)
-        {
-            characterController.enabled = true;
-        }
-    }
-
-    private void StopPlayerMovement()
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        Rigidbody body =
-            player.GetComponent<Rigidbody>();
-
-        if (body == null)
-        {
-            return;
-        }
-
-        body.velocity =
-            Vector3.zero;
-
-        body.angularVelocity =
-            Vector3.zero;
-    }
-
-    private void SetPlayerControl(bool value)
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        PlayerController controller =
-            player.GetComponent<PlayerController>();
-
-        if (controller == null)
-        {
-            controller =
-                player.GetComponentInChildren<PlayerController>(
-                    true
-                );
-        }
-
-        if (controller != null)
-        {
-            controller.enabled = value;
-        }
-    }
-
-    private void RemoveDuplicatePlayers()
-    {
-        Player[] players =
-            FindObjectsOfType<Player>(true);
-
-        if (players.Length == 0)
-        {
-            return;
-        }
-
-        if (player == null)
-        {
-            player = players[0];
-            KeepPlayerBetweenScenes();
-        }
-
-        for (int i = 0;
-             i < players.Length;
-             i++)
-        {
-            Player foundPlayer =
-                players[i];
-
-            if (foundPlayer == null ||
-                foundPlayer == player)
-            {
-                continue;
-            }
-
-            Debug.LogWarning(
-                $"[GameManager] 중복 Player 제거: {foundPlayer.name}",
-                foundPlayer
-            );
-
-            Destroy(
-                foundPlayer.gameObject
-            );
-        }
-    }
-
-    private void RefreshSceneReferences()
+    /// <summary>
+    /// 현재 씬에 존재하는 씬 전용 매니저와 UI 참조를 다시 잡는다.
+    ///
+    /// saveManager / traitManager / runManager는 전역에 있을 수도 있으므로
+    /// 비어 있을 때 우선 탐색한다.
+    ///
+    /// uiManager / hubManager / resultUI는 씬마다 달라질 수 있으므로
+    /// 씬 로드 때마다 새로 탐색한다.
+    /// </summary>
+    public void RefreshSceneReferences()
     {
         if (saveManager == null)
         {
@@ -589,30 +277,43 @@ public class GameManager : MonoBehaviour
                 FindObjectOfType<RunManager>(true);
         }
 
-        if (uiManager == null)
+        uiManager =
+            FindObjectOfType<UIManager>(true);
+
+        hubManager =
+            FindObjectOfType<HubManager>(true);
+
+        resultUI =
+            FindObjectOfType<ResultUI>(true);
+
+        Player currentPlayer =
+            CurrentPlayer;
+
+        if (traitManager != null)
         {
-            uiManager =
-                FindObjectOfType<UIManager>(true);
+            traitManager.player =
+                currentPlayer;
         }
 
-        if (hubManager == null)
+        if (runManager != null)
         {
-            hubManager =
-                FindObjectOfType<HubManager>(true);
-        }
-
-        if (resultUI == null)
-        {
-            resultUI =
-                FindObjectOfType<ResultUI>(true);
+            runManager.player =
+                currentPlayer;
         }
     }
 
-    private void FinishFailedSceneChange()
+    private void OnDisable()
     {
-        SetPlayerControl(true);
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+    }
 
-        isChangingScene = false;
-        sceneRoutine = null;
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 }

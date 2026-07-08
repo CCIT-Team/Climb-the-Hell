@@ -1,27 +1,81 @@
 using UnityEngine;
 
-// 허브(상점) 씬을 초기화하는 매니저
+// 허브 씬 초기화 매니저
 public class HubManager : MonoBehaviour
 {
-    // 특성 데이터를 관리하는 매니저
+    [Header("특성 시스템")]
     public TraitManager traitManager;
-
-    // 특성 UI를 관리하는 클래스
     public TraitUI traitUI;
 
-    // 허브 초기화
-    public void Init()
-    {
-        // 저장된 특성 데이터(레벨, 돈 등) 불러오기
-        traitManager.LoadTraits();
+    [Header("시작 설정")]
+    [SerializeField]
+    private bool initOnStart = true;
 
-        // 불러온 데이터를 바탕으로 UI 새로고침
-        traitUI.RefreshUI();
-    }
+    private bool initialized;
 
     private void Start()
     {
-        // 씬이 시작되면 허브 초기화
-        Init();
+        if (initOnStart)
+        {
+            Init();
+        }
+    }
+
+    public void Init()
+    {
+        if (initialized)
+        {
+            return;
+        }
+
+        initialized = true;
+
+        ResolveReferences();
+
+        if (traitManager == null)
+        {
+            Debug.LogError(
+                "[HubManager] TraitManager가 없습니다. Hub 씬 또는 GameManager에 연결하세요.",
+                this
+            );
+            return;
+        }
+
+        traitManager.EnsureReferences();
+        traitManager.LoadTraits();
+
+        if (traitUI == null)
+        {
+            Debug.LogWarning(
+                "[HubManager] TraitUI가 없습니다. 특성 UI 갱신을 건너뜁니다.",
+                this
+            );
+            return;
+        }
+
+        traitUI.Init(traitManager);
+        traitUI.RefreshUI();
+    }
+
+    private void ResolveReferences()
+    {
+        if (traitManager == null &&
+            GameManager.Instance != null)
+        {
+            traitManager =
+                GameManager.Instance.traitManager;
+        }
+
+        if (traitManager == null)
+        {
+            traitManager =
+                FindObjectOfType<TraitManager>(true);
+        }
+
+        if (traitUI == null)
+        {
+            traitUI =
+                FindObjectOfType<TraitUI>(true);
+        }
     }
 }
