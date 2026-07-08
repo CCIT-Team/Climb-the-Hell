@@ -27436,7 +27436,7 @@ MonoBehaviour:
   - {fileID: 199427203}
   - {fileID: 199427202}
   - {fileID: 199427201}
-  selectedHoldDuration: 0.1
+  selectedHoldDuration: 0.35
   pauseGameWhileOpen: 1
 --- !u!4 &444196210555331735
 Transform:
@@ -28273,7 +28273,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 126.2, y: 16.5, z: 3.84}
-  m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -32675,6 +32675,10 @@ MonoBehaviour:
   interactionText: "E\uD0A4\uB85C \uC0C1\uD638\uC791\uC6A9"
   choiceCount: 3
   boonRewardUI: {fileID: 381848480677506168}
+  applyRewardUIFont: 1
+  rewardFontTargets: []
+  rewardTmpFont: {fileID: 0}
+  rewardLegacyFont: {fileID: 0}
   boonDatabase: {fileID: 11400000, guid: f84a796a9ecd6e3449a0d0025611df25, type: 2}
   resourcesPath: Boons
   defaultRewardPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
@@ -32682,6 +32686,10 @@ MonoBehaviour:
   defenseRewardPrefab: {fileID: 7876985251382088196, guid: e146e689c50437c4a8381a79b7a742b0, type: 3}
   mobilityRewardPrefab: {fileID: 761008661747194954, guid: 5001bd5d74ce7a748be0cabad1b8000f, type: 3}
   debuffRewardPrefab: {fileID: 8191824867338687479, guid: 5865b3ea850d8d24189ef55c7b0563ad, type: 3}
+  jakduRewardPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  jakduVisualLocalPosition: {x: 0, y: 0, z: 0}
+  jakduVisualLocalRotation: {x: 0, y: 0, z: 0}
+  jakduVisualScaleMultiplier: {x: 1, y: 1, z: 1}
   landingOffset: {x: 0, y: 0.5, z: 0}
   dropHeight: 5
   dropDuration: 0.28
@@ -32934,7 +32942,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2122670832691402519}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1

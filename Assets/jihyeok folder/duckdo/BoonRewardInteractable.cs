@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// 전투 클리어 후 플레이어 위치 위에서 득도 보상이 낙하한다.
@@ -12,6 +14,7 @@ using UnityEngine;
 /// 3. 착지 순간 Point Light와 스케일로 발광 연출
 /// 4. 착지 완료 후에만 E키 상호작용 허용
 /// 5. 득도 선택 완료 시 간단한 파편 연출
+/// 6. 보상 UI가 열릴 때 지정한 폰트를 적용
 /// </summary>
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Rigidbody))]
@@ -23,6 +26,20 @@ public class BoonRewardInteractable : InteractableBase
 
     [Header("보상 UI")]
     [SerializeField] private BoonRewardUI boonRewardUI;
+
+    [Header("보상 UI 폰트")]
+    [Tooltip("보상 UI가 열렸을 때 폰트를 적용할지 여부")]
+    [SerializeField] private bool applyRewardUIFont = true;
+
+    [Tooltip("decide1, decide2, decide3 또는 그 부모 오브젝트를 넣는다. 비워두면 BoonRewardUI 오브젝트 아래 전체에 적용한다.")]
+    [SerializeField] private GameObject[] rewardFontTargets =
+        new GameObject[0];
+
+    [Tooltip("TextMeshPro용 폰트. TMP Font Asset을 넣어야 한다.")]
+    [SerializeField] private TMP_FontAsset rewardTmpFont;
+
+    [Tooltip("기본 UI Text용 폰트. TMP가 아니라 UnityEngine.UI.Text일 때만 사용한다.")]
+    [SerializeField] private Font rewardLegacyFont;
 
     [Header("득도 데이터")]
     [SerializeField] private BoonDatabase boonDatabase;
@@ -38,6 +55,21 @@ public class BoonRewardInteractable : InteractableBase
     [SerializeField] private GameObject defenseRewardPrefab;
     [SerializeField] private GameObject mobilityRewardPrefab;
     [SerializeField] private GameObject debuffRewardPrefab;
+
+    [Tooltip("작두방에서만 표시할 작두 월드 프리팹")]
+    [SerializeField] private GameObject jakduRewardPrefab;
+
+    [Header("작두 프리팹 위치 보정")]
+
+    [Tooltip("작두 프리팹 자식의 로컬 위치 보정")]
+    [SerializeField] private Vector3 jakduVisualLocalPosition;
+
+    [Tooltip("작두 프리팹 자식의 로컬 회전 보정")]
+    [SerializeField] private Vector3 jakduVisualLocalRotation;
+
+    [Tooltip("작두 프리팹 원본 크기에 곱할 배율")]
+    [SerializeField] private Vector3 jakduVisualScaleMultiplier =
+        Vector3.one;
 
     [Header("플레이어 위치")]
     [Tooltip("플레이어 Transform 위치에 더할 최종 착지 오프셋")]
@@ -171,6 +203,21 @@ public class BoonRewardInteractable : InteractableBase
             body.isKinematic = true;
             body.useGravity = false;
         }
+
+        if (jakduVisualScaleMultiplier.x == 0f)
+        {
+            jakduVisualScaleMultiplier.x = 1f;
+        }
+
+        if (jakduVisualScaleMultiplier.y == 0f)
+        {
+            jakduVisualScaleMultiplier.y = 1f;
+        }
+
+        if (jakduVisualScaleMultiplier.z == 0f)
+        {
+            jakduVisualScaleMultiplier.z = 1f;
+        }
     }
 
     /// <summary>
@@ -205,6 +252,27 @@ public class BoonRewardInteractable : InteractableBase
         Vector3 landingPosition,
         Action onCompleted)
     {
+        /*
+         * Jakdu 카테고리는 실제 작두방에서만 허용한다.
+         * 다른 방에서 잘못 호출돼도 작두가 생성되지 않는다.
+         */
+        if (category == BoonCategory.Jakdu &&
+            !IsCurrentRoomJakdu())
+        {
+            HideReward();
+
+            if (showLogs)
+            {
+                Debug.LogWarning(
+                    "[BoonRewardInteractable] " +
+                    "현재 방이 Jakdu가 아니므로 작두 보상을 생성하지 않습니다.",
+                    this
+                );
+            }
+
+            return;
+        }
+
         if (appearanceRoutine != null)
         {
             StopCoroutine(appearanceRoutine);
@@ -338,6 +406,12 @@ public class BoonRewardInteractable : InteractableBase
         {
             return;
         }
+
+        /*
+         * 보상 UI가 실제로 열린 직후,
+         * decide1, decide2, decide3 또는 지정한 대상에 폰트를 적용한다.
+         */
+        ApplyRewardUIFont();
 
         selectionInProgress = true;
 
@@ -566,7 +640,6 @@ public class BoonRewardInteractable : InteractableBase
     private void BuildCategoryVisual(
         BoonCategory category)
     {
-
         if (activeVisual != null)
         {
             Destroy(activeVisual);
@@ -599,14 +672,39 @@ public class BoonRewardInteractable : InteractableBase
         activeVisual.name =
             $"{selectedPrefab.name}_{category}";
 
-        activeVisual.transform.localPosition =
-            Vector3.zero;
+        if (category == BoonCategory.Jakdu)
+        {
+            activeVisual.transform.localPosition =
+                jakduVisualLocalPosition;
 
-        activeVisual.transform.localRotation =
-            Quaternion.identity;
+            activeVisual.transform.localRotation =
+                Quaternion.Euler(
+                    jakduVisualLocalRotation
+                );
+
+            activeVisual.transform.localScale =
+                Vector3.Scale(
+                    activeVisual.transform.localScale,
+                    jakduVisualScaleMultiplier
+                );
+        }
+        else
+        {
+            activeVisual.transform.localPosition =
+                Vector3.zero;
+
+            activeVisual.transform.localRotation =
+                Quaternion.identity;
+        }
 
         activeVisualBaseScale =
             activeVisual.transform.localScale;
+
+        /*
+         * 프리팹 원본이 비활성화 상태여도
+         * 월드 보상에서는 반드시 보이게 한다.
+         */
+        activeVisual.SetActive(true);
 
         // 월드 보상 프리팹은 시각 전용으로 사용한다.
         // 상호작용 판정은 루트의 BoxCollider 하나만 담당한다.
@@ -651,6 +749,13 @@ public class BoonRewardInteractable : InteractableBase
                 return debuffRewardPrefab != null
                     ? debuffRewardPrefab
                     : defaultRewardPrefab;
+
+            case BoonCategory.Jakdu:
+                /*
+                 * 작두 프리팹이 비어 있을 때 일반 보상으로
+                 * 몰래 대체하지 않는다. 연결 오류를 바로 확인한다.
+                 */
+                return jakduRewardPrefab;
 
             default:
                 return defaultRewardPrefab;
@@ -713,6 +818,107 @@ public class BoonRewardInteractable : InteractableBase
             selectedChoices.Add(
                 availableBoons[i]
             );
+        }
+    }
+
+    /// <summary>
+    /// 보상 UI 텍스트에 인스펙터에서 지정한 폰트를 적용한다.
+    /// </summary>
+    private void ApplyRewardUIFont()
+    {
+        if (!applyRewardUIFont)
+        {
+            return;
+        }
+
+        if (rewardFontTargets == null ||
+            rewardFontTargets.Length == 0)
+        {
+            if (boonRewardUI != null)
+            {
+                ApplyFontsToObject(
+                    boonRewardUI.gameObject
+                );
+            }
+
+            return;
+        }
+
+        for (int i = 0;
+             i < rewardFontTargets.Length;
+             i++)
+        {
+            GameObject target =
+                rewardFontTargets[i];
+
+            if (target == null)
+            {
+                continue;
+            }
+
+            ApplyFontsToObject(target);
+        }
+    }
+
+    /// <summary>
+    /// 지정한 오브젝트 아래의 TMP 텍스트와 기본 UI Text에 폰트를 적용한다.
+    /// </summary>
+    private void ApplyFontsToObject(
+        GameObject target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        if (rewardTmpFont != null)
+        {
+            TMP_Text[] tmpTexts =
+                target.GetComponentsInChildren<TMP_Text>(
+                    true
+                );
+
+            for (int i = 0;
+                 i < tmpTexts.Length;
+                 i++)
+            {
+                TMP_Text text =
+                    tmpTexts[i];
+
+                if (text == null)
+                {
+                    continue;
+                }
+
+                text.font =
+                    rewardTmpFont;
+
+                text.ForceMeshUpdate();
+            }
+        }
+
+        if (rewardLegacyFont != null)
+        {
+            Text[] legacyTexts =
+                target.GetComponentsInChildren<Text>(
+                    true
+                );
+
+            for (int i = 0;
+                 i < legacyTexts.Length;
+                 i++)
+            {
+                Text text =
+                    legacyTexts[i];
+
+                if (text == null)
+                {
+                    continue;
+                }
+
+                text.font =
+                    rewardLegacyFont;
+            }
         }
     }
 
@@ -792,7 +998,10 @@ public class BoonRewardInteractable : InteractableBase
             activeVisual.SetActive(false);
         }
 
-        callback?.Invoke();
+        if (callback != null)
+        {
+            callback.Invoke();
+        }
     }
 
     private void PlayBreakEffect()
@@ -1134,6 +1343,21 @@ public class BoonRewardInteractable : InteractableBase
             currentPlayerInteraction
                 .SetInteractionBlocked(false);
         }
+    }
+
+    /// <summary>
+    /// RunFlowManager에 저장된 현재 방 타입으로 판정한다.
+    /// </summary>
+    private static bool IsCurrentRoomJakdu()
+    {
+        RunFlowManager manager =
+            RunFlowManager.Instance;
+
+        return
+            manager != null &&
+            manager.IsRunActive &&
+            manager.CurrentRoomType ==
+                RoomType.Jakdu;
     }
 
     private void EnsureLandingLight()

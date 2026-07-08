@@ -10,15 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 696e5383fc7d3c2448ac7b226d5d4221, type: 3}
-  m_Name: JD - Gold
+  m_Name: JD - Gold 2
   m_EditorClassIdentifier: 
-  boonId: jd1
-  displayName: jd1
-  description: jd1
+  boonId: jd3
+  displayName: jd3
+  description: jd3
   icon: {fileID: 21300000, guid: a867d2efb4582604c988a690aa526a33, type: 3}
   rewardTitle: "\uC791\uB450"
-  rewardDescription: "\uB300\uC26C\uAC70\uB9AC\uAC00 22% \uAC10\uC18C\uD558\uC9C0\uB9CC
-    \uC774\uD6C4 \uAF43\uC78E \uD68D\uB4DD\uB7C9\uC774 76% \uC99D\uAC00\uD569\uB2C8\uB2E4"
+  rewardDescription: "4\uD134 \uB3D9\uC548 \uD568\uC815\uC73C\uB85C \uBC1B\uB294
+    \uD53C\uD574\uAC00 370% \uC99D\uAC00\uD558\uC9C0\uB9CC \uC774\uD6C4 \uC8FD\uC74C\uC800\uD56D
+    \uD69F\uC218\uAC00 1 \uC99D\uAC00\uD569\uB2C8\uB2E4"
   grade: 0
   category: 5
   stackable: 1

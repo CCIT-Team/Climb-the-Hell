@@ -21210,7 +21210,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   leftDoor: {fileID: 1161261705938093041}
   rightDoor: {fileID: 1590460657419623278}
+  allowDirectScenePlay: 1
+  directPlayRoomGraph: {fileID: 0}
+  directPlayRewardCategory: 1
+  directPlayFloor: 1
   useSingleDoorForBoss: 1
+  prepareRetryFrames: 30
+  showLogs: 1
 --- !u!65 &1769134448
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -24924,6 +24930,7 @@ MonoBehaviour:
   monsterSpawner: {fileID: 1351015466}
   boonReward: {fileID: 5142993089935475282}
   roomChoiceGenerator: {fileID: 1769134447}
+  useClearStateFallback: 1
 --- !u!1 &2049501301
 GameObject:
   m_ObjectHideFlags: 0
@@ -26223,12 +26230,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a455014f39008f4a9d196173dd7c735, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rewardCanvas: {fileID: 3930486775774363467}
+  rewardCanvas: {fileID: 2499981511485871914}
   rewardSlots:
-  - {fileID: 5197116709786105873}
-  - {fileID: 7187839768915889080}
-  - {fileID: 6338726201948614448}
-  selectedHoldDuration: 0.1
+  - {fileID: 2499981511485871917}
+  - {fileID: 2499981511485871916}
+  - {fileID: 2499981511485871915}
+  selectedHoldDuration: 0.35
   pauseGameWhileOpen: 1
 --- !u!4 &444196210555331735
 Transform:
@@ -26852,17 +26859,18 @@ MonoBehaviour:
   openDuration: 3
   closeDuration: 1
   triggerEnableDelay: 0.2
-  routeIconQuad: {fileID: 2285428795232964542}
-  routeIconRenderer: {fileID: 2461251838533055578}
-  attackMaterial: {fileID: 2100000, guid: 244a68918b1a7ae4fb71a28990a3f85d, type: 2}
-  defenseMaterial: {fileID: 2100000, guid: 4939be173057fb146879198fe8c6f0a1, type: 2}
-  mobilityMaterial: {fileID: 2100000, guid: e27dbad59b545ed4b90e7972a82288ea, type: 2}
-  debuffMaterial: {fileID: 2100000, guid: 7a0dd76409d519847859fb9954579b97, type: 2}
-  rewardRoomMaterial: {fileID: 2100000, guid: f829d0d1171b55b45868d83ddcdb6ca3, type: 2}
-  shopRoomMaterial: {fileID: 2100000, guid: f829d0d1171b55b45868d83ddcdb6ca3, type: 2}
-  jakduRoomMaterial: {fileID: 2100000, guid: cac88028a06007348b2f5dd7e490ec6b, type: 2}
-  eventRoomMaterial: {fileID: 2100000, guid: cac88028a06007348b2f5dd7e490ec6b, type: 2}
-  bossRoomMaterial: {fileID: 2100000, guid: cac88028a06007348b2f5dd7e490ec6b, type: 2}
+  destinationSpawnPoint: {fileID: 8378769127545186761}
+  combatRoomPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  attackCombatPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  defenseCombatPrefab: {fileID: 7876985251382088196, guid: e146e689c50437c4a8381a79b7a742b0, type: 3}
+  mobilityCombatPrefab: {fileID: 761008661747194954, guid: 5001bd5d74ce7a748be0cabad1b8000f, type: 3}
+  debuffCombatPrefab: {fileID: 8191824867338687479, guid: 5865b3ea850d8d24189ef55c7b0563ad, type: 3}
+  rewardRoomPrefab: {fileID: 3099364561056448109, guid: 12da9f620516a5b42a3442ee300d0df9, type: 3}
+  shopRoomPrefab: {fileID: 6590924409712780483, guid: 9b0f3e15b8035284cb6990d09b5e42a4, type: 3}
+  jakduRoomPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  eventRoomPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  bossRoomPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  showLogs: 1
 --- !u!4 &1166160145119652473
 Transform:
   m_ObjectHideFlags: 0
@@ -27576,17 +27584,18 @@ MonoBehaviour:
   openDuration: 3
   closeDuration: 1
   triggerEnableDelay: 0.2
-  routeIconQuad: {fileID: 643983389860257233}
-  routeIconRenderer: {fileID: 2619159638863175566}
-  attackMaterial: {fileID: 2100000, guid: 244a68918b1a7ae4fb71a28990a3f85d, type: 2}
-  defenseMaterial: {fileID: 2100000, guid: 4939be173057fb146879198fe8c6f0a1, type: 2}
-  mobilityMaterial: {fileID: 2100000, guid: e27dbad59b545ed4b90e7972a82288ea, type: 2}
-  debuffMaterial: {fileID: 2100000, guid: 7a0dd76409d519847859fb9954579b97, type: 2}
-  rewardRoomMaterial: {fileID: 2100000, guid: f829d0d1171b55b45868d83ddcdb6ca3, type: 2}
-  shopRoomMaterial: {fileID: 2100000, guid: f829d0d1171b55b45868d83ddcdb6ca3, type: 2}
-  jakduRoomMaterial: {fileID: 2100000, guid: cac88028a06007348b2f5dd7e490ec6b, type: 2}
-  eventRoomMaterial: {fileID: 2100000, guid: cac88028a06007348b2f5dd7e490ec6b, type: 2}
-  bossRoomMaterial: {fileID: 2100000, guid: cac88028a06007348b2f5dd7e490ec6b, type: 2}
+  destinationSpawnPoint: {fileID: 7055734476769472443}
+  combatRoomPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  attackCombatPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  defenseCombatPrefab: {fileID: 7876985251382088196, guid: e146e689c50437c4a8381a79b7a742b0, type: 3}
+  mobilityCombatPrefab: {fileID: 761008661747194954, guid: 5001bd5d74ce7a748be0cabad1b8000f, type: 3}
+  debuffCombatPrefab: {fileID: 8191824867338687479, guid: 5865b3ea850d8d24189ef55c7b0563ad, type: 3}
+  rewardRoomPrefab: {fileID: 3099364561056448109, guid: 12da9f620516a5b42a3442ee300d0df9, type: 3}
+  shopRoomPrefab: {fileID: 6590924409712780483, guid: 9b0f3e15b8035284cb6990d09b5e42a4, type: 3}
+  jakduRoomPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  eventRoomPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  bossRoomPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  showLogs: 1
 --- !u!1 &1603502205137594945
 GameObject:
   m_ObjectHideFlags: 0
@@ -28323,7 +28332,6 @@ MonoBehaviour:
       maxHp: 100
       attack: 10
       moveSpeed: 5
-      mana: 50
       criticalChance: 0.1
       criticalMultiplier: 1.5
       dashDistance: 3
@@ -28332,11 +28340,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 1
       extraDashCount: 0
       dashInvincible: 1
+      deathResist: 0
+      goldMultiplier: 1
+      rerollCount: 0
     traitBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -28345,11 +28355,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     boonBonusStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -28358,8 +28370,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     playerLevel: 1
     currentHp: 0
+    consumedDeathResist: 0
+    consumedRerollCount: 0
   money:
     currentMoney: 0
   playerPosition: {x: 0, y: 0, z: 0}
@@ -29066,6 +29083,44 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
+--- !u!1 &2499981511485871914 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8058026139125452212, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
+  m_PrefabInstance: {fileID: 2499981511485871913}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2499981511485871915 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4575961753450069849, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
+  m_PrefabInstance: {fileID: 2499981511485871913}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &2499981511485871916 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6073621625506408052, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
+  m_PrefabInstance: {fileID: 2499981511485871913}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &2499981511485871917 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 743752255097892442, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
+  m_PrefabInstance: {fileID: 2499981511485871913}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!64 &2511955228179743894
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -30409,11 +30464,6 @@ MonoBehaviour:
   - Offset: {x: -0.020117106, y: 0, z: 0}
     Radius: 0.03017566
   m_gizmoColor: {r: 1, g: 0, b: 1, a: 1}
---- !u!1 &3930486775774363467 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8058026139125452212, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
-  m_PrefabInstance: {fileID: 2499981511485871913}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &3942344249507623660
 Transform:
   m_ObjectHideFlags: 0
@@ -31633,7 +31683,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &5142993089935475282
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31650,8 +31700,38 @@ MonoBehaviour:
   interactionText: "E\uD0A4\uB85C \uC0C1\uD638\uC791\uC6A9"
   choiceCount: 3
   boonRewardUI: {fileID: 381848480677506168}
+  applyRewardUIFont: 1
+  rewardFontTargets: []
+  rewardTmpFont: {fileID: 0}
+  rewardLegacyFont: {fileID: 0}
   boonDatabase: {fileID: 11400000, guid: f84a796a9ecd6e3449a0d0025611df25, type: 2}
   resourcesPath: Boons
+  defaultRewardPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  attackRewardPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  defenseRewardPrefab: {fileID: 7876985251382088196, guid: e146e689c50437c4a8381a79b7a742b0, type: 3}
+  mobilityRewardPrefab: {fileID: 761008661747194954, guid: 5001bd5d74ce7a748be0cabad1b8000f, type: 3}
+  debuffRewardPrefab: {fileID: 8191824867338687479, guid: 5865b3ea850d8d24189ef55c7b0563ad, type: 3}
+  jakduRewardPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  jakduVisualLocalPosition: {x: 0, y: 0, z: 0}
+  jakduVisualLocalRotation: {x: 0, y: 0, z: 0}
+  jakduVisualScaleMultiplier: {x: 1, y: 1, z: 1}
+  landingOffset: {x: 0, y: 0.5, z: 0}
+  dropHeight: 5
+  dropDuration: 0.28
+  landingBounceHeight: 0.18
+  landingBounceDuration: 0.1
+  landingLight: {fileID: 0}
+  flashIntensity: 12
+  flashRange: 5
+  flashDuration: 0.18
+  flashScaleMultiplier: 1.18
+  playBreakEffect: 1
+  fragmentCount: 14
+  fragmentLifetime: 0.9
+  fragmentForce: 3.5
+  fragmentUpwardForce: 2
+  fragmentGravity: 5
+  fragmentSizeRatio: 0.1
   showLogs: 1
 --- !u!4 &5185016953461700642
 Transform:
@@ -31668,17 +31748,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 4226528189099111000}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5197116709786105873 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6073621625506408052, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
-  m_PrefabInstance: {fileID: 2499981511485871913}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &5206101450562488970
 GameObject:
   m_ObjectHideFlags: 0
@@ -31907,7 +31976,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2122670832691402519}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -32586,17 +32655,6 @@ MonoBehaviour:
   - {fileID: 5798602640066685663}
   - {fileID: 1152371268959760991}
   m_updateType: 0
---- !u!114 &6338726201948614448 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4575961753450069849, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
-  m_PrefabInstance: {fileID: 2499981511485871913}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!65 &6340337687043113638
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -33662,17 +33720,6 @@ MonoBehaviour:
   - {fileID: 5798602640066685663}
   - {fileID: 1152371268959760991}
   m_updateType: 0
---- !u!114 &7187839768915889080 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 743752255097892442, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
-  m_PrefabInstance: {fileID: 2499981511485871913}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &7189049800617424380
 GameObject:
   m_ObjectHideFlags: 0
@@ -34900,9 +34947,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lavaPrefab: {fileID: 5274626371973168847, guid: 47c169bbc429e4a48a97f4c7155aeff3, type: 3}
+  warningPrefab: {fileID: 0}
   poolSize: 5
-  spawnInterval: 5
   arcHeight: 5
+  warningTime: 1
 --- !u!208 &7940438260480216704
 NavMeshObstacle:
   m_ObjectHideFlags: 0

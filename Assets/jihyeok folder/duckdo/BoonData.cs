@@ -90,10 +90,11 @@ public class BoonData : ScriptableObject
     public ReflectEffectData reflectEffect =
         new ReflectEffectData();
 
-    [Header("작두 타기")]
+    [Header("기존 작두 타기 효과")]
 
     public JakduRideEffectData jakduRideEffect =
         new JakduRideEffectData();
+
 
     public string GetRewardTitle()
     {
@@ -119,16 +120,36 @@ public class BoonData : ScriptableObject
         return description;
     }
 
+    /// <summary>
+    /// 이전 보상 슬롯 코드 호환용.
+    /// 현재는 일반 보상 설명만 반환한다.
+    /// </summary>
+    public string GetContextRewardDescription()
+    {
+        return GetRewardDescription();
+    }
+
+    /// <summary>
+    /// 작두 보상 여부는 별도 타입 없이 카테고리로 판단한다.
+    /// </summary>
+    public bool IsJakduPoint =>
+        category ==
+        BoonCategory.Jakdu;
+
 #if UNITY_EDITOR
     private void OnValidate()
     {
         maxStack =
-            Mathf.Max(1, maxStack);
+            Mathf.Max(
+                1,
+                maxStack
+            );
 
         if (!stackable)
         {
             maxStack = 1;
         }
+
     }
 #endif
 }

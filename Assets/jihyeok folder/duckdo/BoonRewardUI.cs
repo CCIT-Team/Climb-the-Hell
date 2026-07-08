@@ -1,176 +1,120 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
-using UnityEngine.UI;
 
 /// <summary>
-/// 일반 득도와 작두점이 함께 사용하는 3개 선택 UI.
-///
-/// 기존 Open 함수는 그대로 유지하고,
-/// 작두점용 제목과 취소 불가 옵션을 받는 오버로드를 추가한다.
+/// 꺼져 있는 보상 UI를 열고,
+/// 3개의 보상 슬롯을 관리한다.
 /// </summary>
 public class BoonRewardUI : MonoBehaviour
 {
-    private static BoonRewardUI instance;
+    [Header("보상 UI")]
 
-    private Canvas canvas;
-    private GameObject panel;
-    private GameObject closeButtonObject;
+    [Tooltip("처음에 꺼져 있는 보상 Canvas 또는 최상위 패널")]
+    [SerializeField]
+    private GameObject rewardCanvas;
 
-    private TextMeshProUGUI rewardTitleText;
+    [Header("보상 슬롯")]
 
-    private readonly BoonRewardSlot[]
-        slots =
-            new BoonRewardSlot[3];
+    [Tooltip("decide1, decide2, decide3 순서로 연결")]
+    [SerializeField]
+    private BoonRewardSlot[] rewardSlots =
+        new BoonRewardSlot[3];
 
-    private Action<BoonData>
-        selectedCallback;
+    [Header("선택 연출")]
 
-    private Action
-        cancelledCallback;
+    [Min(0f)]
+    [Tooltip("선택한 슬롯만 남겨둔 뒤 UI가 닫히기까지의 시간")]
+    [SerializeField]
+    private float selectedHoldDuration = 0.35f;
+
+    [Header("게임 정지")]
+
+    [Tooltip("보상 UI가 열렸을 때 게임 시간을 멈출지 여부")]
+    [SerializeField]
+    private bool pauseGameWhileOpen = true;
+
+    // 선택 완료 후 실행할 함수
+    private Action<BoonData> selectedCallback;
+
+    // 선택을 취소했을 때 실행할 함수
+    private Action cancelledCallback;
+
+    private Coroutine selectionRoutine;
 
     private bool isOpen;
-    private bool isBuilt;
-    private bool currentAllowCancel = true;
+    private bool isSelecting;
 
     private float previousTimeScale = 1f;
     private bool previousCursorVisible;
+    private CursorLockMode previousCursorLockMode;
 
-    private CursorLockMode
-        previousCursorLockMode;
-
-    public static BoonRewardUI Instance
+    public bool IsOpen
     {
         get
         {
-            if (instance == null)
-            {
-                instance =
-                    FindFirstObjectByType<
-                        BoonRewardUI
-                    >();
-            }
-
-            if (instance == null)
-            {
-                GameObject root =
-                    new GameObject(
-                        "RuntimeBoonRewardUI"
-                    );
-
-                instance =
-                    root.AddComponent<
-                        BoonRewardUI
-                    >();
-            }
-
-            return instance;
+            return isOpen;
         }
     }
-
-    public bool IsOpen =>
-        isOpen;
 
     private void Awake()
     {
-        if (instance != null &&
-            instance != this)
+        ValidateReferences();
+
+        /*
+         * 게임 시작 시 보상 UI는 꺼진 상태로 둔다.
+         *
+         * 주의:
+         * 이 스크립트는 rewardCanvas 안이 아니라
+         * 항상 켜져 있는 별도 오브젝트에 붙여야 한다.
+         */
+        if (rewardCanvas != null)
         {
-            Destroy(gameObject);
-            return;
+            rewardCanvas.SetActive(false);
         }
 
-        instance = this;
-
-        BuildUI();
-        EnsureEventSystem();
+        isOpen = false;
+        isSelecting = false;
     }
 
     /// <summary>
-    /// 기존 일반 득도 호출과 호환되는 함수.
+    /// E키 상호작용으로 호출한다.
+    /// 전달받은 득도 후보를 슬롯에 표시한다.
     /// </summary>
     public bool Open(
-        IReadOnlyList<BoonData> choices,
+        List<BoonData> choices,
         Action<BoonData> onSelected,
-        Action onCancelled)
+        Action onCancelled
+    )
     {
-        return Open(
-            choices,
-            onSelected,
-            onCancelled,
-            "득도 선택",
-            true
-        );
-    }
-
-    /// <summary>
-    /// 작두점에서 제목 변경과 취소 금지를 사용할 수 있는 함수.
-    /// </summary>
-    public bool Open(
-        IReadOnlyList<BoonData> choices,
-        Action<BoonData> onSelected,
-        Action onCancelled,
-        string windowTitle,
-        bool allowCancel)
-    {
-        if (isOpen ||
-            choices == null ||
-            choices.Count == 0)
+        if (isOpen || isSelecting)
         {
             return false;
         }
 
-        if (!isBuilt)
+        if (choices == null ||
+            choices.Count == 0)
         {
-            BuildUI();
-        }
-
-        selectedCallback =
-            onSelected;
-
-        cancelledCallback =
-            onCancelled;
-
-        currentAllowCancel =
-            allowCancel;
-
-        rewardTitleText.text =
-            string.IsNullOrWhiteSpace(
-                windowTitle
-            )
-                ? "득도 선택"
-                : windowTitle;
-
-        closeButtonObject.SetActive(
-            currentAllowCancel
-        );
-
-        int visibleCount =
-            Mathf.Min(
-                choices.Count,
-                slots.Length
+            Debug.LogWarning(
+                "[BoonRewardUI] 표시할 득도 후보가 없습니다.",
+                this
             );
 
-        for (int i = 0;
-             i < slots.Length;
-             i++)
-        {
-            if (i < visibleCount)
-            {
-                slots[i].Setup(
-                    choices[i],
-                    HandleSelected
-                );
-            }
-            else
-            {
-                slots[i].Clear();
-            }
+            return false;
         }
 
+        if (!ValidateReferences())
+        {
+            return false;
+        }
+
+        selectedCallback = onSelected;
+        cancelledCallback = onCancelled;
+
+        /*
+         * UI를 열기 전 현재 게임과 커서 상태를 저장한다.
+         */
         previousTimeScale =
             Time.timeScale;
 
@@ -180,23 +124,173 @@ public class BoonRewardUI : MonoBehaviour
         previousCursorLockMode =
             Cursor.lockState;
 
-        panel.SetActive(true);
-        isOpen = true;
+        /*
+         * 슬롯들의 부모가 비활성 상태이므로
+         * 슬롯 Setup보다 먼저 전체 UI를 켠다.
+         */
+        rewardCanvas.SetActive(true);
 
-        Time.timeScale = 0f;
+        int visibleCount =
+            Mathf.Min(
+                choices.Count,
+                rewardSlots.Length
+            );
+
+        for (int i = 0;
+             i < rewardSlots.Length;
+             i++)
+        {
+            BoonRewardSlot slot =
+                rewardSlots[i];
+
+            if (slot == null)
+            {
+                Debug.LogError(
+                    $"[BoonRewardUI] Reward Slots의 Element {i}가 비어 있습니다.",
+                    this
+                );
+
+                continue;
+            }
+
+            if (i < visibleCount)
+            {
+                /*
+                 * 후보 0 → decide1
+                 * 후보 1 → decide2
+                 * 후보 2 → decide3
+                 */
+                slot.Setup(
+                    choices[i],
+                    HandleSlotSelected
+                );
+            }
+            else
+            {
+                slot.Clear();
+            }
+        }
+
+        isOpen = true;
+        isSelecting = false;
+
+        if (pauseGameWhileOpen)
+        {
+            Time.timeScale = 0f;
+        }
 
         Cursor.visible = true;
-
         Cursor.lockState =
             CursorLockMode.None;
 
         return true;
     }
 
+    /// <summary>
+    /// 보상 슬롯을 클릭했을 때
+    /// BoonRewardSlot에서 호출된다.
+    /// </summary>
+    private void HandleSlotSelected(
+        BoonRewardSlot selectedSlot,
+        BoonData selectedBoon
+    )
+    {
+        if (!isOpen ||
+            isSelecting ||
+            selectedSlot == null ||
+            selectedBoon == null)
+        {
+            return;
+        }
+
+        isSelecting = true;
+
+        /*
+         * 중복 클릭이나 중복 코루틴 실행을 방지한다.
+         */
+        if (selectionRoutine != null)
+        {
+            StopCoroutine(selectionRoutine);
+        }
+
+        selectionRoutine =
+            StartCoroutine(
+                SelectionRoutine(
+                    selectedSlot,
+                    selectedBoon
+                )
+            );
+    }
+
+    /// <summary>
+    /// 선택되지 않은 슬롯을 즉시 숨기고,
+    /// 선택한 슬롯만 잠시 남긴다.
+    /// </summary>
+    private IEnumerator SelectionRoutine(
+        BoonRewardSlot selectedSlot,
+        BoonData selectedBoon
+    )
+    {
+        /*
+         * 선택하지 않은 두 슬롯은 바로 OFF한다.
+         */
+        for (int i = 0;
+             i < rewardSlots.Length;
+             i++)
+        {
+            BoonRewardSlot slot =
+                rewardSlots[i];
+
+            if (slot == null ||
+                slot == selectedSlot)
+            {
+                continue;
+            }
+
+            slot.HideImmediately();
+        }
+
+        /*
+         * 선택한 슬롯은 투명도 반복을 멈추고
+         * Alpha 1 상태로 유지한다.
+         */
+        selectedSlot.ShowSelectedEffect();
+
+        /*
+         * Time.timeScale이 0이어도 기다릴 수 있도록
+         * WaitForSecondsRealtime을 사용한다.
+         */
+        if (selectedHoldDuration > 0f)
+        {
+            yield return new WaitForSecondsRealtime(
+                selectedHoldDuration
+            );
+        }
+
+        /*
+         * CloseImmediately 안에서 콜백이 null로 초기화되므로
+         * 닫기 전에 지역 변수로 저장한다.
+         */
+        Action<BoonData> callback =
+            selectedCallback;
+
+        CloseImmediately();
+
+        /*
+         * UI를 닫은 뒤 선택한 득도를 적용한다.
+         */
+        callback?.Invoke(selectedBoon);
+
+        selectionRoutine = null;
+    }
+
+    /// <summary>
+    /// 닫기 버튼이나 ESC 처리에 연결할 수 있다.
+    /// </summary>
     public void Cancel()
     {
         if (!isOpen ||
-            !currentAllowCancel)
+            isSelecting)
         {
             return;
         }
@@ -204,48 +298,25 @@ public class BoonRewardUI : MonoBehaviour
         Action callback =
             cancelledCallback;
 
-        CloseInternal();
+        CloseImmediately();
 
         callback?.Invoke();
     }
 
     /// <summary>
-    /// 예외 상황에서만 외부가 강제로 닫을 때 사용한다.
-    /// 취소 콜백은 호출하지 않는다.
+    /// 보상 UI를 즉시 닫고
+    /// 게임과 커서 상태를 복원한다.
     /// </summary>
-    public void ForceClose()
-    {
-        if (!isOpen)
-        {
-            return;
-        }
-
-        CloseInternal();
-    }
-
-    private void HandleSelected(
-        BoonData boon)
-    {
-        if (!isOpen ||
-            boon == null)
-        {
-            return;
-        }
-
-        Action<BoonData> callback =
-            selectedCallback;
-
-        CloseInternal();
-
-        callback?.Invoke(boon);
-    }
-
-    private void CloseInternal()
+    private void CloseImmediately()
     {
         isOpen = false;
+        isSelecting = false;
 
-        Time.timeScale =
-            previousTimeScale;
+        if (pauseGameWhileOpen)
+        {
+            Time.timeScale =
+                previousTimeScale;
+        }
 
         Cursor.visible =
             previousCursorVisible;
@@ -253,362 +324,119 @@ public class BoonRewardUI : MonoBehaviour
         Cursor.lockState =
             previousCursorLockMode;
 
-        for (int i = 0;
-             i < slots.Length;
-             i++)
+        /*
+         * 각 슬롯의 이미지와 텍스트를 비운다.
+         */
+        if (rewardSlots != null)
         {
-            slots[i]?.Clear();
+            for (int i = 0;
+                 i < rewardSlots.Length;
+                 i++)
+            {
+                if (rewardSlots[i] != null)
+                {
+                    rewardSlots[i].Clear();
+                }
+            }
         }
 
-        if (panel != null)
+        if (rewardCanvas != null)
         {
-            panel.SetActive(false);
+            rewardCanvas.SetActive(false);
         }
 
         selectedCallback = null;
         cancelledCallback = null;
-        currentAllowCancel = true;
     }
 
-    private void BuildUI()
+    /// <summary>
+    /// 인스펙터 연결 상태를 검사한다.
+    /// </summary>
+    private bool ValidateReferences()
     {
-        if (isBuilt)
+        bool valid = true;
+
+        if (rewardCanvas == null)
         {
-            return;
-        }
-
-        canvas =
-            GetComponent<Canvas>();
-
-        if (canvas == null)
-        {
-            canvas =
-                gameObject.AddComponent<
-                    Canvas
-                >();
-        }
-
-        canvas.renderMode =
-            RenderMode.ScreenSpaceOverlay;
-
-        canvas.sortingOrder = 5000;
-
-        CanvasScaler scaler =
-            GetComponent<CanvasScaler>();
-
-        if (scaler == null)
-        {
-            scaler =
-                gameObject.AddComponent<
-                    CanvasScaler
-                >();
-        }
-
-        scaler.uiScaleMode =
-            CanvasScaler.ScaleMode
-                .ScaleWithScreenSize;
-
-        scaler.referenceResolution =
-            new Vector2(1920f, 1080f);
-
-        scaler.matchWidthOrHeight =
-            0.5f;
-
-        if (GetComponent<
-                GraphicRaycaster>() == null)
-        {
-            gameObject.AddComponent<
-                GraphicRaycaster
-            >();
-        }
-
-        CreatePanel();
-        CreateTitle();
-        CreateSlots();
-        CreateCloseButton();
-
-        panel.SetActive(false);
-
-        isBuilt = true;
-    }
-
-    private void CreatePanel()
-    {
-        panel =
-            new GameObject(
-                "BoonRewardPanel",
-                typeof(RectTransform)
+            Debug.LogError(
+                "[BoonRewardUI] Reward Canvas가 연결되지 않았습니다.",
+                this
             );
 
-        RectTransform panelRect =
-            panel.GetComponent<
-                RectTransform
-            >();
+            valid = false;
+        }
 
-        panelRect.SetParent(
-            transform,
-            false
-        );
-
-        panelRect.anchorMin =
-            Vector2.zero;
-
-        panelRect.anchorMax =
-            Vector2.one;
-
-        panelRect.offsetMin =
-            Vector2.zero;
-
-        panelRect.offsetMax =
-            Vector2.zero;
-
-        Image dim =
-            panel.AddComponent<Image>();
-
-        dim.color =
-            new Color(
-                0f,
-                0f,
-                0f,
-                0.8f
-            );
-    }
-
-    private void CreateTitle()
-    {
-        RectTransform panelRect =
-            panel.GetComponent<
-                RectTransform
-            >();
-
-        rewardTitleText =
-            CreateText(
-                "RewardTitle",
-                panelRect,
-                "득도 선택",
-                48f,
-                FontStyles.Bold,
-                TextAlignmentOptions.Center
+        if (rewardSlots == null ||
+            rewardSlots.Length == 0)
+        {
+            Debug.LogError(
+                "[BoonRewardUI] Reward Slots가 비어 있습니다.",
+                this
             );
 
-        RectTransform titleRect =
-            rewardTitleText
-                .rectTransform;
-
-        titleRect.anchorMin =
-            new Vector2(0.2f, 1f);
-
-        titleRect.anchorMax =
-            new Vector2(0.8f, 1f);
-
-        titleRect.pivot =
-            new Vector2(0.5f, 1f);
-
-        titleRect.sizeDelta =
-            new Vector2(0f, 80f);
-
-        titleRect.anchoredPosition =
-            new Vector2(0f, -38f);
-    }
-
-    private void CreateSlots()
-    {
-        RectTransform panelRect =
-            panel.GetComponent<
-                RectTransform
-            >();
+            return false;
+        }
 
         for (int i = 0;
-             i < slots.Length;
+             i < rewardSlots.Length;
              i++)
         {
-            GameObject slotObject =
-                new GameObject(
-                    $"BoonSlot_{i + 1}",
-                    typeof(RectTransform)
-                );
+            if (rewardSlots[i] != null)
+            {
+                continue;
+            }
 
-            BoonRewardSlot slot =
-                slotObject.AddComponent<
-                    BoonRewardSlot
-                >();
-
-            slot.Build(
-                panelRect,
-                i
+            Debug.LogError(
+                $"[BoonRewardUI] Reward Slots의 Element {i}가 비어 있습니다.",
+                this
             );
 
-            slots[i] = slot;
+            valid = false;
         }
+
+        return valid;
     }
 
-    private void CreateCloseButton()
+    private void OnDisable()
     {
-        RectTransform panelRect =
-            panel.GetComponent<
-                RectTransform
-            >();
-
-        closeButtonObject =
-            new GameObject(
-                "CloseButton",
-                typeof(RectTransform)
-            );
-
-        RectTransform closeRect =
-            closeButtonObject
-                .GetComponent<
-                    RectTransform
-                >();
-
-        closeRect.SetParent(
-            panelRect,
-            false
-        );
-
-        closeRect.anchorMin =
-            new Vector2(0.5f, 0f);
-
-        closeRect.anchorMax =
-            new Vector2(0.5f, 0f);
-
-        closeRect.pivot =
-            new Vector2(0.5f, 0f);
-
-        closeRect.sizeDelta =
-            new Vector2(220f, 60f);
-
-        closeRect.anchoredPosition =
-            new Vector2(0f, 30f);
-
-        Image closeImage =
-            closeButtonObject
-                .AddComponent<Image>();
-
-        closeImage.color =
-            new Color(
-                0.18f,
-                0.18f,
-                0.2f,
-                1f
-            );
-
-        Button closeButton =
-            closeButtonObject
-                .AddComponent<Button>();
-
-        closeButton.targetGraphic =
-            closeImage;
-
-        closeButton.onClick.AddListener(
-            Cancel
-        );
-
-        TextMeshProUGUI closeText =
-            CreateText(
-                "Text",
-                closeRect,
-                "닫기",
-                26f,
-                FontStyles.Bold,
-                TextAlignmentOptions.Center
-            );
-
-        RectTransform textRect =
-            closeText.rectTransform;
-
-        textRect.anchorMin =
-            Vector2.zero;
-
-        textRect.anchorMax =
-            Vector2.one;
-
-        textRect.offsetMin =
-            Vector2.zero;
-
-        textRect.offsetMax =
-            Vector2.zero;
-    }
-
-    private static TextMeshProUGUI
-        CreateText(
-            string objectName,
-            RectTransform parent,
-            string content,
-            float fontSize,
-            FontStyles style,
-            TextAlignmentOptions alignment)
-    {
-        GameObject textObject =
-            new GameObject(
-                objectName,
-                typeof(RectTransform)
-            );
-
-        RectTransform rect =
-            textObject.GetComponent<
-                RectTransform
-            >();
-
-        rect.SetParent(
-            parent,
-            false
-        );
-
-        TextMeshProUGUI text =
-            textObject.AddComponent<
-                TextMeshProUGUI
-            >();
-
-        text.text = content;
-        text.fontSize = fontSize;
-        text.fontStyle = style;
-        text.alignment = alignment;
-        text.color = Color.white;
-        text.raycastTarget = false;
-
-        return text;
-    }
-
-    private static void EnsureEventSystem()
-    {
-        if (FindFirstObjectByType<
-                EventSystem>() != null)
+        /*
+         * 관리 오브젝트가 예상치 못하게 꺼져도
+         * 게임 시간이 멈춘 상태로 남지 않게 한다.
+         */
+        if (!isOpen)
         {
             return;
         }
 
-        GameObject eventSystemObject =
-            new GameObject(
-                "EventSystem"
-            );
+        if (pauseGameWhileOpen)
+        {
+            Time.timeScale =
+                previousTimeScale;
+        }
 
-        eventSystemObject.AddComponent<
-            EventSystem
-        >();
+        Cursor.visible =
+            previousCursorVisible;
 
-        eventSystemObject.AddComponent<
-            InputSystemUIInputModule
-        >();
+        Cursor.lockState =
+            previousCursorLockMode;
+
+        isOpen = false;
+        isSelecting = false;
     }
 
     private void OnDestroy()
     {
-        if (instance == this)
+        if (selectionRoutine != null)
         {
-            instance = null;
+            StopCoroutine(selectionRoutine);
+            selectionRoutine = null;
         }
 
-        if (isOpen)
+        if (isOpen &&
+            pauseGameWhileOpen)
         {
             Time.timeScale =
                 previousTimeScale;
-
-            Cursor.visible =
-                previousCursorVisible;
-
-            Cursor.lockState =
-                previousCursorLockMode;
         }
     }
 }

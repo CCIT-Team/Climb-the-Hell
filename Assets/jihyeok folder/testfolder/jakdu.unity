@@ -5235,6 +5235,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7a06ee11b9755ba489279a29cbdb1186, type: 3}
+--- !u!114 &445996296 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4033566632473538738, guid: 7a06ee11b9755ba489279a29cbdb1186, type: 3}
+  m_PrefabInstance: {fileID: 445996295}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3eb924437a25809469544b07ab23077e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &455770551
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -10198,6 +10209,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1fbc67428f50db04781f63f9353d237f, type: 3}
+--- !u!114 &907056409 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2986505067058946858, guid: 1fbc67428f50db04781f63f9353d237f, type: 3}
+  m_PrefabInstance: {fileID: 907056408}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3eb924437a25809469544b07ab23077e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!4 &912994664 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 283ff08844fd34344a34e3fad48b2080, type: 3}
@@ -19867,10 +19889,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eea0549f410e4ca428f97e4915f67687, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  leftDoor: {fileID: 0}
-  rightDoor: {fileID: 0}
+  leftDoor: {fileID: 907056409}
+  rightDoor: {fileID: 445996296}
   allowDirectScenePlay: 1
-  directPlayRoomGraph: {fileID: 0}
+  directPlayRoomGraph: {fileID: 11400000, guid: 58073ddfb4a72f140ad1ab8ff058c8d5, type: 2}
   directPlayRewardCategory: 1
   directPlayFloor: 1
   useSingleDoorForBoss: 1
@@ -24070,13 +24092,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a455014f39008f4a9d196173dd7c735, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rewardCanvas: {fileID: 3930486775774363467}
-  rewardSlots:
-  - {fileID: 5197116709786105873}
-  - {fileID: 7187839768915889080}
-  - {fileID: 6338726201948614448}
-  selectedHoldDuration: 0.1
-  pauseGameWhileOpen: 1
 --- !u!4 &444196210555331735
 Transform:
   m_ObjectHideFlags: 0
@@ -24102,9 +24117,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5506558816786522068}
-  - component: {fileID: 7147455982369254146}
+  - component: {fileID: 5506558816786522069}
   m_Layer: 0
-  m_Name: NoCombatManager
+  m_Name: jakdu
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -26869,11 +26884,6 @@ MonoBehaviour:
   - Offset: {x: -0.020117106, y: 0, z: 0}
     Radius: 0.03017566
   m_gizmoColor: {r: 1, g: 0, b: 1, a: 1}
---- !u!1 &3930486775774363467 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8058026139125452212, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
-  m_PrefabInstance: {fileID: 2499981511485871913}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &3942344249507623660
 Transform:
   m_ObjectHideFlags: 0
@@ -27791,11 +27801,15 @@ MonoBehaviour:
   boonRewardUI: {fileID: 381848480677506168}
   boonDatabase: {fileID: 11400000, guid: f84a796a9ecd6e3449a0d0025611df25, type: 2}
   resourcesPath: Boons
-  defaultRewardPrefab: {fileID: 0}
-  attackRewardPrefab: {fileID: 0}
-  defenseRewardPrefab: {fileID: 0}
-  mobilityRewardPrefab: {fileID: 0}
-  debuffRewardPrefab: {fileID: 0}
+  defaultRewardPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  attackRewardPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  defenseRewardPrefab: {fileID: 7876985251382088196, guid: e146e689c50437c4a8381a79b7a742b0, type: 3}
+  mobilityRewardPrefab: {fileID: 761008661747194954, guid: 5001bd5d74ce7a748be0cabad1b8000f, type: 3}
+  debuffRewardPrefab: {fileID: 8191824867338687479, guid: 5865b3ea850d8d24189ef55c7b0563ad, type: 3}
+  jakduRewardPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
+  jakduVisualLocalPosition: {x: 0, y: 0, z: 0}
+  jakduVisualLocalRotation: {x: 0, y: 0, z: 0}
+  jakduVisualScaleMultiplier: {x: 1, y: 1, z: 1}
   landingOffset: {x: 0, y: 0.5, z: 0}
   dropHeight: 5
   dropDuration: 0.28
@@ -27814,17 +27828,6 @@ MonoBehaviour:
   fragmentGravity: 5
   fragmentSizeRatio: 0.1
   showLogs: 1
---- !u!114 &5197116709786105873 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6073621625506408052, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
-  m_PrefabInstance: {fileID: 2499981511485871913}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &5206101450562488970
 GameObject:
   m_ObjectHideFlags: 0
@@ -27993,7 +27996,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2122670832691402519}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -28111,6 +28114,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5506558816786522069
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 447118362666809388}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: caff38b50f3f97e4fbd1aab7a1b78bbc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  boonReward: {fileID: 5142993089935475282}
+  rewardSpawnPoint: {fileID: 1166160145119652473}
+  roomChoiceGenerator: {fileID: 1769134447}
+  showLogs: 1
 --- !u!1 &5532309033617610342
 GameObject:
   m_ObjectHideFlags: 0
@@ -28602,17 +28621,6 @@ MonoBehaviour:
   - {fileID: 5798602640066685663}
   - {fileID: 1152371268959760991}
   m_updateType: 0
---- !u!114 &6338726201948614448 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4575961753450069849, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
-  m_PrefabInstance: {fileID: 2499981511485871913}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!4 &6356735228547039264
 Transform:
   m_ObjectHideFlags: 0
@@ -29334,20 +29342,6 @@ Transform:
   - {fileID: 3199233158585117462}
   m_Father: {fileID: 9152860124901319807}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7147455982369254146
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 447118362666809388}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 63c23b649648eca48b9d7e4e4ba00003, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  roomChoiceGenerator: {fileID: 1769134447}
-  completeOnStartForTest: 0
 --- !u!1 &7153750823785686014
 GameObject:
   m_ObjectHideFlags: 0
@@ -29398,17 +29392,6 @@ MonoBehaviour:
   - {fileID: 5798602640066685663}
   - {fileID: 1152371268959760991}
   m_updateType: 0
---- !u!114 &7187839768915889080 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 743752255097892442, guid: 830752bbb517d6c4d89e534603705c4d, type: 3}
-  m_PrefabInstance: {fileID: 2499981511485871913}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777b12052a3ddb943b2a9ba6514de47f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &7189049800617424380
 GameObject:
   m_ObjectHideFlags: 0
