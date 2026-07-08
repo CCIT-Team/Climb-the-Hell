@@ -2947,7 +2947,6 @@ GameObject:
   - component: {fileID: 532152599}
   - component: {fileID: 532152598}
   - component: {fileID: 532152597}
-  - component: {fileID: 532152596}
   - component: {fileID: 532152595}
   m_Layer: 0
   m_Name: Heal
@@ -2990,48 +2989,6 @@ MonoBehaviour:
   messageOffset: {x: 0, y: 1.6, z: 0}
   messageDuration: 0.8
   messageRiseDistance: 0.45
-  showLogs: 1
---- !u!114 &532152596
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 532152594}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2add90907a4091349bd1339ae972b6b0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  interactionPriority: 0
-  interactionText: "E\uD0A4\uB85C \uC0C1\uD638\uC791\uC6A9"
-  permanentHealthBonus:
-    maxHp: 0
-    attack: 0
-    moveSpeed: 0
-    criticalChance: 0
-    criticalMultiplier: 0
-    dashDistance: 0
-    dashDuration: 0
-    dashCooldown: 0
-    dashCooldownRecoveryMultiplier: 0
-    extraDashCount: 0
-    dashInvincible: 0
-    deathResist: 0
-    goldMultiplier: 0
-    rerollCount: 0
-  roomFlow: {fileID: 0}
-  disableAfterClaim: 1
-  disappearMode: 2
-  fadeDuration: 0.6
-  finalScaleRatio: 0.1
-  fragmentCount: 16
-  fragmentLifetime: 1.5
-  fragmentForce: 4
-  fragmentUpwardForce: 2.5
-  fragmentSizeRatio: 0.12
-  fragmentDrag: 0.15
-  fragmentAngularDrag: 0.05
   showLogs: 1
 --- !u!54 &532152597
 Rigidbody:
@@ -5568,7 +5525,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 5, y: 5, z: 5}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &897655830
 MeshRenderer:
@@ -5629,7 +5586,7 @@ Transform:
   m_GameObject: {fileID: 897655828}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 121.1, y: 22.01, z: 11.4}
+  m_LocalPosition: {x: 121.1, y: 20.81, z: 11.4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5650,7 +5607,7 @@ MonoBehaviour:
   interactionPriority: 0
   interactionText: "E\uD0A4\uB85C \uC0C1\uD638\uC791\uC6A9"
   price: 100
-  shopRewardCategory: 0
+  shopRewardCategory: 1
   prepareOnStart: 1
   shopPositionOffset: {x: 0, y: 0, z: 0}
   insufficientGoldMessage: "\uACE8\uB4DC\uAC00 \uBD80\uC871\uD569\uB2C8\uB2E4"
@@ -5659,19 +5616,19 @@ MonoBehaviour:
   warningDuration: 1.2
   warningMoveUpDistance: 0.45
   choiceCount: 3
-  boonRewardUI: {fileID: 0}
+  boonRewardUI: {fileID: 3806952654682620714}
   applyRewardUIFont: 1
   rewardFontTargets: []
-  rewardTmpFont: {fileID: 0}
-  rewardLegacyFont: {fileID: 0}
-  boonDatabase: {fileID: 0}
+  rewardTmpFont: {fileID: 11400000, guid: 14ad3c61e1ed1084a8135c1c3e82a10e, type: 2}
+  rewardLegacyFont: {fileID: 12800000, guid: f7363c0864b046749b73b15f52093c81, type: 3}
+  boonDatabase: {fileID: 11400000, guid: f84a796a9ecd6e3449a0d0025611df25, type: 2}
   resourcesPath: Boons
   defaultRewardPrefab: {fileID: 0}
-  attackRewardPrefab: {fileID: 0}
-  defenseRewardPrefab: {fileID: 0}
-  mobilityRewardPrefab: {fileID: 0}
-  debuffRewardPrefab: {fileID: 0}
-  jakduRewardPrefab: {fileID: 0}
+  attackRewardPrefab: {fileID: 2274606196513606046, guid: d8a6fecfdb89f304a9ca66e17f8ce57c, type: 3}
+  defenseRewardPrefab: {fileID: 7876985251382088196, guid: e146e689c50437c4a8381a79b7a742b0, type: 3}
+  mobilityRewardPrefab: {fileID: 761008661747194954, guid: 5001bd5d74ce7a748be0cabad1b8000f, type: 3}
+  debuffRewardPrefab: {fileID: 8191824867338687479, guid: 5865b3ea850d8d24189ef55c7b0563ad, type: 3}
+  jakduRewardPrefab: {fileID: 3714857161630576101, guid: 807a84714d6311c47a21d91a660b8af5, type: 3}
   jakduVisualLocalPosition: {x: 0, y: 0, z: 0}
   jakduVisualLocalRotation: {x: 0, y: 0, z: 0}
   jakduVisualScaleMultiplier: {x: 1, y: 1, z: 1}
@@ -22233,7 +22190,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6b319dcc7208dc34cbcf8d1cd36977cb, type: 2}
+  - {fileID: 2100000, guid: 0d087f95a2ce22b479601eea0b40311e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
