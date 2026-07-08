@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// 기존 몬스터 코드를 수정하지 않고
-/// 체력 감소량을 확인해 데미지 숫자를 요청한다.
+/// MonsterStats의 OnDamaged/OnHealed 이벤트를 구독해
+/// 데미지/회복 숫자를 요청한다.
 /// </summary>
 public class MonsterDamageNumberWatcher : MonoBehaviour
 {
@@ -18,9 +18,7 @@ public class MonsterDamageNumberWatcher : MonoBehaviour
     private Vector3 fallbackOffset =
         new Vector3(0f, 2f, 0f);
 
-    private int previousHp;
     private int nextSlotIndex;
-    private bool initialized;
 
     private void Awake()
     {
@@ -42,65 +40,74 @@ public class MonsterDamageNumberWatcher : MonoBehaviour
         }
     }
 
-    private void Start()
+    private void OnEnable()
     {
         if (monsterStats == null)
         {
             return;
         }
 
-        previousHp =
-            monsterStats.currentHp;
-
-        initialized = true;
+        monsterStats.OnDamaged += HandleDamaged;
+        monsterStats.OnHealed += HandleHealed;
     }
 
-    private void LateUpdate()
+    private void OnDisable()
     {
-        if (!initialized)
+        if (monsterStats == null)
         {
             return;
         }
 
-        int currentHp =
-            monsterStats.currentHp;
-
-        if (currentHp < previousHp)
-        {
-            ShowDamage(
-                previousHp - currentHp
-            );
-        }
-
-        previousHp =
-            currentHp;
+        monsterStats.OnDamaged -= HandleDamaged;
+        monsterStats.OnHealed -= HandleHealed;
     }
 
-    private void ShowDamage(
-        int damage
-    )
+    private void HandleDamaged(int damage, bool isCritical)
     {
         DamageNumberManager manager =
             DamageNumberManager.Instance;
 
-        if (manager == null ||
-            damage <= 0)
+        if (manager == null)
         {
             return;
         }
 
-        Vector3 basePosition =
-            damageNumberPoint != null
-                ? damageNumberPoint.position
-                : monsterStats.transform.position +
-                  fallbackOffset;
-
         manager.ShowDamage(
             damage,
-            basePosition,
-            nextSlotIndex,
-            false
+            GetBasePosition(),
+            NextSlot(manager),
+            isCritical
         );
+    }
+
+    private void HandleHealed(int amount)
+    {
+        DamageNumberManager manager =
+            DamageNumberManager.Instance;
+
+        if (manager == null)
+        {
+            return;
+        }
+
+        manager.ShowHeal(
+            amount,
+            GetBasePosition(),
+            NextSlot(manager)
+        );
+    }
+
+    private Vector3 GetBasePosition()
+    {
+        return damageNumberPoint != null
+            ? damageNumberPoint.position
+            : monsterStats.transform.position +
+              fallbackOffset;
+    }
+
+    private int NextSlot(DamageNumberManager manager)
+    {
+        int slot = nextSlotIndex;
 
         nextSlotIndex++;
 
@@ -109,17 +116,15 @@ public class MonsterDamageNumberWatcher : MonoBehaviour
         {
             nextSlotIndex = 0;
         }
+
+        return slot;
     }
 
     /// <summary>
-    /// 오브젝트 풀에서 체력을 초기화한 뒤 호출한다.
+    /// 오브젝트 풀에서 재사용할 때 호출한다.
     /// </summary>
     public void ResetWatcher()
     {
-        previousHp =
-            monsterStats.currentHp;
-
         nextSlotIndex = 0;
-        initialized = true;
     }
 }

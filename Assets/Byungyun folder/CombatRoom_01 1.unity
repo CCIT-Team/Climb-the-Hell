@@ -1087,6 +1087,7 @@ MonoBehaviour:
   damageNumberPrefab: {fileID: 5020781428339103170, guid: 0721097db1f602540b0af83e66b38ce4, type: 3}
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   criticalColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  healColor: {r: 0.4, g: 1, b: 0.4, a: 1}
   normalScale: 0.3
   criticalScale: 0.5
   sampleWidth: 3
@@ -4105,13 +4106,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83c19c711a62f8e448017c625b2a3807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  boxWidth: 1.5
-  boxHeight: 1.2
-  boxDepth: 1.5
-  boxOffset: 0.8
-  visualDuration: 0.15
-  idleColor: {r: 1, g: 1, b: 0, a: 0.2}
-  attackColor: {r: 1, g: 0, b: 0, a: 0.5}
 --- !u!114 &238037552
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14483,13 +14477,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83c19c711a62f8e448017c625b2a3807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  boxWidth: 1.5
-  boxHeight: 1.2
-  boxDepth: 1.5
-  boxOffset: 0.8
-  visualDuration: 0.15
-  idleColor: {r: 1, g: 1, b: 0, a: 0.2}
-  attackColor: {r: 1, g: 0, b: 0, a: 0.5}
 --- !u!114 &816585601
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16916,7 +16903,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81a0d14d9fc754fd2926b176ec8bd893, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 0}
+  target: {fileID: 4952802287753420919}
   distance: 12
   horizontalAngle: 45
   verticalAngle: 50
@@ -17317,13 +17304,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83c19c711a62f8e448017c625b2a3807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  boxWidth: 1.5
-  boxHeight: 1.2
-  boxDepth: 1.5
-  boxOffset: 0.8
-  visualDuration: 0.15
-  idleColor: {r: 1, g: 1, b: 0, a: 0.2}
-  attackColor: {r: 1, g: 0, b: 0, a: 0.5}
 --- !u!114 &981161155
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31698,13 +31678,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83c19c711a62f8e448017c625b2a3807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  boxWidth: 1.5
-  boxHeight: 1.2
-  boxDepth: 1.5
-  boxOffset: 0.8
-  visualDuration: 0.15
-  idleColor: {r: 1, g: 1, b: 0, a: 0.2}
-  attackColor: {r: 1, g: 0, b: 0, a: 0.5}
 --- !u!114 &1779717995
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -39757,7 +39730,7 @@ MonoBehaviour:
       dashDuration: 0.15
       dashCooldown: 1
       dashCooldownRecoveryMultiplier: 1
-      extraDashCount: 2
+      extraDashCount: 0
       dashInvincible: 1
       deathResist: 0
       goldMultiplier: 1
@@ -44782,7 +44755,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bd88ca6eec86854383d5e433eb1328f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 0}
+  player: {fileID: 459753172807770576}
   hpText: {fileID: 5173094207541893033}
   hpSlider: {fileID: 2460964415614858845}
   goldText: {fileID: 3928877175684862941}
@@ -50724,6 +50697,7 @@ GameObject:
   - component: {fileID: 7682072497208065933}
   - component: {fileID: 7682072497208065935}
   - component: {fileID: 7682072497208065934}
+  - component: {fileID: 7682072497208065936}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -56817,6 +56791,22 @@ MonoBehaviour:
   dashText: {fileID: 0}
   deathText: {fileID: 0}
   rerollText: {fileID: 0}
+--- !u!114 &7682072497208065936
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5079390713870566786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b56f469504844cf49fa3e24207c8636, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 459753172807770576}
+  damageNumberPoint: {fileID: 4952802287753420919}
+  fallbackOffset: {x: 0, y: 2, z: 0}
+  playerHitColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1 &7683071721756943400
 GameObject:
   m_ObjectHideFlags: 0
