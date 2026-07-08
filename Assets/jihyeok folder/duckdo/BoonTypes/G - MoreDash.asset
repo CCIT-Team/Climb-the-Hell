@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: MoreDash
   description: can MoreDash
   icon: {fileID: 21300000, guid: 6b81749b7c352b74bb1aacac1da6c099, type: 3}
-  rewardTitle: "\uC5F0\uC6B4\uBCF4"
-  rewardDescription: "\uB300\uC26C\uAC00 \uD55C\uBC88 \uB354 \uC0AC\uC6A9 \uAC00\uB2A5\uD569\uB2C8\uB2E4"
+  rewardTitle: Yeon-unbo
+  rewardDescription: Dash can be used one more time.
   grade: 0
   category: 3
   stackable: 1

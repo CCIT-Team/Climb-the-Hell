@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: AttackSpeed
   description: increase attack speed
   icon: {fileID: 21300000, guid: aa0747d6df20d4f42a579266fb137c03, type: 3}
-  rewardTitle: "\uC2E0\uC18D\uCC38"
-  rewardDescription: "\uACF5\uACA9 \uC18D\uB3C4\uAC00 20% \uC99D\uAC00\uD569\uB2C8\uB2E4"
+  rewardTitle: Sinsogcham
+  rewardDescription: Attack speed increases by 20%.
   grade: 0
   category: 1
   stackable: 1

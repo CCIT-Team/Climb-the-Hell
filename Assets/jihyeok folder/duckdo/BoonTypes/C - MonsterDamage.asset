@@ -16,9 +16,8 @@ MonoBehaviour:
   displayName: MonsterDamage
   description: MonsterDamage
   icon: {fileID: 21300000, guid: db0e4dad922b34d48a54a4310d9e9307, type: 3}
-  rewardTitle: "\uC794\uD654\uC0B4"
-  rewardDescription: "\uBAAC\uC2A4\uD130 \uCCAB \uD0C0\uACA9 \uC2DC \uBAAC\uC2A4\uD130\uC758
-    \uACF5\uACA9\uB825\uC744 4\uCD08 \uB3D9\uC548 20%\uAC10\uC18C\uC2DC\uD0B5\uB2C8\uB2E4"
+  rewardTitle: Janhwasal
+  rewardDescription: Hitting a monster reduces its attack power by 20% for 4 seconds.
   grade: 0
   category: 4
   stackable: 1

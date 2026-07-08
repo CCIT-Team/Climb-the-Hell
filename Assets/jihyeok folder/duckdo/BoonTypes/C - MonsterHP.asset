@@ -16,9 +16,9 @@ MonoBehaviour:
   displayName: MonsterHPReduce
   description: MonsterHP
   icon: {fileID: 21300000, guid: db0e4dad922b34d48a54a4310d9e9307, type: 3}
-  rewardTitle: "\uC0DD\uBA85\uC0B4"
-  rewardDescription: "\uBAAC\uC2A4\uD130 \uCCAB \uD0C0\uACA9 \uC2DC \uBAAC\uC2A4\uD130\uC758
-    \uCD5C\uB300 HP\uB97C \uC601\uAD6C\uC801\uC73C\uB85C 10%\uAC10\uC18C\uC2DC\uD0B5\uB2C8\uB2E4"
+  rewardTitle: Saemyeongsal
+  rewardDescription: The first hit on a monster permanently reduces its maximum HP
+    by 10%.
   grade: 0
   category: 4
   stackable: 1

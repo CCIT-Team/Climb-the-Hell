@@ -16,9 +16,8 @@ MonoBehaviour:
   displayName: jd1
   description: jd1
   icon: {fileID: 21300000, guid: a867d2efb4582604c988a690aa526a33, type: 3}
-  rewardTitle: "\uC791\uB450"
-  rewardDescription: "\uB300\uC26C\uAC70\uB9AC\uAC00 22% \uAC10\uC18C\uD558\uC9C0\uB9CC
-    \uC774\uD6C4 \uAF43\uC78E \uD68D\uB4DD\uB7C9\uC774 76% \uC99D\uAC00\uD569\uB2C8\uB2E4"
+  rewardTitle: Jagdu
+  rewardDescription: Dash distance -22% for 4turn, but petal acquisition +76% afterward.
   grade: 0
   category: 5
   stackable: 1
@@ -122,7 +121,3 @@ MonoBehaviour:
       rerollCount: 0
     duration: 5
     permanent: 0
-  useWorldObject: 0
-  worldObjectPrefab: {fileID: 0}
-  worldObjectRotationOffset: {x: 0, y: 0, z: 0}
-  worldObjectScaleMultiplier: {x: 1, y: 1, z: 1}

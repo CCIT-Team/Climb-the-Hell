@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: Stun
   description: increase Stun time
   icon: {fileID: 21300000, guid: aa0747d6df20d4f42a579266fb137c03, type: 3}
-  rewardTitle: "\uC9C4\uD63C\uD0C0"
-  rewardDescription: "\uACF5\uACA9\uC2DC 0.1\uCD08 \uB3D9\uC548 \uACBD\uC9C1\uB429\uB2C8\uB2E4"
+  rewardTitle: Jinhonta
+  rewardDescription: You are immobilized for 0.1 seconds when attacking.
   grade: 0
   category: 1
   stackable: 1

@@ -16,9 +16,9 @@ MonoBehaviour:
   displayName: jd2
   description: jd2
   icon: {fileID: 21300000, guid: a867d2efb4582604c988a690aa526a33, type: 3}
-  rewardTitle: "\uC791\uB450"
-  rewardDescription: "4\uD134 \uB3D9\uC548 \uBC1B\uB294 \uD53C\uD574\uAC00 25% \uC99D\uAC00\uD558\uC9C0\uB9CC
-    \uC774\uD6C4 \uD2B9\uC218 \uACF5\uACA9 \uD53C\uD574\uB7C9\uC774 30% \uC99D\uAC00\uD569\uB2C8\uB2E4"
+  rewardTitle: Jagdu
+  rewardDescription: Damage taken +25% for 4 turns, but special attack damage +30%
+    afterward.
   grade: 0
   category: 5
   stackable: 1
@@ -122,7 +122,3 @@ MonoBehaviour:
       rerollCount: 0
     duration: 5
     permanent: 0
-  useWorldObject: 0
-  worldObjectPrefab: {fileID: 0}
-  worldObjectRotationOffset: {x: 0, y: 0, z: 0}
-  worldObjectScaleMultiplier: {x: 1, y: 1, z: 1}

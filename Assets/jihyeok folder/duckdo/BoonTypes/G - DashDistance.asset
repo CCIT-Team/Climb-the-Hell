@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: DashDistance
   description: DashDistance
   icon: {fileID: 21300000, guid: 6b81749b7c352b74bb1aacac1da6c099, type: 3}
-  rewardTitle: "\uCD95\uC9C0\uBC95"
-  rewardDescription: "\uB300\uC26C \uAC70\uB9AC\uAC00 10% \uC99D\uAC00\uD569\uB2C8\uB2E4"
+  rewardTitle: Chugjibeob
+  rewardDescription: Dash distance increases by 10%.
   grade: 0
   category: 3
   stackable: 1

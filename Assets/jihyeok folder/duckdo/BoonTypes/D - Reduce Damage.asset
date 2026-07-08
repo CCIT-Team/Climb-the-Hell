@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: ReduceDamage
   description: Reduce Damage
   icon: {fileID: 21300000, guid: c31652e00368f7b43b6720fd5d08d8e3, type: 3}
-  rewardTitle: "\uAE08\uAC15\uBD88\uAD34"
-  rewardDescription: "\uBC1B\uB294 \uB370\uBBF8\uC9C0\uAC00 10% \uAC10\uC18C\uD569\uB2C8\uB2E4"
+  rewardTitle: geumgangbulgoe
+  rewardDescription: Damage taken is reduced by 10%.
   grade: 0
   category: 2
   stackable: 1

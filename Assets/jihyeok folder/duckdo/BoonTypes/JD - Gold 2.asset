@@ -16,10 +16,9 @@ MonoBehaviour:
   displayName: jd3
   description: jd3
   icon: {fileID: 21300000, guid: a867d2efb4582604c988a690aa526a33, type: 3}
-  rewardTitle: "\uC791\uB450"
-  rewardDescription: "4\uD134 \uB3D9\uC548 \uD568\uC815\uC73C\uB85C \uBC1B\uB294
-    \uD53C\uD574\uAC00 370% \uC99D\uAC00\uD558\uC9C0\uB9CC \uC774\uD6C4 \uC8FD\uC74C\uC800\uD56D
-    \uD69F\uC218\uAC00 1 \uC99D\uAC00\uD569\uB2C8\uB2E4"
+  rewardTitle: Jagdu
+  rewardDescription: Trap damage taken +370% for 4 turns, but Death Resistance count
+    +1 afterward.
   grade: 0
   category: 5
   stackable: 1
@@ -123,7 +122,3 @@ MonoBehaviour:
       rerollCount: 0
     duration: 5
     permanent: 0
-  useWorldObject: 0
-  worldObjectPrefab: {fileID: 0}
-  worldObjectRotationOffset: {x: 0, y: 0, z: 0}
-  worldObjectScaleMultiplier: {x: 1, y: 1, z: 1}

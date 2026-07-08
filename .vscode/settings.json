@@ -56,5 +56,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "소울트리 저장소.sln"
+    "dotnet.defaultSolution": "Climb-the-Hell.sln"
 }

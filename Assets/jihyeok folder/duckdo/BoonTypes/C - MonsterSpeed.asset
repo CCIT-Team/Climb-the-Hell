@@ -16,9 +16,8 @@ MonoBehaviour:
   displayName: MonsterSpeed
   description: MonsterSpeed
   icon: {fileID: 21300000, guid: db0e4dad922b34d48a54a4310d9e9307, type: 3}
-  rewardTitle: "\uC18D\uBC15\uC0B4"
-  rewardDescription: "\uBAAC\uC2A4\uD130 \uCCAB \uD0C0\uACA9 \uC2DC \uBAAC\uC2A4\uD130\uC758
-    \uC774\uB3D9\uC18D\uB3C4\uAC00 5\uCD08\uAC04 20%\uAC10\uC18C\uD569\uB2C8\uB2E4"
+  rewardTitle: sogbagsal
+  rewardDescription: Hitting a monster reduces its movement speed by 20% for 5 seconds.
   grade: 0
   category: 4
   stackable: 1

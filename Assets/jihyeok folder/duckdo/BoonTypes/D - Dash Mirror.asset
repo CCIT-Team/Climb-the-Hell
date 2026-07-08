@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: DashMirror
   description: can DashMirror
   icon: {fileID: 21300000, guid: c31652e00368f7b43b6720fd5d08d8e3, type: 3}
-  rewardTitle: "\uC720\uC218\uACB0"
-  rewardDescription: "\uB300\uC26C \uC0AC\uC6A9\uC2DC \uD22C\uC0AC\uCCB4\uB97C \uBC18\uC0AC\uD569\uB2C8\uB2E4"
+  rewardTitle: yusugyeol
+  rewardDescription: Reflects projectiles when dashing.
   grade: 0
   category: 2
   stackable: 1

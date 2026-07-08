@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: MoveSpeed
   description: increase move speed
   icon: {fileID: 21300000, guid: 6b81749b7c352b74bb1aacac1da6c099, type: 3}
-  rewardTitle: "\uC2E0\uD48D"
-  rewardDescription: "\uC774\uB3D9\uC18D\uB3C4\uAC00 10% \uBE68\uB77C\uC9D1\uB2C8\uB2E4."
+  rewardTitle: Sunbo
+  rewardDescription: Movement speed increases by 10%.
   grade: 0
   category: 3
   stackable: 1

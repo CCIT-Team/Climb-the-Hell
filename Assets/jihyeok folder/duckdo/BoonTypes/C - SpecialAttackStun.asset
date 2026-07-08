@@ -16,9 +16,8 @@ MonoBehaviour:
   displayName: SpecialAttackStun
   description: SpecialAttackStun
   icon: {fileID: 21300000, guid: db0e4dad922b34d48a54a4310d9e9307, type: 3}
-  rewardTitle: "\uD63C\uC808\uC0B4"
-  rewardDescription: "\uD2B9\uC218 \uACF5\uACA9 \uC2DC \uC801\uC5D0\uAC8C 0.7\uCD08
-    \uB3D9\uC548 \uAE30\uC808 \uC0C1\uD0DC\uB97C \uBD80\uC5EC\uD569\uB2C8\uB2E4"
+  rewardTitle: Honjeolsal
+  rewardDescription: Special attacks stun the enemy for 0.7 seconds.
   grade: 0
   category: 4
   stackable: 1
