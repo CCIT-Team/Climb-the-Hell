@@ -66,6 +66,9 @@ public class PlayerFeedback : MonoBehaviour
         pendingLobbyEmerge = true;
     }
 
+    public static bool HasPendingLobbyEmerge =>
+        pendingLobbyEmerge;
+
     public void ShowDamage(
         int amount)
     {
@@ -218,6 +221,14 @@ public class PlayerFeedback : MonoBehaviour
         RequestLobbyEmerge();
 
         onDeathEvent?.Invoke();
+
+        Player player =
+            GetComponent<Player>();
+
+        if (player != null)
+        {
+            player.ResetRunGoldAndHeal();
+        }
 
         if (RunFlowManager.Instance != null)
         {

@@ -231,6 +231,21 @@ public class PlayerSceneMover : MonoBehaviour
             feedback != null &&
             feedback.BeginLobbyEmergeIfRequested();
 
+        bool isLobbyScene =
+            string.Equals(
+                activeScene.name,
+                "Lobby",
+                System.StringComparison.OrdinalIgnoreCase
+            );
+
+        if (isLobbyScene &&
+            !emerging &&
+            player.stats != null &&
+            player.stats.CurrentHp <= 0)
+        {
+            player.ResetRunGoldAndHeal();
+        }
+
         if (!emerging)
         {
             SetPlayerControl(true);
