@@ -1377,6 +1377,12 @@ public class RangedMonsterAI : MonsterStats
 
     private void DropReward()
     {
+        GrantGoldToPlayer(rewardGold);
+        ShowGoldNumber(
+            rewardGold,
+            transform.position
+        );
+
         Debug.Log(
             $"[Monster:{MonsterName}] " +
             $"골드 {rewardGold}개, " +

@@ -1472,6 +1472,12 @@ public class MonsterAI : MonsterStats
 
     public void DropReward()
     {
+        GrantGoldToPlayer(rewardGold);
+        ShowGoldNumber(
+            rewardGold,
+            transform.position
+        );
+
         Debug.Log(
             $"[Monster:{MonsterName}] " +
             $"경험치 {rewardExp}, " +

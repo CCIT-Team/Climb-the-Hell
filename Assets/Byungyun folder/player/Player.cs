@@ -42,11 +42,16 @@ public class Player : MonoBehaviour, IDamageable
     // HP가 변경될 때 UI 등에 알리는 이벤트
     public event Action<int> OnHpChanged;
 
+    public event Action<int> OnDamaged;
+    public event Action<int> OnHealed;
+
     // 남은 부활 횟수(죽음 저항)
     private int remainDeathResist;
 
     // 득도(수비 계열) 피해 감소율을 읽기 위한 참조
     private BoonInfo boonInfo;
+    private PlayerFeedback feedback;
+    private bool deathSequenceStarted;
 
     private void Awake()
     {
@@ -62,6 +67,13 @@ public class Player : MonoBehaviour, IDamageable
         if (boonInfo == null)
         {
             boonInfo = GetComponentInChildren<BoonInfo>(true);
+        }
+
+        feedback = GetComponent<PlayerFeedback>();
+
+        if (feedback == null)
+        {
+            feedback = gameObject.AddComponent<PlayerFeedback>();
         }
     }
 
@@ -100,11 +112,27 @@ public class Player : MonoBehaviour, IDamageable
         }
 
         // 실제 HP 감소
+        int previousHp =
+            stats.CurrentHp;
+
         bool dead =
             stats.TakeDamage(damage);
 
+        int actualDamage =
+            previousHp - stats.CurrentHp;
+
         // UI 갱신
         OnHpChanged?.Invoke(stats.CurrentHp);
+
+        if (actualDamage > 0)
+        {
+            OnDamaged?.Invoke(actualDamage);
+
+            if (feedback != null)
+            {
+                feedback.ShowDamage(actualDamage);
+            }
+        }
 
         Debug.Log(
             $"[Player] 피격 {damage} / " +
@@ -161,9 +189,25 @@ public class Player : MonoBehaviour, IDamageable
             return;
         }
 
+        int previousHp =
+            stats.CurrentHp;
+
         stats.Heal(amount);
 
+        int actualHeal =
+            stats.CurrentHp - previousHp;
+
         OnHpChanged?.Invoke(stats.CurrentHp);
+
+        if (actualHeal > 0)
+        {
+            OnHealed?.Invoke(actualHeal);
+
+            if (feedback != null)
+            {
+                feedback.ShowHeal(actualHeal);
+            }
+        }
     }
 
     // 대시 무적 설정
@@ -232,6 +276,8 @@ public class Player : MonoBehaviour, IDamageable
     // 외부에서 호출하는 일반 부활
     public void Revive()
     {
+        deathSequenceStarted = false;
+
         StopHitInvincible();
 
         isDashInvincible = false;
@@ -290,12 +336,28 @@ public class Player : MonoBehaviour, IDamageable
 
         isDashInvincible = false;
 
+        if (deathSequenceStarted)
+        {
+            return;
+        }
+
+        deathSequenceStarted = true;
+
         Debug.Log(
             "[Player] 사망",
             this
         );
 
         // GameManager 등이 이 이벤트를 받아 게임 오버 처리
+        if (feedback != null)
+        {
+            feedback.PlayDeathAndReturnToLobby(
+                () => OnDeath?.Invoke()
+            );
+
+            return;
+        }
+
         OnDeath?.Invoke();
     }
 

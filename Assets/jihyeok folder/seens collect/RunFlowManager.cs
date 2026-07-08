@@ -109,6 +109,12 @@ public sealed class RunFlowManager : MonoBehaviour
         private set;
     }
 
+    public RoomNodeData PreviousRoom
+    {
+        get;
+        private set;
+    }
+
     public RoomType CurrentRoomType
     {
         get;
@@ -613,6 +619,7 @@ public sealed class RunFlowManager : MonoBehaviour
             return false;
         }
 
+        PreviousRoom = CurrentRoom;
         CurrentRoom = pendingRoom;
         CurrentFloor = pendingFloor;
         CurrentRoomType = pendingRoomType;
@@ -734,6 +741,7 @@ public sealed class RunFlowManager : MonoBehaviour
         IsRunActive = false;
         CurrentFloor = 0;
         CurrentRoom = null;
+        PreviousRoom = null;
         CurrentRoomType = RoomType.None;
         CurrentRewardCategory = BoonCategory.None;
         IsTransitioning = false;
@@ -985,6 +993,12 @@ public sealed class RunFlowManager : MonoBehaviour
             CurrentRoom == room)
         {
             reason = "직전 방 반복 금지";
+            return false;
+        }
+
+        if (PreviousRoom == room)
+        {
+            reason = "Previous room excluded once";
             return false;
         }
 

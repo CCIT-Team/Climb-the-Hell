@@ -221,7 +221,18 @@ public class PlayerSceneMover : MonoBehaviour
         );
 
         StopPlayerMovement();
-        SetPlayerControl(true);
+
+        PlayerFeedback feedback =
+            player.GetComponent<PlayerFeedback>();
+
+        bool emerging =
+            feedback != null &&
+            feedback.BeginLobbyEmergeIfRequested();
+
+        if (!emerging)
+        {
+            SetPlayerControl(true);
+        }
 
         RefreshExternalReferences();
 
