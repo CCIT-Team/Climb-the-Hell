@@ -34,7 +34,7 @@ public class ShopBoonRewardInteractable : InteractableBase
     [SerializeField] private Vector3 shopPositionOffset;
 
     [Header("골드 부족 표시")]
-    [SerializeField] private string insufficientGoldMessage = "골드가 부족합니다";
+    [SerializeField] private string insufficientGoldMessage = "Not enough gold";
 
     [Tooltip("비워두면 런타임에 3D TMP 텍스트를 자동 생성한다.")]
     [SerializeField] private TextMeshPro warningText;
@@ -172,6 +172,7 @@ public class ShopBoonRewardInteractable : InteractableBase
 
     private void Awake()
     {
+        NormalizeMessages();
         triggerCollider = GetComponent<BoxCollider>();
         triggerCollider.isTrigger = true;
         triggerCollider.enabled = false;
@@ -197,6 +198,7 @@ public class ShopBoonRewardInteractable : InteractableBase
 
     private void OnValidate()
     {
+        NormalizeMessages();
         BoxCollider box = GetComponent<BoxCollider>();
 
         if (box != null)
@@ -322,7 +324,7 @@ public class ShopBoonRewardInteractable : InteractableBase
                 this
             );
 
-            ShowWarningText("구매 가능한 득도가 없습니다");
+            ShowWarningText("No boons available");
             return;
         }
 
@@ -1151,6 +1153,12 @@ public class ShopBoonRewardInteractable : InteractableBase
     private void ShowInsufficientGoldText()
     {
         ShowWarningText(insufficientGoldMessage);
+    }
+
+    private void NormalizeMessages()
+    {
+        insufficientGoldMessage =
+            "Not enough gold";
     }
 
     private void ShowWarningText(string message)

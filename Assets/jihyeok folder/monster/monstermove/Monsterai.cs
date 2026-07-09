@@ -80,6 +80,12 @@ public class MonsterAI : MonsterStats
     [SerializeField]
     private float navMeshSampleRadius = 1.5f;
 
+    [Header("NavMesh 복구")]
+    [Tooltip("몬스터가 NavMesh 영역을 벗어났을 때, 복귀할 가장 가까운 지점을 찾는 검색 반경")]
+    [Min(0.5f)]
+    [SerializeField]
+    private float navMeshRecoverySampleRadius = 5f;
+
     [Header("NavMesh 회피")]
     [Tooltip("몬스터가 많으면 Low 또는 Med 권장")]
     [SerializeField]
@@ -396,9 +402,16 @@ public class MonsterAI : MonsterStats
             lastPlayerSampleTime = Time.time;
         }
 
-        if (agent == null ||
-            !agent.isOnNavMesh)
+        if (agent == null)
         {
+            return;
+        }
+
+        // NavMesh 영역을 벗어난 상태라면 즉시 가장 가까운 지점으로 복귀시킨다.
+        // 복귀 전까지는 상태 판단(Chase/Attack 등)을 진행하지 않는다.
+        if (!agent.isOnNavMesh)
+        {
+            TryRecoverToNavMesh();
             return;
         }
 
@@ -435,6 +448,72 @@ public class MonsterAI : MonsterStats
                 UpdateReturn();
                 break;
         }
+    }
+
+    /// <summary>
+    /// 에이전트가 NavMesh 영역 밖에 있을 때 호출된다.
+    /// 현재 위치를 기준으로 NavMesh.SamplePosition을 통해
+    /// 가장 가까운 유효 지점을 찾고, agent.Warp으로 그 지점에 즉시 복귀시킨다.
+    /// Warp은 isOnNavMesh 여부와 무관하게 호출 가능하며,
+    /// 호출 시 내부 경로/속도를 리셋하므로 SetDestinationIfChanged와의
+    /// 목표 캐시(lastRequestedDestination)도 함께 초기화한다.
+    /// </summary>
+    private void TryRecoverToNavMesh()
+    {
+        if (agent == null)
+        {
+            return;
+        }
+
+        // 1단계: 현재(이탈한) 위치 근처에서 가장 가까운 NavMesh 지점을 찾는다.
+        // 넉백/충돌 등으로 아주 멀리 튕겨나간 경우, 좁은 반경 안에는
+        // NavMesh가 아예 없을 수 있으므로 이 단계는 실패할 수 있다.
+        if (NavMesh.SamplePosition(
+                transform.position,
+                out NavMeshHit hit,
+                navMeshRecoverySampleRadius,
+                NavMesh.AllAreas
+            ))
+        {
+            agent.Warp(hit.position);
+
+            hasRequestedDestination = false;
+
+            return;
+        }
+
+        // 2단계: 현재 위치 근처에서 찾지 못했다면, 스폰 시점 위치(homePosition)는
+        // 항상 NavMesh 위였다고 신뢰할 수 있으므로 그 근처에서 재시도한다.
+        // 아무리 멀리 날아갔더라도 이 단계에서는 사실상 항상 성공한다.
+        if (NavMesh.SamplePosition(
+                homePosition,
+                out NavMeshHit homeHit,
+                navMeshRecoverySampleRadius,
+                NavMesh.AllAreas
+            ))
+        {
+            agent.Warp(homeHit.position);
+
+            hasRequestedDestination = false;
+
+            Debug.LogWarning(
+                $"[{MonsterName}] " +
+                "현재 위치 근처에서 NavMesh를 찾지 못해 " +
+                "스폰 지점(homePosition) 근처로 강제 복귀했습니다.",
+                gameObject
+            );
+
+            return;
+        }
+
+        // 스폰 지점 근처에서도 실패하는 경우는 사실상 발생하면 안 되는
+        // 예외 상황이다(NavMesh 자체가 손상되었거나 재빌드된 경우 등).
+        Debug.LogWarning(
+            $"[{MonsterName}] " +
+            "NavMesh 복귀 지점을 찾지 못했습니다(스폰 지점 포함). " +
+            "navMeshRecoverySampleRadius를 늘리거나 NavMesh 베이크 상태를 확인해야 합니다.",
+            gameObject
+        );
     }
 
     public void ApplyMonsterStatsToAI()

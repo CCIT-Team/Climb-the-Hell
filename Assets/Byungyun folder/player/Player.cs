@@ -315,6 +315,16 @@ public class Player : MonoBehaviour, IDamageable
         OnHpChanged?.Invoke(stats.CurrentHp);
     }
 
+    public void RefreshHpUI()
+    {
+        if (stats == null)
+        {
+            return;
+        }
+
+        OnHpChanged?.Invoke(stats.CurrentHp);
+    }
+
     public void AddFlowerLeaf(int amount)
     {
         if (amount <= 0)

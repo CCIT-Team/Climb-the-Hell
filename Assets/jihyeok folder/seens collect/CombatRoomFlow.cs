@@ -23,6 +23,8 @@ public class CombatRoomFlow : MonoBehaviour
     [Header("보정")]
     [Tooltip("이벤트를 놓쳐도 MonsterSpawner.IsCleared를 검사")]
     [SerializeField] private bool useClearStateFallback = true;
+    [SerializeField] private bool disableTrapsWhenCleared = true;
+    [SerializeField] private GameObject[] extraTrapObjects;
 
     private bool battleHandled;
     private bool rewardCompleted;
@@ -130,6 +132,7 @@ public class CombatRoomFlow : MonoBehaviour
 
         // 런이 확인된 뒤에만 중복 처리 방지 상태를 확정한다.
         battleHandled = true;
+        DisableRoomTraps();
 
         BoonCategory category =
             manager.CurrentRewardCategory;
@@ -204,6 +207,155 @@ public class CombatRoomFlow : MonoBehaviour
 
         roomChoiceGenerator
             .OpenPreparedDoors();
+    }
+
+    private void DisableRoomTraps()
+    {
+        if (!disableTrapsWhenCleared)
+        {
+            return;
+        }
+
+        StopTrapComponents<Spike>();
+        StopTrapComponents<Lava>();
+        StopTrapComponents<LavaPool>();
+        StopTrapComponents<LavaCouldron>();
+        StopTrapComponents<WarningCircle>();
+
+        if (extraTrapObjects == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < extraTrapObjects.Length; i++)
+        {
+            if (extraTrapObjects[i] != null)
+            {
+                StopTrapObject(extraTrapObjects[i]);
+            }
+        }
+    }
+
+    private void StopTrapComponents<T>()
+        where T : Component
+    {
+        T[] traps =
+            FindObjectsByType<T>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None
+            );
+
+        for (int i = 0; i < traps.Length; i++)
+        {
+            T trap =
+                traps[i];
+
+            if (trap == null ||
+                trap.gameObject.scene != gameObject.scene)
+            {
+                continue;
+            }
+
+            StopTrapComponent(trap);
+        }
+    }
+
+    private void StopTrapObject(
+        GameObject trapObject)
+    {
+        if (trapObject == null)
+        {
+            return;
+        }
+
+        Spike[] spikes =
+            trapObject.GetComponentsInChildren<Spike>(true);
+        Lava[] lavas =
+            trapObject.GetComponentsInChildren<Lava>(true);
+        LavaPool[] lavaPools =
+            trapObject.GetComponentsInChildren<LavaPool>(true);
+        LavaCouldron[] lavaCouldrons =
+            trapObject.GetComponentsInChildren<LavaCouldron>(true);
+        WarningCircle[] warningCircles =
+            trapObject.GetComponentsInChildren<WarningCircle>(true);
+
+        for (int i = 0; i < spikes.Length; i++)
+        {
+            StopTrapComponent(spikes[i]);
+        }
+
+        for (int i = 0; i < lavas.Length; i++)
+        {
+            StopTrapComponent(lavas[i]);
+        }
+
+        for (int i = 0; i < lavaPools.Length; i++)
+        {
+            StopTrapComponent(lavaPools[i]);
+        }
+
+        for (int i = 0; i < lavaCouldrons.Length; i++)
+        {
+            StopTrapComponent(lavaCouldrons[i]);
+        }
+
+        for (int i = 0; i < warningCircles.Length; i++)
+        {
+            StopTrapComponent(warningCircles[i]);
+        }
+    }
+
+    private void StopTrapComponent(
+        Component component)
+    {
+        if (component == null)
+        {
+            return;
+        }
+
+        Spike spike =
+            component as Spike;
+
+        if (spike != null)
+        {
+            spike.StopTrap();
+            return;
+        }
+
+        Lava lava =
+            component as Lava;
+
+        if (lava != null)
+        {
+            lava.StopTrap();
+            return;
+        }
+
+        LavaPool lavaPool =
+            component as LavaPool;
+
+        if (lavaPool != null)
+        {
+            lavaPool.StopTrap();
+            return;
+        }
+
+        LavaCouldron lavaCouldron =
+            component as LavaCouldron;
+
+        if (lavaCouldron != null)
+        {
+            lavaCouldron.StopTrap();
+            return;
+        }
+
+        WarningCircle warningCircle =
+            component as WarningCircle;
+
+        if (warningCircle != null)
+        {
+            warningCircle.enabled = false;
+        }
     }
 
     private void ValidateReferences()

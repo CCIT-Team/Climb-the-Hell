@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 /// <summary>
 /// 꺼져 있는 보상 UI를 열고,
@@ -109,6 +111,8 @@ public class BoonRewardUI : MonoBehaviour
             return false;
         }
 
+        EnsureUiInputReady();
+
         selectedCallback = onSelected;
         cancelledCallback = onCancelled;
 
@@ -129,6 +133,7 @@ public class BoonRewardUI : MonoBehaviour
          * 슬롯 Setup보다 먼저 전체 UI를 켠다.
          */
         rewardCanvas.SetActive(true);
+        EnsureRewardCanvasReceivesClicks();
 
         int visibleCount =
             Mathf.Min(
@@ -395,6 +400,95 @@ public class BoonRewardUI : MonoBehaviour
         }
 
         return valid;
+    }
+
+    private void EnsureUiInputReady()
+    {
+        EventSystem eventSystem =
+            EventSystem.current;
+
+        if (eventSystem == null)
+        {
+            eventSystem =
+                FindFirstObjectByType<EventSystem>(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (eventSystem == null)
+        {
+            GameObject eventSystemObject =
+                new GameObject(
+                    "RuntimeEventSystem"
+                );
+
+            eventSystem =
+                eventSystemObject
+                    .AddComponent<EventSystem>();
+
+            eventSystemObject
+                .AddComponent<StandaloneInputModule>();
+
+            return;
+        }
+
+        if (!eventSystem.gameObject.activeSelf)
+        {
+            eventSystem.gameObject.SetActive(true);
+        }
+
+        eventSystem.enabled = true;
+
+        BaseInputModule inputModule =
+            eventSystem.GetComponent<BaseInputModule>();
+
+        if (inputModule == null)
+        {
+            inputModule =
+                eventSystem.gameObject
+                    .AddComponent<StandaloneInputModule>();
+        }
+
+        inputModule.enabled = true;
+    }
+
+    private void EnsureRewardCanvasReceivesClicks()
+    {
+        if (rewardCanvas == null)
+        {
+            return;
+        }
+
+        Canvas canvas =
+            rewardCanvas.GetComponent<Canvas>();
+
+        if (canvas == null)
+        {
+            canvas =
+                rewardCanvas.GetComponentInParent<Canvas>(
+                    true
+                );
+        }
+
+        if (canvas != null &&
+            canvas.GetComponent<GraphicRaycaster>() == null)
+        {
+            canvas.gameObject
+                .AddComponent<GraphicRaycaster>();
+        }
+
+        CanvasGroup canvasGroup =
+            rewardCanvas.GetComponent<CanvasGroup>();
+
+        if (canvasGroup == null)
+        {
+            canvasGroup =
+                rewardCanvas.AddComponent<CanvasGroup>();
+        }
+
+        canvasGroup.alpha = 1f;
+        canvasGroup.interactable = true;
+        canvasGroup.blocksRaycasts = true;
     }
 
     private void OnDisable()

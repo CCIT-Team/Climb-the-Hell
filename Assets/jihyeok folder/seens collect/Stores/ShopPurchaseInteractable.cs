@@ -145,6 +145,7 @@ public class ShopPurchaseInteractable : InteractableBase
 
     private void Awake()
     {
+        NormalizeMessages();
         SetupPhysics();
         ResolveUI();
         LoadBoonData();
@@ -152,6 +153,7 @@ public class ShopPurchaseInteractable : InteractableBase
 
     private void OnValidate()
     {
+        NormalizeMessages();
         SetupPhysics();
     }
 
@@ -304,6 +306,7 @@ public class ShopPurchaseInteractable : InteractableBase
             maxHpIncreaseAmount;
 
         player.stats.AddBoonBonus(bonus);
+        player.RefreshHpUI();
 
         if (showLogs)
         {
@@ -442,6 +445,18 @@ public class ShopPurchaseInteractable : InteractableBase
         }
 
         return player.money.TrySpend(price);
+    }
+
+    private void NormalizeMessages()
+    {
+        notEnoughGoldMessage =
+            "Not enough gold";
+
+        hpFullMessage =
+            "HP is already full";
+
+        noBoonMessage =
+            "No boons available";
     }
 
     private void CreateBoonChoices()

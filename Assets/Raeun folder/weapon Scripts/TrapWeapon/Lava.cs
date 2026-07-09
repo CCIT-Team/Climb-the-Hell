@@ -11,9 +11,15 @@ public class Lava : MonoBehaviour
     public float damageRadius = 1.5f;
 
     private Coroutine arcRoutine;
+    private bool stopped;
 
     public void StartArc(Vector3 start, Vector3 end, float arcHeight)
     {
+        if (stopped)
+        {
+            return;
+        }
+
         if (arcRoutine != null)
             StopCoroutine(arcRoutine);
 
@@ -45,6 +51,12 @@ public class Lava : MonoBehaviour
 
     private void Explode()
     {
+        if (stopped)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
         Collider[] hits = Physics.OverlapSphere(transform.position, damageRadius);
 
         foreach (Collider hit in hits)
@@ -79,6 +91,19 @@ public class Lava : MonoBehaviour
     {
         if (arcRoutine != null)
             StopCoroutine(arcRoutine);
+    }
+
+    public void StopTrap()
+    {
+        stopped = true;
+
+        if (arcRoutine != null)
+        {
+            StopCoroutine(arcRoutine);
+            arcRoutine = null;
+        }
+
+        gameObject.SetActive(false);
     }
 
 #if UNITY_EDITOR
