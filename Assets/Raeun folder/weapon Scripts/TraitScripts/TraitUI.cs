@@ -1,14 +1,17 @@
+using TMPro;
 using UnityEngine;
 
-// 특성 UI 최상위 클래스
 public class TraitUI : UIBase
 {
-    [Header("참조")]
+    [Header("References")]
     [SerializeField]
     private TraitManager traitManager;
 
     [SerializeField]
     private TraitPanel traitPanel;
+
+    [SerializeField]
+    private TMP_Text currencyText;
 
     private void Awake()
     {
@@ -41,14 +44,32 @@ public class TraitUI : UIBase
         if (traitPanel == null)
         {
             Debug.LogWarning(
-                "[TraitUI] TraitPanel이 없어 UI 갱신을 건너뜁니다.",
+                "[TraitUI] TraitPanel is missing, so the UI refresh was skipped.",
                 this
             );
             return;
         }
 
+        RefreshCurrencyText();
+
         traitPanel.Init(traitManager);
         traitPanel.Refresh();
+    }
+
+    private void RefreshCurrencyText()
+    {
+        if (currencyText == null)
+        {
+            return;
+        }
+
+        int flowerLeaf =
+            traitManager != null
+                ? traitManager.GetTraitCurrency()
+                : 0;
+
+        currencyText.text =
+            $"{flowerLeaf} Petals";
     }
 
     private void ResolveReferences()
@@ -76,6 +97,24 @@ public class TraitUI : UIBase
         {
             traitPanel =
                 FindObjectOfType<TraitPanel>(true);
+        }
+
+        if (currencyText == null)
+        {
+            TMP_Text[] texts =
+                GetComponentsInChildren<TMP_Text>(true);
+
+            for (int i = 0;
+                 i < texts.Length;
+                 i++)
+            {
+                if (texts[i] != null &&
+                    texts[i].name == "CurrencyText")
+                {
+                    currencyText = texts[i];
+                    break;
+                }
+            }
         }
     }
 }

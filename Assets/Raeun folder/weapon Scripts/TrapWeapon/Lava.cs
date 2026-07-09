@@ -65,9 +65,9 @@ public class Lava : MonoBehaviour
             {
                 Player player = hit.GetComponent<Player>();
 
-                if (player != null && player.stats != null)
+                if (player != null)
                 {
-                    player.stats.TakeDamage(damage);
+                    player.TakeDamage(damage);
                     Debug.Log("Player Damage");
                 }
             }

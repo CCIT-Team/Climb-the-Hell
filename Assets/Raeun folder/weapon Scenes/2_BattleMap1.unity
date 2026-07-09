@@ -314,7 +314,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 42282940}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 1
   m_Extents: {x: 14.964001, y: 19.079, z: 13.095}
@@ -1425,7 +1425,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 405642609}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 1
   m_Extents: {x: 15.4210005, y: 12.729001, z: 14.544001}
@@ -1555,7 +1555,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 417357486}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 1
   m_Extents: {x: 15.4210005, y: 12.729001, z: 14.544001}
@@ -1795,7 +1795,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 482400127}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 1
   m_Extents: {x: 15.4210005, y: 12.729001, z: 14.544001}
@@ -3108,7 +3108,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 754002330}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 1
   m_Extents: {x: 15.4210005, y: 12.729001, z: 14.544001}
@@ -3827,7 +3827,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 910783215}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 1
   m_Extents: {x: 8.826, y: 13.229001, z: 7.089}
@@ -4705,7 +4705,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1170611249}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 1
   m_Extents: {x: 4.749, y: 5.972, z: 5.0270004}
@@ -4975,7 +4975,7 @@ NavMeshObstacle:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1247504225}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Shape: 1
   m_Extents: {x: 4.749, y: 5.972, z: 5.0270004}
@@ -14110,6 +14110,7 @@ MonoBehaviour:
   aiUpdateInterval: 0.4
   repathDistance: 0.6
   navMeshSampleRadius: 1.5
+  navMeshRecoverySampleRadius: 5
   avoidanceQuality: 1
   agentRadius: 0.3
   disengageRangeMultiplier: 1.35
@@ -16427,6 +16428,7 @@ MonoBehaviour:
   aiUpdateInterval: 0.4
   repathDistance: 0.6
   navMeshSampleRadius: 1.5
+  navMeshRecoverySampleRadius: 5
   avoidanceQuality: 1
   agentRadius: 0.3
   disengageRangeMultiplier: 1.35

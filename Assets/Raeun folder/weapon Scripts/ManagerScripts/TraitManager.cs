@@ -131,7 +131,7 @@ public class TraitManager : MonoBehaviour
             return false;
         }
 
-        if (!GameManager.Instance.TrySpendPermanentMoney(price))
+        if (!TrySpendTraitCurrency(price))
         {
             Debug.Log("재화 부족");
             return false;
@@ -424,9 +424,7 @@ public class TraitManager : MonoBehaviour
                 level
             );
 
-        return GameManager.Instance
-            .permanentMoney
-            .CurrentMoney >= price;
+        return GetTraitCurrency() >= price;
     }
 
     public void LoadTraits()
@@ -496,6 +494,15 @@ public class TraitManager : MonoBehaviour
                 );
         }
 
+        EnsureReferences();
+
+        if (player != null)
+        {
+            player.SetFlowerLeaf(
+                saveManager.saveData.permanentMoney
+            );
+        }
+
         ApplyAllTraits();
     }
 
@@ -526,5 +533,54 @@ public class TraitManager : MonoBehaviour
         return Mathf.RoundToInt(
             baseStartGold * multiplier
         );
+    }
+
+    public int GetTraitCurrency()
+    {
+        EnsureReferences();
+
+        if (player != null)
+        {
+            return player.FlowerLeaf;
+        }
+
+        return GameManager.Instance != null &&
+               GameManager.Instance.permanentMoney != null
+            ? GameManager.Instance
+                .permanentMoney
+                .CurrentMoney
+            : 0;
+    }
+
+    private bool TrySpendTraitCurrency(
+        int amount)
+    {
+        EnsureReferences();
+
+        if (amount <= 0)
+        {
+            return false;
+        }
+
+        if (player != null)
+        {
+            bool spent =
+                player.SpendFlowerLeaf(amount);
+
+            if (spent &&
+                GameManager.Instance != null &&
+                GameManager.Instance.permanentMoney != null)
+            {
+                GameManager.Instance
+                    .permanentMoney
+                    .SetMoney(player.FlowerLeaf);
+            }
+
+            return spent;
+        }
+
+        return GameManager.Instance != null &&
+               GameManager.Instance
+                   .TrySpendPermanentMoney(amount);
     }
 }

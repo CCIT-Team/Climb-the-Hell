@@ -21,7 +21,7 @@ MonoBehaviour:
   grade: 0
   category: 1
   stackable: 1
-  maxStack: 1
+  maxStack: 5
   categoryRequirements: []
   requiredBoonIds: []
   instantStatBonus:

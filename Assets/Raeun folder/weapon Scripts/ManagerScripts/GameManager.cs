@@ -173,8 +173,13 @@ public class GameManager : MonoBehaviour
             return;
         }
 
+        Player currentPlayer =
+            CurrentPlayer;
+
         saveManager.saveData.permanentMoney =
-            permanentMoney.CurrentMoney;
+            currentPlayer != null
+                ? currentPlayer.FlowerLeaf
+                : permanentMoney.CurrentMoney;
 
         saveManager.Save();
     }

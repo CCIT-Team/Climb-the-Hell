@@ -32,7 +32,6 @@ MonoBehaviour:
     maxHp: 0
     attack: 0
     moveSpeed: 0
-    mana: 0
     criticalChance: 0
     criticalMultiplier: 0
     dashDistance: 0
@@ -41,6 +40,9 @@ MonoBehaviour:
     dashCooldownRecoveryMultiplier: 0
     extraDashCount: 0
     dashInvincible: 0
+    deathResist: 0
+    goldMultiplier: 0
+    rerollCount: 0
   attackEffect:
     enableDashDamage: 0
     dashDamage: 0
@@ -54,7 +56,6 @@ MonoBehaviour:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -63,6 +64,9 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
   enemyReductionEffect:
     enabled: 0
     moveSpeedReductionRate: 0
@@ -93,7 +97,6 @@ MonoBehaviour:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -102,11 +105,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     debuffStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -115,5 +120,8 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     duration: 5
     permanent: 0

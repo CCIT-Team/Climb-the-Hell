@@ -90,6 +90,13 @@ public class Player : MonoBehaviour, IDamageable
     {
         // 현재 위치 저장
         playerPosition = transform.position;
+
+        if (stats != null &&
+            stats.IsDead() &&
+            !deathSequenceStarted)
+        {
+            Die();
+        }
     }
 
     // 데미지를 받았을 때 호출
@@ -305,7 +312,10 @@ public class Player : MonoBehaviour, IDamageable
         isDashInvincible = false;
         deathSequenceStarted = false;
 
+        ResetRunBoons();
+
         stats.Init(true);
+        remainDeathResist = stats.DeathResist;
 
         if (money != null)
         {
@@ -313,6 +323,33 @@ public class Player : MonoBehaviour, IDamageable
         }
 
         OnHpChanged?.Invoke(stats.CurrentHp);
+    }
+
+    private void ResetRunBoons()
+    {
+        if (boonInfo == null)
+        {
+            boonInfo = GetComponent<BoonInfo>();
+        }
+
+        if (boonInfo == null)
+        {
+            boonInfo =
+                GetComponentInChildren<BoonInfo>(
+                    true
+                );
+        }
+
+        if (boonInfo != null)
+        {
+            boonInfo.ClearAllBoons();
+            return;
+        }
+
+        if (stats != null)
+        {
+            stats.ClearBoonBonuses();
+        }
     }
 
     public void RefreshHpUI()
@@ -335,6 +372,21 @@ public class Player : MonoBehaviour, IDamageable
         flowerLeaf += amount;
 
         OnFlowerLeafChanged?.Invoke(flowerLeaf);
+    }
+
+    public bool SpendFlowerLeaf(int amount)
+    {
+        if (amount <= 0 ||
+            flowerLeaf < amount)
+        {
+            return false;
+        }
+
+        flowerLeaf -= amount;
+
+        OnFlowerLeafChanged?.Invoke(flowerLeaf);
+
+        return true;
     }
 
     public void SetFlowerLeaf(int amount)
@@ -415,6 +467,12 @@ public class Player : MonoBehaviour, IDamageable
         }
 
         OnDeath?.Invoke();
+        ResetRunGoldAndHeal();
+
+        if (RunFlowManager.Instance != null)
+        {
+            RunFlowManager.Instance.GoToLobby();
+        }
     }
 
     // 현재 HP 반환

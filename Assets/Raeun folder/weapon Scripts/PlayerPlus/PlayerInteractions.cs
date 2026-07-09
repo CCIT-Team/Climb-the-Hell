@@ -7,6 +7,11 @@ public class PlayerInteractions : MonoBehaviour
     private bool isInRange;
     private bool isOpen;
 
+    private void Awake()
+    {
+        ResolveTraitUI();
+    }
+
     private void Update()
     {
         if (!isInRange)
@@ -21,16 +26,42 @@ public class PlayerInteractions : MonoBehaviour
 
     private void ToggleTraitUI()
     {
+        ResolveTraitUI();
+
+        if (traitUI == null)
+        {
+            isOpen = false;
+
+            Debug.LogWarning(
+                "[PlayerInteractions] TraitUI를 찾지 못해 특성 UI를 열 수 없습니다.",
+                this
+            );
+
+            return;
+        }
+
         isOpen = !isOpen;
 
         if (isOpen)
         {
+            traitUI.RefreshUI();
             traitUI.Open();
         }
         else
         {
             traitUI.Close();
         }
+    }
+
+    private void ResolveTraitUI()
+    {
+        if (traitUI != null)
+        {
+            return;
+        }
+
+        traitUI =
+            FindObjectOfType<TraitUI>(true);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -47,7 +78,19 @@ public class PlayerInteractions : MonoBehaviour
         {
             isInRange = false;
             isOpen = false;
-            traitUI.Close();
+
+            ResolveTraitUI();
+
+            if (traitUI != null)
+            {
+                traitUI.Close();
+            }
         }
+    }
+
+    private void OnDisable()
+    {
+        isInRange = false;
+        isOpen = false;
     }
 }

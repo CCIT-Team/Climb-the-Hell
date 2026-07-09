@@ -66,14 +66,26 @@ public class Spike : MonoBehaviour
 
         if (other.CompareTag("Player"))
         {
-            other.GetComponent<PlayerStats>().TakeDamage(damage);
-            Debug.Log("Spike Damage to Player: " + damage);
+            Player player =
+                other.GetComponentInParent<Player>();
+
+            if (player != null)
+            {
+                player.TakeDamage(damage);
+                Debug.Log("Spike Damage to Player: " + damage);
+            }
         }
 
         if (other.CompareTag("Monster"))
         {
-            other.GetComponent<MonsterStats>().TakeDamage(damage);
-            Debug.Log("Spike Damage to Monster: " + damage);
+            MonsterStats monster =
+                other.GetComponentInParent<MonsterStats>();
+
+            if (monster != null)
+            {
+                monster.TakeDamage(damage);
+                Debug.Log("Spike Damage to Monster: " + damage);
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [DisallowMultipleComponent]
 public class PlayerFeedback : MonoBehaviour
@@ -230,9 +231,45 @@ public class PlayerFeedback : MonoBehaviour
             player.ResetRunGoldAndHeal();
         }
 
-        if (RunFlowManager.Instance != null)
+        if (!TryReturnToLobbyThroughRunFlow())
         {
-            RunFlowManager.Instance.GoToLobby();
+            yield return LoadLobbyDirectRoutine();
+        }
+
+        transitionRoutine = null;
+    }
+
+    private bool TryReturnToLobbyThroughRunFlow()
+    {
+        return RunFlowManager.Instance != null &&
+               RunFlowManager.Instance.GoToLobby();
+    }
+
+    private IEnumerator LoadLobbyDirectRoutine()
+    {
+        if (PlayerSceneMover.Instance != null)
+        {
+            PlayerSceneMover.Instance
+                .PreparePlayerForSceneTransition();
+        }
+
+        AsyncOperation operation =
+            SceneManager.LoadSceneAsync("Lobby");
+
+        if (operation == null)
+        {
+            yield break;
+        }
+
+        while (!operation.isDone)
+        {
+            yield return null;
+        }
+
+        if (PlayerSceneMover.Instance != null)
+        {
+            PlayerSceneMover.Instance
+                .SpawnOrMovePlayerToActiveScene("Default");
         }
     }
 

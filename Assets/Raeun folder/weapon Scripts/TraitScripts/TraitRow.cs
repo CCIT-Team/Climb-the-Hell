@@ -1,11 +1,11 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
-// 특성 UI 한 줄
 public class TraitRow : MonoBehaviour
 {
-    [Header("특성 데이터")]
+    [Header("Trait Data")]
     [SerializeField]
     private TraitData trait;
 
@@ -20,9 +20,11 @@ public class TraitRow : MonoBehaviour
     private TMP_Text priceText;
 
     [SerializeField]
+    [FormerlySerializedAs("effectText")]
     private TMP_Text stateText;
 
     [SerializeField]
+    [FormerlySerializedAs("upgradeButton")]
     private Button buyButton;
 
     private TraitManager traitManager;
@@ -68,10 +70,10 @@ public class TraitRow : MonoBehaviour
 
         if (trait == null)
         {
-            SetText(nameText, "Trait 없음");
+            SetText(nameText, "No Trait");
             SetText(levelText, "-");
             SetText(priceText, "-");
-            SetText(stateText, "데이터 없음");
+            SetText(stateText, "No Data");
 
             if (buyButton != null)
             {
@@ -107,7 +109,7 @@ public class TraitRow : MonoBehaviour
         if (isMaxLevel)
         {
             SetText(priceText, "MAX");
-            SetText(stateText, "최대 레벨");
+            SetText(stateText, "Max Level");
 
             if (buyButton != null)
             {
@@ -134,12 +136,12 @@ public class TraitRow : MonoBehaviour
 
         SetText(
             priceText,
-            price.ToString()
+            $"{price} Petals"
         );
 
         SetText(
             stateText,
-            canBuy ? "구매 가능" : "재화 부족"
+            canBuy ? "Available" : "Need Petals"
         );
 
         if (buyButton != null)
