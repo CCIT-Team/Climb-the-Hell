@@ -1088,6 +1088,8 @@ MonoBehaviour:
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   criticalColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   healColor: {r: 0.4, g: 1, b: 0.4, a: 1}
+  goldColor: {r: 1, g: 0.84, b: 0.1, a: 1}
+  flowerColor: {r: 1, g: 0.35, b: 0.75, a: 1}
   normalScale: 0.3
   criticalScale: 0.5
   sampleWidth: 3
@@ -4106,6 +4108,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83c19c711a62f8e448017c625b2a3807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  boxWidth: 1.5
+  boxHeight: 1.2
+  boxDepth: 1.5
+  boxOffset: 0.8
+  visualDuration: 0.15
+  idleColor: {r: 1, g: 1, b: 0, a: 0.2}
+  attackColor: {r: 1, g: 0, b: 0, a: 0.5}
 --- !u!114 &238037552
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5062,17 +5071,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 280052637}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!114 &284119030 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1724207031002222657, guid: 953b032a609fee440ac8552e4551569e, type: 3}
-  m_PrefabInstance: {fileID: 1561645287}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 27a5e1960b4b71e44bb8e41df4178581, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &285733695
 GameObject:
   m_ObjectHideFlags: 0
@@ -14477,6 +14475,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83c19c711a62f8e448017c625b2a3807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  boxWidth: 1.5
+  boxHeight: 1.2
+  boxDepth: 1.5
+  boxOffset: 0.8
+  visualDuration: 0.15
+  idleColor: {r: 1, g: 1, b: 0, a: 0.2}
+  attackColor: {r: 1, g: 0, b: 0, a: 0.5}
 --- !u!114 &816585601
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16907,6 +16912,9 @@ MonoBehaviour:
   distance: 12
   horizontalAngle: 45
   verticalAngle: 50
+  autoFindPlayer: 1
+  retryInterval: 0.25
+  showWarning: 1
 --- !u!1 &966447863
 GameObject:
   m_ObjectHideFlags: 0
@@ -17304,6 +17312,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83c19c711a62f8e448017c625b2a3807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  boxWidth: 1.5
+  boxHeight: 1.2
+  boxDepth: 1.5
+  boxOffset: 0.8
+  visualDuration: 0.15
+  idleColor: {r: 1, g: 1, b: 0, a: 0.2}
+  attackColor: {r: 1, g: 0, b: 0, a: 0.5}
 --- !u!114 &981161155
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31678,6 +31693,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83c19c711a62f8e448017c625b2a3807, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  boxWidth: 1.5
+  boxHeight: 1.2
+  boxDepth: 1.5
+  boxOffset: 0.8
+  visualDuration: 0.15
+  idleColor: {r: 1, g: 1, b: 0, a: 0.2}
+  attackColor: {r: 1, g: 0, b: 0, a: 0.5}
 --- !u!114 &1779717995
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -39767,8 +39789,11 @@ MonoBehaviour:
       rerollCount: 0
     playerLevel: 1
     currentHp: 0
+    consumedDeathResist: 0
+    consumedRerollCount: 0
   money:
     currentMoney: 0
+  flowerLeaf: 0
   playerPosition: {x: 0, y: 0, z: 0}
   exp: 0
   hitInvincibleDuration: 0.5
@@ -40423,7 +40448,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 5
   cameraTransform: {fileID: 0}
+  autoFindCamera: 1
+  cameraFindInterval: 0.25
   modelRotationOffset: 0
+  showCameraLog: 1
 --- !u!1 &800145475003440951
 GameObject:
   m_ObjectHideFlags: 0
@@ -42502,8 +42530,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1ea03e3d2c1672e4aa6bf6881ce9e125, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 0}
   ownedBoons: []
+  showLogs: 1
 --- !u!1 &1790018166975332387
 GameObject:
   m_ObjectHideFlags: 0
@@ -43205,8 +43233,11 @@ MonoBehaviour:
       rerollCount: 0
     playerLevel: 1
     currentHp: 0
+    consumedDeathResist: 0
+    consumedRerollCount: 0
   money:
     currentMoney: 0
+  flowerLeaf: 0
   playerPosition: {x: 0, y: 0, z: 0}
   exp: 0
   hitInvincibleDuration: 0.5
@@ -44765,6 +44796,7 @@ MonoBehaviour:
   defense: {fileID: 6203199263417628585}
   movement: {fileID: 3255733482400402558}
   debuff: {fileID: 8545479238765617736}
+  playerResolveRetryFrames: 120
 --- !u!1 &2638205185157864872
 GameObject:
   m_ObjectHideFlags: 0
@@ -45155,6 +45187,9 @@ MonoBehaviour:
   openDuration: 3
   closeDuration: 1
   triggerEnableDelay: 0.2
+  targetSpawnId: Default
+  jakduEntryHpCost: 10
+  minimumHpAfterJakduEntry: 1
   destinationSpawnPoint: {fileID: 0}
   combatRoomPrefab: {fileID: 0}
   attackCombatPrefab: {fileID: 0}
@@ -50851,6 +50886,10 @@ MonoBehaviour:
   interactionText: "E\uD0A4\uB85C \uC0C1\uD638\uC791\uC6A9"
   choiceCount: 3
   boonRewardUI: {fileID: 381848480677506168}
+  applyRewardUIFont: 1
+  rewardFontTargets: []
+  rewardTmpFont: {fileID: 0}
+  rewardLegacyFont: {fileID: 0}
   boonDatabase: {fileID: 11400000, guid: f84a796a9ecd6e3449a0d0025611df25, type: 2}
   resourcesPath: Boons
   defaultRewardPrefab: {fileID: 0}
@@ -50858,6 +50897,10 @@ MonoBehaviour:
   defenseRewardPrefab: {fileID: 0}
   mobilityRewardPrefab: {fileID: 0}
   debuffRewardPrefab: {fileID: 0}
+  jakduRewardPrefab: {fileID: 0}
+  jakduVisualLocalPosition: {x: 0, y: 0, z: 0}
+  jakduVisualLocalRotation: {x: 0, y: 0, z: 0}
+  jakduVisualScaleMultiplier: {x: 1, y: 1, z: 1}
   landingOffset: {x: 0, y: 0.5, z: 0}
   dropHeight: 5
   dropDuration: 0.28
@@ -52602,6 +52645,9 @@ MonoBehaviour:
   openDuration: 3
   closeDuration: 1
   triggerEnableDelay: 0.2
+  targetSpawnId: Default
+  jakduEntryHpCost: 10
+  minimumHpAfterJakduEntry: 1
   destinationSpawnPoint: {fileID: 0}
   combatRoomPrefab: {fileID: 0}
   attackCombatPrefab: {fileID: 0}
@@ -53598,7 +53644,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 5
   cameraTransform: {fileID: 0}
+  autoFindCamera: 1
+  cameraFindInterval: 0.25
   modelRotationOffset: 0
+  showCameraLog: 1
 --- !u!23 &6448751258820729999
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -56780,17 +56829,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e054ed5eca220f4795ee8c3ef085694, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 459753172807770576}
-  traitManager: {fileID: 284119030}
-  startGoldText: {fileID: 0}
-  hpText: {fileID: 0}
-  attackText: {fileID: 0}
-  critText: {fileID: 0}
-  critDamageText: {fileID: 0}
-  goldMultiplierText: {fileID: 0}
-  dashText: {fileID: 0}
-  deathText: {fileID: 0}
-  rerollText: {fileID: 0}
 --- !u!114 &7682072497208065936
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -56803,10 +56841,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b56f469504844cf49fa3e24207c8636, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 459753172807770576}
-  damageNumberPoint: {fileID: 4952802287753420919}
-  fallbackOffset: {x: 0, y: 2, z: 0}
-  playerHitColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1 &7683071721756943400
 GameObject:
   m_ObjectHideFlags: 0
@@ -58773,6 +58807,8 @@ MonoBehaviour:
       rerollCount: 0
     playerLevel: 1
     currentHp: 0
+    consumedDeathResist: 0
+    consumedRerollCount: 0
   player: {fileID: 0}
   playerAnimator: {fileID: 0}
   playerController: {fileID: 0}

@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: SpecialMirror
   description: can SpecialMirror
   icon: {fileID: 21300000, guid: c31652e00368f7b43b6720fd5d08d8e3, type: 3}
-  rewardTitle: yeoggyeol
+  rewardTitle: Yeoggyeol
   rewardDescription: Reflects projectiles during a special attack.
   grade: 0
   category: 2

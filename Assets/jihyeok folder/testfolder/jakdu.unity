@@ -629,6 +629,8 @@ MonoBehaviour:
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   criticalColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   healColor: {r: 0.4, g: 1, b: 0.4, a: 1}
+  goldColor: {r: 1, g: 0.84, b: 0.1, a: 1}
+  flowerColor: {r: 1, g: 0.35, b: 0.75, a: 1}
   normalScale: 0.3
   criticalScale: 0.5
   sampleWidth: 3
@@ -10236,7 +10238,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -6857985237120394683, guid: 10729500c5b5042479c5ba6f589140ae, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3889525679794555467, guid: 10729500c5b5042479c5ba6f589140ae, type: 3}
       propertyPath: m_RootOrder
@@ -21406,7 +21408,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 30.841965, y: 25.458933, z: 29.088028}
   m_Center: {x: 0.100499645, y: 12.452426, z: -0.24278262}
@@ -25994,6 +25996,7 @@ MonoBehaviour:
     consumedRerollCount: 0
   money:
     currentMoney: 0
+  flowerLeaf: 0
   playerPosition: {x: 0, y: 0, z: 0}
   exp: 0
   hitInvincibleDuration: 0.5
@@ -28576,6 +28579,7 @@ MonoBehaviour:
   rewardSpawnPoint: {fileID: 1166160145119652473}
   roomChoiceGenerator: {fileID: 1769134447}
   showLogs: 1
+  roomStateWaitFrames: 30
 --- !u!1 &5532309033617610342
 GameObject:
   m_ObjectHideFlags: 0

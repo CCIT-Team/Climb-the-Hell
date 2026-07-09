@@ -62,4 +62,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/jihyeok folder/testfolder/jakdu.unity
     guid: 887cba4531d66bd4d8554ea1d7bb3550
+  - enabled: 1
+    path: Assets/main Sences/Stores.unity
+    guid: 1955f0abce6272046bf5baf6da0e33bf
   m_configObjects: {}

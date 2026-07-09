@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: tickdamage
   description: tickdamage
   icon: {fileID: 21300000, guid: db0e4dad922b34d48a54a4310d9e9307, type: 3}
-  rewardTitle: resentment
-  rewardDescription: Upon hitting a monster, inflicts a resentment effect that deals
+  rewardTitle: Wonhan
+  rewardDescription: Upon hitting a monster, inflicts a Wonhan effect that deals
     3 damage per second for 5 seconds.
   grade: 0
   category: 4

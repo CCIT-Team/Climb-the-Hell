@@ -89,6 +89,12 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // 정지 상태에서 팽이처럼 회전하는 현상 방지:
+        // 충돌 등으로 발생한 각속도가 Angular Drag(기본 0.05)로 서서히 감쇠되는 동안
+        // 육안으로 "빙글빙글 도는" 것처럼 보이므로, 회전을 스크립트가 100% 소유하도록
+        // 매 프레임 물리 엔진의 각속도를 0으로 강제 초기화한다.
+        rb.angularVelocity = Vector3.zero;
+
         // 대시 중에는 PlayerDash가 이동과 회전을 담당
         if (playerDash != null &&
             playerDash.IsDashing())
