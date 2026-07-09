@@ -172,12 +172,12 @@ public class RangeWeapon : Weapon
             endPoint =
                 hit.point;
 
-            MonsterAI monster =
+            MonsterStats monster =
                 hit.collider
-                    .GetComponentInParent<MonsterAI>();
+                    .GetComponentInParent<MonsterStats>();
 
             if (monster != null &&
-                monster.IsAlive())
+                monster.currentHp > 0)
             {
                 /*
                  * PlayerStats의 최종 공격력과

@@ -52,11 +52,18 @@ public static class DemonBossAutoBinder
         if (bossObject == null)
         {
             Debug.LogWarning(
-                "[DemonBossAutoBinder] RealBossRoom에서 보스 후보를 찾지 못했습니다."
+                "[DemonBossAutoBinder] Could not find a boss object in RealBossRoom."
             );
 
             return;
         }
+
+        PreparePlacedBoss(
+            scene,
+            bossObject
+        );
+
+        PrepareCombatSetup(bossObject);
 
         DemonAdaptiveBossAI boss =
             bossObject.GetComponent<DemonAdaptiveBossAI>();
@@ -75,9 +82,143 @@ public static class DemonBossAutoBinder
         }
 
         Debug.Log(
-            "[DemonBossAutoBinder] Demon_APose를 RealBossRoom 보스로 설정했습니다.",
+            "[DemonBossAutoBinder] Demon_APose is ready as the RealBossRoom boss.",
             bossObject
         );
+    }
+
+    private static void PreparePlacedBoss(
+        Scene scene,
+        GameObject bossObject)
+    {
+        Transform bossTransform =
+            bossObject.transform;
+
+        Transform previousParent =
+            bossTransform.parent;
+
+        Vector3 worldPosition =
+            bossTransform.position;
+
+        Quaternion worldRotation =
+            bossTransform.rotation;
+
+        Vector3 worldScale =
+            bossTransform.lossyScale;
+
+        if (previousParent != null)
+        {
+            HidePointVisuals(previousParent);
+            bossTransform.SetParent(null, true);
+        }
+
+        if (bossObject.scene != scene)
+        {
+            SceneManager.MoveGameObjectToScene(
+                bossObject,
+                scene
+            );
+        }
+
+        bossTransform.position = worldPosition;
+        bossTransform.rotation = worldRotation;
+        bossTransform.localScale = worldScale;
+
+        if (!bossObject.activeSelf)
+        {
+            bossObject.SetActive(true);
+        }
+    }
+
+    private static void PrepareCombatSetup(
+        GameObject bossObject)
+    {
+        if (bossObject == null)
+        {
+            return;
+        }
+
+        try
+        {
+            bossObject.tag = "Monster";
+        }
+        catch
+        {
+            Debug.LogWarning(
+                "[DemonBossAutoBinder] Monster tag is missing from TagManager.",
+                bossObject
+            );
+        }
+
+        int monsterLayer =
+            LayerMask.NameToLayer("Monster");
+
+        if (monsterLayer >= 0)
+        {
+            SetLayerRecursively(
+                bossObject.transform,
+                monsterLayer
+            );
+        }
+
+        MonsterDamageNumberWatcher watcher =
+            bossObject.GetComponent<MonsterDamageNumberWatcher>();
+
+        if (watcher == null)
+        {
+            bossObject.AddComponent<MonsterDamageNumberWatcher>();
+        }
+    }
+
+    private static void SetLayerRecursively(
+        Transform target,
+        int layer)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        target.gameObject.layer = layer;
+
+        for (int i = 0; i < target.childCount; i++)
+        {
+            SetLayerRecursively(
+                target.GetChild(i),
+                layer
+            );
+        }
+    }
+
+    private static void HidePointVisuals(
+        Transform pointRoot)
+    {
+        if (pointRoot == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers =
+            pointRoot.GetComponents<Renderer>();
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+            {
+                renderers[i].enabled = false;
+            }
+        }
+
+        Collider[] colliders =
+            pointRoot.GetComponents<Collider>();
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null)
+            {
+                colliders[i].enabled = false;
+            }
+        }
     }
 
     private static GameObject FindObjectInScene(

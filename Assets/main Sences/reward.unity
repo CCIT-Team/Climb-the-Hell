@@ -17938,7 +17938,7 @@ MonoBehaviour:
   interactionPriority: 0
   interactionText: "E\uD0A4\uB85C \uC0C1\uD638\uC791\uC6A9"
   permanentHealthBonus:
-    maxHp: 0
+    maxHp: 20
     attack: 0
     moveSpeed: 0
     criticalChance: 0
@@ -17952,6 +17952,7 @@ MonoBehaviour:
     deathResist: 0
     goldMultiplier: 0
     rerollCount: 0
+  fallbackMaxHpIncrease: 20
   roomFlow: {fileID: 1396785605978844328}
   disableAfterClaim: 1
   disappearMode: 2

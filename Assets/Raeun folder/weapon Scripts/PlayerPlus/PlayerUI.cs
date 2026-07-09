@@ -15,6 +15,11 @@ public class PlayerUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI flowerText;
     [SerializeField] private TextMeshProUGUI floorText;
 
+    [Header("Boss UI")]
+    [SerializeField] private Slider bossHpSlider;
+    [SerializeField] private TextMeshProUGUI bossHpText;
+    [SerializeField] private TextMeshProUGUI bossNameText;
+
     [Header("Boon")]
     [SerializeField] private GameObject attack;
     [SerializeField] private GameObject defense;
@@ -75,6 +80,7 @@ public class PlayerUI : MonoBehaviour
         RefreshGold();
         RefreshFlower();
         RefreshFloor();
+        HideBossHealth();
 
         Subscribe();
     }
@@ -188,6 +194,53 @@ public class PlayerUI : MonoBehaviour
         floorText.text = "Floor " + floor;
     }
 
+    public void ShowBossHealth(
+        string bossName,
+        int current,
+        int max
+    )
+    {
+        CacheBossUI();
+
+        if (bossHpSlider == null)
+        {
+            return;
+        }
+
+        int safeMax =
+            Mathf.Max(1, max);
+
+        bossHpSlider.gameObject.SetActive(true);
+        bossHpSlider.minValue = 0f;
+        bossHpSlider.maxValue = safeMax;
+        bossHpSlider.value =
+            Mathf.Clamp(current, 0, safeMax);
+
+        if (bossHpText != null)
+        {
+            bossHpText.text =
+                $"{Mathf.Clamp(current, 0, safeMax)} / {safeMax}";
+        }
+
+        if (bossNameText != null)
+        {
+            bossNameText.text =
+                string.IsNullOrWhiteSpace(bossName)
+                    ? "Boss"
+                    : bossName;
+        }
+    }
+
+    public void HideBossHealth()
+    {
+        CacheBossUI();
+
+        if (bossHpSlider != null)
+        {
+            bossHpSlider.gameObject.SetActive(false);
+        }
+    }
+
     public void SetBoon(string type, bool active)
     {
         switch (type)
@@ -223,6 +276,54 @@ public class PlayerUI : MonoBehaviour
                 FindFirstObjectByType<Player>(
                     FindObjectsInactive.Include
                 );
+        }
+    }
+
+    private void CacheBossUI()
+    {
+        if (bossHpSlider == null)
+        {
+            Slider[] sliders =
+                GetComponentsInChildren<Slider>(true);
+
+            for (int i = 0; i < sliders.Length; i++)
+            {
+                if (sliders[i] != null &&
+                    sliders[i].name == "BossHpSlider")
+                {
+                    bossHpSlider = sliders[i];
+                    break;
+                }
+            }
+        }
+
+        TextMeshProUGUI[] texts =
+            GetComponentsInChildren<TextMeshProUGUI>(true);
+
+        if (bossHpText == null)
+        {
+            for (int i = 0; i < texts.Length; i++)
+            {
+                if (texts[i] != null &&
+                    texts[i].name == "BossHpText")
+                {
+                    bossHpText = texts[i];
+                    break;
+                }
+            }
+        }
+
+        if (bossNameText == null)
+        {
+            for (int i = 0; i < texts.Length; i++)
+            {
+                if (texts[i] != null &&
+                    texts[i].name == "BossNameText")
+                {
+                    bossNameText = texts[i];
+                    break;
+                }
+            }
         }
     }
 

@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public class DemonAdaptiveBossAI : MonoBehaviour
@@ -31,11 +33,12 @@ public class DemonAdaptiveBossAI : MonoBehaviour
     private enum BossAction
     {
         Pursue,
+        RushingCharge,
+        HeavySlam,
+        LeapSlam,
         ClawCombo,
         ShadowDash,
-        HellfireFan,
-        GroundSlam,
-        SoulDrain
+        GroundSlam
     }
 
     [Header("Boss Stats")]
@@ -77,6 +80,14 @@ public class DemonAdaptiveBossAI : MonoBehaviour
     [SerializeField]
     private float decisionCooldown = 0.45f;
 
+    [Header("Clear")]
+    [SerializeField]
+    private float clearDisplayDuration = 1.2f;
+
+    [Header("Boss UI")]
+    [SerializeField]
+    private string bossDisplayName = "Yacha Demon";
+
     private readonly Dictionary<string, float[]> qTable =
         new Dictionary<string, float[]>();
 
@@ -87,6 +98,7 @@ public class DemonAdaptiveBossAI : MonoBehaviour
     private Rigidbody body;
     private Coroutine actionRoutine;
     private Material telegraphMaterial;
+    private PlayerUI playerUI;
 
     private Vector3 lastPlayerPosition;
     private int lastKnownHp;
@@ -184,10 +196,7 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         }
 
         telegraphMaterial =
-            new Material(Shader.Find("Sprites/Default"));
-
-        telegraphMaterial.color =
-            new Color(1f, 0.05f, 0.02f, 0.32f);
+            CreateTelegraphMaterial();
     }
 
     private void Start()
@@ -199,6 +208,9 @@ public class DemonAdaptiveBossAI : MonoBehaviour
             lastPlayerPosition =
                 player.transform.position;
         }
+
+        ResolveBossUI();
+        RefreshBossHealthUI();
     }
 
     private void Update()
@@ -210,6 +222,7 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         }
 
         TrackDamageTaken();
+        RefreshBossHealthUI();
 
         if (stats.currentHp <= 0)
         {
@@ -258,6 +271,18 @@ public class DemonAdaptiveBossAI : MonoBehaviour
                 yield return PursueRoutine(0.8f);
                 break;
 
+            case BossAction.RushingCharge:
+                yield return RushingChargeRoutine();
+                break;
+
+            case BossAction.HeavySlam:
+                yield return HeavySlamRoutine();
+                break;
+
+            case BossAction.LeapSlam:
+                yield return LeapSlamRoutine();
+                break;
+
             case BossAction.ClawCombo:
                 yield return ClawComboRoutine();
                 break;
@@ -266,16 +291,8 @@ public class DemonAdaptiveBossAI : MonoBehaviour
                 yield return ShadowDashRoutine();
                 break;
 
-            case BossAction.HellfireFan:
-                yield return HellfireFanRoutine();
-                break;
-
             case BossAction.GroundSlam:
                 yield return GroundSlamRoutine();
-                break;
-
-            case BossAction.SoulDrain:
-                yield return SoulDrainRoutine();
                 break;
         }
 
@@ -328,6 +345,150 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         }
     }
 
+    private IEnumerator RushingChargeRoutine()
+    {
+        StopAgent();
+
+        Vector3 start =
+            transform.position;
+
+        Vector3 target =
+            player != null
+                ? player.transform.position
+                : start + transform.forward * 9f;
+
+        Vector3 direction =
+            target - start;
+
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.1f)
+        {
+            direction =
+                transform.forward;
+        }
+
+        direction.Normalize();
+
+        float dashDistance = 10f;
+        float dashWidth = 2.2f;
+
+        ShowLineTelegraph(
+            start,
+            start + direction * dashDistance,
+            0.65f,
+            dashWidth
+        );
+
+        yield return new WaitForSeconds(0.65f);
+
+        TriggerAnimator("Dash");
+
+        float duration = 0.35f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+
+            transform.position +=
+                direction *
+                (dashDistance / duration) *
+                Time.deltaTime;
+
+            TryDamagePlayerAlongLine(
+                direction,
+                dashDistance,
+                dashWidth * 0.55f,
+                specialDamage + 8
+            );
+
+            yield return null;
+        }
+    }
+
+    private IEnumerator HeavySlamRoutine()
+    {
+        StopAgent();
+        FacePlayer();
+        TriggerAnimator("Attack");
+
+        float radius = 5.2f;
+
+        ShowCircleTelegraph(
+            transform.position,
+            radius,
+            0.85f
+        );
+
+        yield return new WaitForSeconds(0.85f);
+
+        TryDamagePlayerInRadius(
+            specialDamage + 12,
+            radius
+        );
+
+        yield return new WaitForSeconds(0.25f);
+    }
+
+    private IEnumerator LeapSlamRoutine()
+    {
+        StopAgent();
+
+        Vector3 start =
+            transform.position;
+
+        Vector3 target =
+            player != null
+                ? player.transform.position
+                : start + transform.forward * 6f;
+
+        target.y = start.y;
+
+        float radius = 4.6f;
+
+        ShowCircleTelegraph(
+            target,
+            radius,
+            0.75f
+        );
+
+        yield return new WaitForSeconds(0.25f);
+
+        TriggerAnimator("Jump");
+
+        float duration = 0.5f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(elapsed / duration);
+
+            Vector3 position =
+                Vector3.Lerp(start, target, ratio);
+
+            position.y +=
+                Mathf.Sin(ratio * Mathf.PI) * 2.8f;
+
+            transform.position = position;
+
+            yield return null;
+        }
+
+        transform.position = target;
+        TriggerAnimator("Attack");
+
+        TryDamagePlayerInRadius(
+            specialDamage + 16,
+            radius
+        );
+
+        yield return new WaitForSeconds(0.3f);
+    }
+
     private IEnumerator ShadowDashRoutine()
     {
         StopAgent();
@@ -356,7 +517,8 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         ShowLineTelegraph(
             start,
             start + direction * 8f,
-            0.42f
+            0.42f,
+            1.7f
         );
 
         yield return new WaitForSeconds(0.42f);
@@ -386,53 +548,6 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         }
     }
 
-    private IEnumerator HellfireFanRoutine()
-    {
-        StopAgent();
-        TriggerAnimator("Attack");
-
-        yield return new WaitForSeconds(0.55f);
-
-        int rays = 5;
-        float coneAngle = 70f;
-
-        for (int i = 0; i < rays; i++)
-        {
-            float ratio =
-                rays <= 1
-                    ? 0.5f
-                    : (float)i / (rays - 1);
-
-            float angle =
-                Mathf.Lerp(
-                    -coneAngle * 0.5f,
-                    coneAngle * 0.5f,
-                    ratio
-                );
-
-            Vector3 direction =
-                Quaternion.Euler(0f, angle, 0f) *
-                transform.forward;
-
-            ShowLineTelegraph(
-                transform.position + Vector3.up * 0.25f,
-                transform.position +
-                Vector3.up * 0.25f +
-                direction * farRange,
-                0.18f
-            );
-
-            TryDamagePlayerAlongLine(
-                direction,
-                farRange,
-                1.05f,
-                specialDamage
-            );
-        }
-
-        yield return new WaitForSeconds(0.35f);
-    }
-
     private IEnumerator GroundSlamRoutine()
     {
         StopAgent();
@@ -454,57 +569,6 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         );
 
         yield return new WaitForSeconds(0.35f);
-    }
-
-    private IEnumerator SoulDrainRoutine()
-    {
-        StopAgent();
-
-        if (player != null &&
-            Vector3.Distance(
-                transform.position,
-                player.transform.position
-            ) > midRange)
-        {
-            Vector3 behindPlayer =
-                player.transform.position -
-                player.transform.forward * 3.2f;
-
-            WarpNear(behindPlayer);
-        }
-
-        TriggerAnimator("Attack");
-
-        float duration = 1.4f;
-        float tickTimer = 0f;
-        float elapsed = 0f;
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            tickTimer += Time.deltaTime;
-
-            FacePlayer();
-
-            if (tickTimer >= 0.35f)
-            {
-                tickTimer = 0f;
-
-                TryDamagePlayer(
-                    Mathf.Max(5, specialDamage / 3),
-                    6f,
-                    55f
-                );
-
-                if (stats != null &&
-                    stats.currentHp > 0)
-                {
-                    stats.Heal(3);
-                }
-            }
-
-            yield return null;
-        }
     }
 
     private BossAction ChooseAction(
@@ -611,6 +675,25 @@ public class DemonAdaptiveBossAI : MonoBehaviour
             reward -= 5f;
         }
 
+        if (action == BossAction.RushingCharge &&
+            distance >= meleeRange)
+        {
+            reward += 4f;
+        }
+
+        if (action == BossAction.HeavySlam &&
+            distance <= 5.5f)
+        {
+            reward += 4f;
+        }
+
+        if (action == BossAction.LeapSlam &&
+            distance >= meleeRange &&
+            distance <= farRange)
+        {
+            reward += 4f;
+        }
+
         if (action == BossAction.Pursue &&
             distance > midRange)
         {
@@ -621,18 +704,6 @@ public class DemonAdaptiveBossAI : MonoBehaviour
             distance <= 4.5f)
         {
             reward += 3f;
-        }
-
-        if (action == BossAction.HellfireFan &&
-            distance >= meleeRange)
-        {
-            reward += 2f;
-        }
-
-        if (action == BossAction.SoulDrain &&
-            stats.currentHp < stats.monsterhp * 0.45f)
-        {
-            reward += 2f;
         }
 
         return reward;
@@ -906,6 +977,41 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         }
     }
 
+    private void ResolveBossUI()
+    {
+        if (playerUI != null)
+        {
+            return;
+        }
+
+        playerUI =
+            FindFirstObjectByType<PlayerUI>(
+                FindObjectsInactive.Include
+            );
+    }
+
+    private void RefreshBossHealthUI()
+    {
+        if (dead ||
+            stats == null)
+        {
+            return;
+        }
+
+        ResolveBossUI();
+
+        if (playerUI == null)
+        {
+            return;
+        }
+
+        playerUI.ShowBossHealth(
+            bossDisplayName,
+            stats.currentHp,
+            stats.monsterhp
+        );
+    }
+
     private void MoveToward(
         Vector3 target)
     {
@@ -1039,7 +1145,8 @@ public class DemonAdaptiveBossAI : MonoBehaviour
     private void ShowLineTelegraph(
         Vector3 from,
         Vector3 to,
-        float duration)
+        float duration,
+        float width = 0.35f)
     {
         GameObject line =
             GameObject.CreatePrimitive(
@@ -1062,7 +1169,7 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         line.transform.rotation =
             Quaternion.LookRotation(direction);
         line.transform.localScale =
-            new Vector3(0.35f, 0.03f, length);
+            new Vector3(width, 0.035f, length);
 
         Collider collider =
             line.GetComponent<Collider>();
@@ -1083,6 +1190,29 @@ public class DemonAdaptiveBossAI : MonoBehaviour
         Destroy(line, duration);
     }
 
+    private Material CreateTelegraphMaterial()
+    {
+        Shader shader =
+            Shader.Find("Standard");
+
+        Material material =
+            new Material(shader);
+
+        material.color =
+            new Color(1f, 0f, 0f, 0.48f);
+
+        material.SetFloat("_Mode", 3f);
+        material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        material.SetInt("_ZWrite", 0);
+        material.DisableKeyword("_ALPHATEST_ON");
+        material.EnableKeyword("_ALPHABLEND_ON");
+        material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+        material.renderQueue = 3000;
+
+        return material;
+    }
+
     private IEnumerator DieRoutine()
     {
         if (dead)
@@ -1092,6 +1222,7 @@ public class DemonAdaptiveBossAI : MonoBehaviour
 
         dead = true;
         StopAgent();
+        HideBossHealthUI();
 
         if (actionRoutine != null)
         {
@@ -1109,8 +1240,99 @@ public class DemonAdaptiveBossAI : MonoBehaviour
             colliders[i].enabled = false;
         }
 
-        yield return new WaitForSeconds(1.2f);
+        yield return ShowClearPanelRoutine();
+
+        KillPlayerForLobbyReturn();
 
         Destroy(gameObject);
+    }
+
+    private void HideBossHealthUI()
+    {
+        ResolveBossUI();
+
+        if (playerUI != null)
+        {
+            playerUI.HideBossHealth();
+        }
+    }
+
+    private IEnumerator ShowClearPanelRoutine()
+    {
+        GameObject canvasObject =
+            new GameObject("Boss Clear Canvas");
+
+        Canvas canvas =
+            canvasObject.AddComponent<Canvas>();
+
+        canvas.renderMode =
+            RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 10000;
+
+        canvasObject.AddComponent<CanvasScaler>();
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        GameObject panelObject =
+            new GameObject("Black Panel");
+
+        panelObject.transform.SetParent(
+            canvasObject.transform,
+            false
+        );
+
+        RectTransform panelRect =
+            panelObject.AddComponent<RectTransform>();
+
+        StretchToFullScreen(panelRect);
+
+        Image panelImage =
+            panelObject.AddComponent<Image>();
+
+        panelImage.color =
+            new Color(0f, 0f, 0f, 0.94f);
+
+        GameObject textObject =
+            new GameObject("Clear Text");
+
+        textObject.transform.SetParent(
+            panelObject.transform,
+            false
+        );
+
+        RectTransform textRect =
+            textObject.AddComponent<RectTransform>();
+
+        StretchToFullScreen(textRect);
+
+        TextMeshProUGUI clearText =
+            textObject.AddComponent<TextMeshProUGUI>();
+
+        clearText.text = "clear";
+        clearText.alignment = TextAlignmentOptions.Center;
+        clearText.fontSize = 96f;
+        clearText.color = Color.white;
+
+        yield return new WaitForSeconds(clearDisplayDuration);
+    }
+
+    private void StretchToFullScreen(
+        RectTransform rect)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+    }
+
+    private void KillPlayerForLobbyReturn()
+    {
+        ResolvePlayer();
+
+        if (player == null)
+        {
+            return;
+        }
+
+        player.ForceDeath();
     }
 }

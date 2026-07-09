@@ -30,6 +30,10 @@ public class RewardRoomHealthInteractable : InteractableBase
     private PlayerStatValues permanentHealthBonus =
         new PlayerStatValues();
 
+    [SerializeField]
+    [Min(1)]
+    private int fallbackMaxHpIncrease = 20;
+
     [Header("방 진행")]
     [Tooltip("보상 획득 후 다음 방 문을 여는 NonCombatRoomFlow")]
     [SerializeField]
@@ -267,6 +271,12 @@ public class RewardRoomHealthInteractable : InteractableBase
 
         PlayerStatValues appliedBonus =
             permanentHealthBonus.Clone();
+
+        if (appliedBonus.maxHp <= 0)
+        {
+            appliedBonus.maxHp =
+                fallbackMaxHpIncrease;
+        }
 
         player.stats.AddBoonBonus(
             appliedBonus

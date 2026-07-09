@@ -80,8 +80,8 @@ public class MeleeWeapon : Weapon
     private Vector3[] fanPositions;
     private Collider[] hitBuffer;
 
-    private readonly HashSet<MonsterAI> hitMonsters =
-        new HashSet<MonsterAI>();
+    private readonly HashSet<MonsterStats> hitMonsters =
+        new HashSet<MonsterStats>();
 
     private static readonly int IsAttackingHash =
         Animator.StringToHash("IsAttacking");
@@ -709,11 +709,11 @@ public class MeleeWeapon : Weapon
                 continue;
             }
 
-            MonsterAI monster =
-                hit.GetComponentInParent<MonsterAI>();
+            MonsterStats monster =
+                hit.GetComponentInParent<MonsterStats>();
 
             if (monster == null ||
-                !monster.IsAlive() ||
+                monster.currentHp <= 0 ||
                 !hitMonsters.Add(monster))
             {
                 continue;
@@ -875,11 +875,11 @@ public class MeleeWeapon : Weapon
                 continue;
             }
 
-            MonsterAI monster =
-                hit.GetComponentInParent<MonsterAI>();
+            MonsterStats monster =
+                hit.GetComponentInParent<MonsterStats>();
 
             if (monster == null ||
-                !monster.IsAlive() ||
+                monster.currentHp <= 0 ||
                 !hitMonsters.Add(monster))
             {
                 continue;

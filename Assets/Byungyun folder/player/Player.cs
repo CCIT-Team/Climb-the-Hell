@@ -305,6 +305,22 @@ public class Player : MonoBehaviour, IDamageable
         OnHpChanged?.Invoke(stats.CurrentHp);
     }
 
+    public void ForceDeath()
+    {
+        StopHitInvincible();
+
+        isDashInvincible = false;
+
+        if (stats != null &&
+            stats.CurrentHp > 0)
+        {
+            stats.TakeDamage(stats.CurrentHp);
+            OnHpChanged?.Invoke(stats.CurrentHp);
+        }
+
+        Die();
+    }
+
     public void ResetRunGoldAndHeal()
     {
         StopHitInvincible();
