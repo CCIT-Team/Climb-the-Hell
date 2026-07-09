@@ -68,8 +68,11 @@ public class Attack : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             // 마우스가 UI 위에 있다면 공격하지 않음
-            if (EventSystem.current.IsPointerOverGameObject())
+            if (EventSystem.current != null &&
+                EventSystem.current.IsPointerOverGameObject())
+            {
                 return;
+            }
 
             // 공격 전에 플레이어를 마우스 방향으로 회전
             FaceMouseDirection();
@@ -93,6 +96,11 @@ public class Attack : MonoBehaviour
     private void FaceMouseDirection()
     {
         // 카메라나 플레이어 컨트롤러가 없으면 종료
+        if (mainCamera == null)
+        {
+            FindCamera();
+        }
+
         if (mainCamera == null ||
             playerController == null)
         {

@@ -15,7 +15,7 @@ MonoBehaviour:
   roomId: battle3
   displayName: battle3
   roomType: 4
-  sceneName: CombatRoom_3
+  sceneName: 2_BattleMap3
   minimumFloor: 1
   maximumFloor: 9
   baseWeight: 10
