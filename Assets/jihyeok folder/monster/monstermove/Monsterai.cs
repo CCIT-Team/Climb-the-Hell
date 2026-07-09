@@ -96,6 +96,26 @@ public class MonsterAI : MonsterStats
     [SerializeField]
     private float agentRadius = 0.3f;
 
+    [Header("NavMesh Stuck Recovery")]
+    [SerializeField]
+    private bool useStuckRecovery = true;
+
+    [Min(0.1f)]
+    [SerializeField]
+    private float stuckCheckInterval = 0.6f;
+
+    [Min(0.01f)]
+    [SerializeField]
+    private float stuckMoveThreshold = 0.08f;
+
+    [Min(1)]
+    [SerializeField]
+    private int stuckChecksBeforeRecovery = 3;
+
+    [Min(0.5f)]
+    [SerializeField]
+    private float stuckRecoveryRadius = 2.5f;
+
     [Header("귀환")]
     [Min(1f)]
     [SerializeField]
@@ -283,6 +303,9 @@ public class MonsterAI : MonsterStats
 
     private Coroutine attackRoutine;
     private bool hasStarted;
+    private Vector3 lastStuckCheckPosition;
+    private float nextStuckCheckTime;
+    private int stuckCheckCount;
 
     private readonly HashSet<int> animatorParameterHashes =
         new HashSet<int>();
@@ -318,6 +341,7 @@ public class MonsterAI : MonsterStats
     private void Start()
     {
         homePosition = transform.position;
+        lastStuckCheckPosition = transform.position;
 
         FindPlayer();
 
@@ -423,6 +447,8 @@ public class MonsterAI : MonsterStats
                 player.position
             );
 
+        MonitorNavigationHealth();
+
         UpdateAnimator();
 
         if (attackRoutine != null)
@@ -514,6 +540,138 @@ public class MonsterAI : MonsterStats
             "navMeshRecoverySampleRadius를 늘리거나 NavMesh 베이크 상태를 확인해야 합니다.",
             gameObject
         );
+    }
+
+    private void MonitorNavigationHealth()
+    {
+        if (!useStuckRecovery ||
+            agent == null ||
+            !agent.isOnNavMesh ||
+            attackRoutine != null ||
+            currentState == State.Idle ||
+            currentState == State.Dead)
+        {
+            return;
+        }
+
+        if (agent.pathPending)
+        {
+            return;
+        }
+
+        if (agent.hasPath &&
+            agent.pathStatus !=
+            NavMeshPathStatus.PathComplete)
+        {
+            RecoverFromStuck();
+            return;
+        }
+
+        if (Time.time < nextStuckCheckTime)
+        {
+            return;
+        }
+
+        nextStuckCheckTime =
+            Time.time + stuckCheckInterval;
+
+        float movedDistance =
+            GetPlanarDistance(
+                transform.position,
+                lastStuckCheckPosition
+            );
+
+        lastStuckCheckPosition =
+            transform.position;
+
+        if (!agent.hasPath ||
+            agent.remainingDistance <=
+            agent.stoppingDistance + 0.4f)
+        {
+            stuckCheckCount = 0;
+            return;
+        }
+
+        if (movedDistance >
+            stuckMoveThreshold)
+        {
+            stuckCheckCount = 0;
+            return;
+        }
+
+        stuckCheckCount++;
+
+        if (stuckCheckCount >=
+            stuckChecksBeforeRecovery)
+        {
+            RecoverFromStuck();
+        }
+    }
+
+    private void RecoverFromStuck()
+    {
+        if (agent == null ||
+            !agent.isOnNavMesh)
+        {
+            return;
+        }
+
+        stuckCheckCount = 0;
+        hasRequestedDestination = false;
+
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
+
+        Vector3 desiredTarget =
+            currentState == State.Return
+                ? homePosition
+                : player != null
+                    ? player.position
+                    : homePosition;
+
+        if (NavMesh.SamplePosition(
+                desiredTarget,
+                out NavMeshHit targetHit,
+                navMeshRecoverySampleRadius,
+                NavMesh.AllAreas
+            ))
+        {
+            agent.isStopped = false;
+            agent.SetDestination(targetHit.position);
+            lastRequestedDestination =
+                targetHit.position;
+            hasRequestedDestination = true;
+            return;
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            Vector2 randomCircle =
+                UnityEngine.Random.insideUnitCircle *
+                stuckRecoveryRadius;
+
+            Vector3 samplePosition =
+                transform.position +
+                new Vector3(
+                    randomCircle.x,
+                    0f,
+                    randomCircle.y
+                );
+
+            if (NavMesh.SamplePosition(
+                    samplePosition,
+                    out NavMeshHit nearbyHit,
+                    stuckRecoveryRadius,
+                    NavMesh.AllAreas
+                ))
+            {
+                agent.Warp(nearbyHit.position);
+                hasRequestedDestination = false;
+                return;
+            }
+        }
+
+        TryRecoverToNavMesh();
     }
 
     public void ApplyMonsterStatsToAI()
@@ -1315,8 +1473,15 @@ public class MonsterAI : MonsterStats
                 repathDistance
             );
 
+        bool pathNeedsRefresh =
+            agent.pathPending ||
+            !agent.hasPath ||
+            agent.pathStatus !=
+            NavMeshPathStatus.PathComplete;
+
         if (hasRequestedDestination &&
             agent.hasPath &&
+            !pathNeedsRefresh &&
             (
                 finalTarget -
                 lastRequestedDestination
