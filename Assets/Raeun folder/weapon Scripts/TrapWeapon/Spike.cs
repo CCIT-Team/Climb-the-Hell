@@ -15,6 +15,7 @@ public class Spike : MonoBehaviour
     private Vector3 upPos;
 
     private bool isActive = false;
+    private bool stopped;
 
     private void Start()
     {
@@ -28,7 +29,17 @@ public class Spike : MonoBehaviour
     {
         while (true)
         {
+            if (stopped)
+            {
+                yield break;
+            }
+
             yield return new WaitForSeconds(activeDelay);
+
+            if (stopped)
+            {
+                yield break;
+            }
 
             isActive = true;
 
@@ -46,6 +57,11 @@ public class Spike : MonoBehaviour
 
     private void OnTriggerStay(Collider other)
     {
+        if (stopped)
+        {
+            return;
+        }
+
         if (!isActive) return;
 
         if (other.CompareTag("Player"))
@@ -58,6 +74,18 @@ public class Spike : MonoBehaviour
         {
             other.GetComponent<MonsterStats>().TakeDamage(damage);
             Debug.Log("Spike Damage to Monster: " + damage);
+        }
+    }
+
+    public void StopTrap()
+    {
+        stopped = true;
+        isActive = false;
+        StopAllCoroutines();
+
+        if (spikeModel != null)
+        {
+            spikeModel.localPosition = downPos;
         }
     }
 }

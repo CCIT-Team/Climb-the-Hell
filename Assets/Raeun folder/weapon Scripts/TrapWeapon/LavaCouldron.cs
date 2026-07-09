@@ -16,6 +16,7 @@ public class LavaCouldron : MonoBehaviour
 
     private List<Lava> pool = new();
     private Transform footTarget;
+    private bool stopped;
 
     private void Start()
     {
@@ -25,7 +26,11 @@ public class LavaCouldron : MonoBehaviour
             footTarget = player.transform.Find("FootTarget");
 
         CreatePool();
-        InvokeRepeating(nameof(SpawnLava), 0f, warningTime);
+
+        if (!stopped)
+        {
+            InvokeRepeating(nameof(SpawnLava), 0f, warningTime);
+        }
     }
 
     private void CreatePool()
@@ -50,6 +55,9 @@ public class LavaCouldron : MonoBehaviour
 
     private void SpawnLava()
     {
+        if (stopped)
+            return;
+
         if (footTarget == null)
             return;
 
@@ -79,5 +87,19 @@ public class LavaCouldron : MonoBehaviour
         lava.StartArc(transform.position, targetPos, arcHeight);
 
         Destroy(warn, warningTime);
+    }
+
+    public void StopTrap()
+    {
+        stopped = true;
+        CancelInvoke(nameof(SpawnLava));
+
+        for (int i = 0; i < pool.Count; i++)
+        {
+            if (pool[i] != null)
+            {
+                pool[i].StopTrap();
+            }
+        }
     }
 }

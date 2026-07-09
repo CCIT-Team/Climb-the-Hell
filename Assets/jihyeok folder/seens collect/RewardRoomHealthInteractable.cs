@@ -272,6 +272,8 @@ public class RewardRoomHealthInteractable : InteractableBase
             appliedBonus
         );
 
+        player.RefreshHpUI();
+
         DamageNumberManager damageNumberManager =
             DamageNumberManager.Instance;
 

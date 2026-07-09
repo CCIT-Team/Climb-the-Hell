@@ -4936,7 +4936,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.16666667
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 0}
+  m_NavMeshData: {fileID: 23800000, guid: 290c9cf77444d02409d2c156cc3ff6a8, type: 2}
   m_BuildHeightMesh: 0
 --- !u!65 &1455904070
 BoxCollider:
@@ -11207,6 +11207,8 @@ MonoBehaviour:
   boonReward: {fileID: 8629132569406062381}
   roomChoiceGenerator: {fileID: 8050574623945814364}
   useClearStateFallback: 1
+  disableTrapsWhenCleared: 1
+  extraTrapObjects: []
 --- !u!224 &3264943685034710964
 RectTransform:
   m_ObjectHideFlags: 0
