@@ -28,6 +28,12 @@ public class DamageNumberManager : MonoBehaviour
     [SerializeField]
     private Color healColor = new Color(0.4f, 1f, 0.4f);
 
+    [SerializeField]
+    private Color goldColor = new Color(1f, 0.84f, 0.1f);
+
+    [SerializeField]
+    private Color flowerColor = new Color(1f, 0.35f, 0.75f);
+
     [Min(0.001f)]
     [SerializeField]
     private float normalScale = 0.1f;
@@ -185,6 +191,90 @@ public class DamageNumberManager : MonoBehaviour
             normalScale,
             false,
             "+"
+        );
+    }
+
+    public void ShowGold(
+        int amount,
+        Vector3 basePosition,
+        int slotIndex
+    )
+    {
+        ShowPositive(
+            amount,
+            basePosition,
+            slotIndex,
+            goldColor,
+            "+",
+            "G"
+        );
+    }
+
+    public void ShowFlower(
+        int amount,
+        Vector3 basePosition,
+        int slotIndex
+    )
+    {
+        ShowPositive(
+            amount,
+            basePosition,
+            slotIndex,
+            flowerColor,
+            "+",
+            "F"
+        );
+    }
+
+    private void ShowPositive(
+        int amount,
+        Vector3 basePosition,
+        int slotIndex,
+        Color color,
+        string prefix,
+        string suffix
+    )
+    {
+        if (amount <= 0 ||
+            damageNumberPrefab == null)
+        {
+            return;
+        }
+
+        if (poissonOffsets.Count == 0)
+        {
+            GeneratePoissonOffsets();
+        }
+
+        int safeIndex =
+            Mathf.Abs(slotIndex) %
+            poissonOffsets.Count;
+
+        Vector2 offset =
+            poissonOffsets[safeIndex];
+
+        Vector3 spawnPosition =
+            basePosition +
+            new Vector3(
+                offset.x,
+                offset.y,
+                0f
+            );
+
+        DamageNumber3D number =
+            Instantiate(
+                damageNumberPrefab,
+                spawnPosition,
+                Quaternion.identity
+            );
+
+        number.Initialize(
+            amount,
+            color,
+            normalScale,
+            false,
+            prefix,
+            suffix
         );
     }
 

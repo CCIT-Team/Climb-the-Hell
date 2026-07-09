@@ -1,74 +1,81 @@
-using TMPro;
 using UnityEngine;
 
-// 특성(허브) UI를 관리하는 클래스
+// 특성 UI 최상위 클래스
 public class TraitUI : UIBase
 {
-    [Header("UI")]
-    // 현재 보유한 영구 재화 표시
-    public TMP_Text currencyText;
+    [Header("참조")]
+    [SerializeField]
+    private TraitManager traitManager;
 
-    [Header("Reference")]
-    // 특성 목록을 관리하는 패널
-    public TraitPanel traitPanel;
+    [SerializeField]
+    private TraitPanel traitPanel;
 
-    // GameManager에 있는 영구 재화 데이터
-    private MoneyData PermanentMoney =>
-        GameManager.Instance.permanentMoney;
-
-    [SerializeField] private TraitManager traitManager;
-
-    // UI가 열릴 때 호출
-    public override void Open()
+    private void Awake()
     {
-        // 부모 클래스의 Open() 실행 (UI 활성화)
-        base.Open();
-
-        // UI 최신 정보로 갱신
-        RefreshUI();
+        ResolveReferences();
     }
 
-    // 전체 UI 갱신
+    public void Init(
+        TraitManager manager
+    )
+    {
+        traitManager = manager;
+
+        ResolveReferences();
+
+        if (traitPanel != null)
+        {
+            traitPanel.Init(traitManager);
+        }
+    }
+
     public void RefreshUI()
     {
-        // 현재 돈 표시 갱신
-        UpdateMoneyText(
-            PermanentMoney.CurrentMoney);
+        ResolveReferences();
 
+        if (traitManager != null)
+        {
+            traitManager.EnsureReferences();
+        }
+
+        if (traitPanel == null)
+        {
+            Debug.LogWarning(
+                "[TraitUI] TraitPanel이 없어 UI 갱신을 건너뜁니다.",
+                this
+            );
+            return;
+        }
+
+        traitPanel.Init(traitManager);
         traitPanel.Refresh();
     }
 
-    // UI가 활성화될 때
-    private void OnEnable()
+    private void ResolveReferences()
     {
-        if (GameManager.Instance == null)
-            return;
+        if (traitManager == null &&
+            GameManager.Instance != null)
+        {
+            traitManager =
+                GameManager.Instance.traitManager;
+        }
 
-        GameManager.Instance.permanentMoney.OnMoneyChanged += UpdateMoneyText;
+        if (traitManager == null)
+        {
+            traitManager =
+                FindObjectOfType<TraitManager>(true);
+        }
 
-        traitManager.OnTraitChanged += RefreshUI;
-    }
+        if (traitPanel == null)
+        {
+            traitPanel =
+                GetComponentInChildren<TraitPanel>(true);
+        }
 
-    // UI가 비활성화될 때
-    private void OnDisable()
-    {
-        if (GameManager.Instance == null)
-            return;
-
-        GameManager.Instance.permanentMoney.OnMoneyChanged -= UpdateMoneyText;
-
-        traitManager.OnTraitChanged -= RefreshUI;
-    }
-
-    // 돈 UI 갱신
-    private void UpdateMoneyText(int money)
-    {
-        // 보유한 돈 표시
-        currencyText.text = $"{money}p";
-    }
-
-    public void OnClickClose()
-    {
-        Close();
+        if (traitPanel == null)
+        {
+            traitPanel =
+                FindObjectOfType<TraitPanel>(true);
+        }
     }
 }

@@ -1,19 +1,39 @@
 using UnityEngine;
 
+/// <summary>
+/// 쿼터뷰 카메라.
+/// target이 비어 있으면 자동으로 Player를 찾는다.
+/// PlayerSceneMover, GameManager, Player 태그, Player 컴포넌트, PlayerController 순서로 찾는다.
+/// </summary>
 public class QuarterViewCamera : MonoBehaviour
 {
     [Header("Target")]
-    public Transform target;
-
-    [Header("자동 타겟 찾기")]
-    [SerializeField] private string playerTag = "Player";
+    [SerializeField]
+    private Transform target;
 
     [Header("카메라 설정")]
-    public float distance = 7f;
-    public float horizontalAngle = 45f;
-    public float verticalAngle = 50f;
+    [SerializeField]
+    private float distance = 7f;
 
-    private Vector3 _offset;
+    [SerializeField]
+    private float horizontalAngle = 45f;
+
+    [SerializeField]
+    private float verticalAngle = 50f;
+
+    [Header("자동 탐색")]
+    [SerializeField]
+    private bool autoFindPlayer = true;
+
+    [SerializeField]
+    private float retryInterval = 0.25f;
+
+    [Header("디버그")]
+    [SerializeField]
+    private bool showWarning = true;
+
+    private Vector3 offset;
+    private float retryTimer;
 
     private void Awake()
     {
@@ -21,91 +41,174 @@ public class QuarterViewCamera : MonoBehaviour
         TryFindPlayerTarget();
     }
 
-    private void Start()
-    {
-        // 플레이어가 Awake 이후에 생성되는 경우 대비
-        TryFindPlayerTarget();
-    }
-
     private void LateUpdate()
     {
-        if (target == null)
+        if (target == null && autoFindPlayer)
         {
-            TryFindPlayerTarget();
+            retryTimer -= Time.deltaTime;
 
-            if (target == null)
+            if (retryTimer <= 0f)
             {
-                return;
+                retryTimer = retryInterval;
+                TryFindPlayerTarget();
             }
         }
 
-        transform.position = target.position + _offset;
+        if (target == null)
+        {
+            return;
+        }
 
-        // rotation을 Euler로 완전 고정
-        // LookAt 사용 안 함
-        transform.rotation = Quaternion.Euler(
-            verticalAngle,
-            horizontalAngle,
-            0f
-        );
+        transform.position =
+            target.position + offset;
+
+        transform.rotation =
+            Quaternion.Euler(
+                verticalAngle,
+                horizontalAngle,
+                0f
+            );
     }
 
     private void CalculateOffset()
     {
-        Quaternion rot = Quaternion.Euler(
-            verticalAngle,
-            horizontalAngle,
-            0f
-        );
+        Quaternion rotation =
+            Quaternion.Euler(
+                verticalAngle,
+                horizontalAngle,
+                0f
+            );
 
-        _offset = rot * new Vector3(
-            0f,
-            0f,
-            -distance
-        );
+        offset =
+            rotation *
+            new Vector3(
+                0f,
+                0f,
+                -distance
+            );
     }
 
     private void TryFindPlayerTarget()
     {
-        // 이미 인스펙터에서 넣었으면 자동 변경하지 않음
         if (target != null)
         {
             return;
         }
 
-        GameObject playerObject = null;
+        if (PlayerSceneMover.Instance != null &&
+            PlayerSceneMover.Instance.CurrentPlayer != null)
+        {
+            target =
+                PlayerSceneMover.Instance
+                    .CurrentPlayer
+                    .transform;
+
+            if (showWarning)
+            {
+                Debug.Log(
+                    "[QuarterViewCamera] PlayerSceneMover.CurrentPlayer를 Target으로 설정했습니다.",
+                    this
+                );
+            }
+
+            return;
+        }
+
+        if (GameManager.Instance != null &&
+            GameManager.Instance.CurrentPlayer != null)
+        {
+            target =
+                GameManager.Instance
+                    .CurrentPlayer
+                    .transform;
+
+            if (showWarning)
+            {
+                Debug.Log(
+                    "[QuarterViewCamera] GameManager.CurrentPlayer를 Target으로 설정했습니다.",
+                    this
+                );
+            }
+
+            return;
+        }
+
+        GameObject taggedPlayer = null;
 
         try
         {
-            playerObject = GameObject.FindGameObjectWithTag(playerTag);
+            taggedPlayer =
+                GameObject.FindGameObjectWithTag("Player");
         }
         catch
         {
-            Debug.LogWarning(
-                $"[QuarterViewCamera] '{playerTag}' 태그가 프로젝트에 없습니다. " +
-                "Player 오브젝트에 태그를 만들고 지정하세요.",
-                this
-            );
+            taggedPlayer = null;
+        }
+
+        if (taggedPlayer != null)
+        {
+            target = taggedPlayer.transform;
+
+            if (showWarning)
+            {
+                Debug.Log(
+                    "[QuarterViewCamera] Player 태그 오브젝트를 Target으로 설정했습니다.",
+                    this
+                );
+            }
 
             return;
         }
 
-        if (playerObject == null)
+        Player[] players =
+            FindObjectsOfType<Player>(true);
+
+        if (players != null &&
+            players.Length > 0 &&
+            players[0] != null)
+        {
+            target =
+                players[0].transform;
+
+            if (showWarning)
+            {
+                Debug.Log(
+                    "[QuarterViewCamera] Player 컴포넌트를 Target으로 설정했습니다.",
+                    this
+                );
+            }
+
+            return;
+        }
+
+        PlayerController[] controllers =
+            FindObjectsOfType<PlayerController>(true);
+
+        if (controllers != null &&
+            controllers.Length > 0 &&
+            controllers[0] != null)
+        {
+            target =
+                controllers[0].transform;
+
+            if (showWarning)
+            {
+                Debug.Log(
+                    "[QuarterViewCamera] PlayerController를 Target으로 설정했습니다.",
+                    this
+                );
+            }
+
+            return;
+        }
+
+        if (showWarning)
         {
             Debug.LogWarning(
-                $"[QuarterViewCamera] '{playerTag}' 태그를 가진 오브젝트를 찾지 못했습니다.",
+                "[QuarterViewCamera] Player를 찾지 못했습니다.",
                 this
             );
-
-            return;
         }
-
-        target = playerObject.transform;
-
-        Debug.Log(
-            $"[QuarterViewCamera] 자동 타겟 설정 완료: {target.name}",
-            target
-        );
     }
 
     private void OnValidate()

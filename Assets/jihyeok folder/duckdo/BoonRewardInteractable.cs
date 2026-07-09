@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -1357,7 +1358,14 @@ public class BoonRewardInteractable : InteractableBase
             manager != null &&
             manager.IsRunActive &&
             manager.CurrentRoomType ==
-                RoomType.Jakdu;
+                RoomType.Jakdu ||
+            SceneManager
+                .GetActiveScene()
+                .name
+                .IndexOf(
+                    "Jakdu",
+                    StringComparison.OrdinalIgnoreCase
+                ) >= 0;
     }
 
     private void EnsureLandingLight()

@@ -15,7 +15,7 @@ MonoBehaviour:
   roomId: BossNode
   displayName: BossNode
   roomType: 9
-  sceneName: BossRoom
+  sceneName: RealBossRoom
   minimumFloor: 10
   maximumFloor: 10
   baseWeight: 10

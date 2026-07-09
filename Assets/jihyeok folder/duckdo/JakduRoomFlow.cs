@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 작두방 씬에만 배치하는 흐름 관리자.
@@ -29,6 +30,10 @@ public class JakduRoomFlow : MonoBehaviour
     [SerializeField]
     private bool showLogs = true;
 
+    [Min(1)]
+    [SerializeField]
+    private int roomStateWaitFrames = 30;
+
     private bool initialized;
     private bool completed;
 
@@ -38,21 +43,21 @@ public class JakduRoomFlow : MonoBehaviour
          * LoadingSceneController가 목적지 정보를 확정한 뒤
          * 현재 방 타입을 읽도록 한 프레임 기다린다.
          */
-        yield return null;
+        for (int i = 0;
+             i < roomStateWaitFrames &&
+             !IsJakduRoomActive();
+             i++)
+        {
+            yield return null;
+        }
 
         if (!ValidateReferences())
         {
             yield break;
         }
 
-        RunFlowManager manager =
-            RunFlowManager.Instance;
-
         bool isJakduRoom =
-            manager != null &&
-            manager.IsRunActive &&
-            manager.CurrentRoomType ==
-                RoomType.Jakdu;
+            IsJakduRoomActive();
 
         if (!isJakduRoom)
         {
@@ -158,6 +163,28 @@ public class JakduRoomFlow : MonoBehaviour
         }
 
         return valid;
+    }
+
+    private static bool IsJakduRoomActive()
+    {
+        RunFlowManager manager =
+            RunFlowManager.Instance;
+
+        if (manager != null &&
+            manager.IsRunActive &&
+            manager.CurrentRoomType == RoomType.Jakdu)
+        {
+            return true;
+        }
+
+        string sceneName =
+            SceneManager.GetActiveScene().name;
+
+        return
+            sceneName.IndexOf(
+                "Jakdu",
+                System.StringComparison.OrdinalIgnoreCase
+            ) >= 0;
     }
 
     private void OnDisable()

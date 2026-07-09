@@ -1,42 +1,105 @@
 using UnityEngine;
 
-// 특성 목록(패널)을 관리하는 클래스
-public class TraitPanel : MonoBehaviour
+// 특성 Row 여러 개를 관리하는 패널
+public class TraitPanel : UIBase
 {
-    // 특성 데이터를 관리하는 매니저
-    public TraitManager traitManager;
+    [Header("참조")]
+    [SerializeField]
+    private TraitManager traitManager;
 
-    // 특성 UI
-    public TraitUI traitUI;
+    [Header("Row 목록")]
+    [SerializeField]
+    private TraitRow[] rows;
 
-    // 화면에 표시될 모든 특성 Row
-    public TraitRow[] rows;
-
-    private void Start()
+    private void Awake()
     {
-        // 패널 초기화
-        Init();
+        CacheRows();
     }
 
-    // 모든 Row 초기화
-    public void Init()
+    public void Init(
+        TraitManager manager
+    )
     {
+        traitManager = manager;
+
+        ResolveManager();
+        CacheRows();
+        SetupRows();
+    }
+
+    public void Refresh()
+    {
+        ResolveManager();
+        CacheRows();
+        SetupRows();
+
+        if (rows == null)
+        {
+            return;
+        }
+
         for (int i = 0; i < rows.Length; i++)
         {
-            // 각 Row에 표시할 TraitData와 필요한 참조 전달
-            rows[i].Init(
-                traitManager.allTraits[i],
-                traitManager);
+            TraitRow row = rows[i];
+
+            if (row == null)
+            {
+                continue;
+            }
+
+            row.Refresh();
         }
     }
 
-    // 모든 Row 새로고침
-    public void Refresh()
+    private void ResolveManager()
     {
-        foreach (TraitRow row in rows)
+        if (traitManager == null &&
+            GameManager.Instance != null)
         {
-            // 현재 레벨, 가격, 버튼 상태 등을 갱신
-            row.Refresh();
+            traitManager =
+                GameManager.Instance.traitManager;
+        }
+
+        if (traitManager == null)
+        {
+            traitManager =
+                FindObjectOfType<TraitManager>(true);
+        }
+
+        if (traitManager != null)
+        {
+            traitManager.EnsureReferences();
+        }
+    }
+
+    private void CacheRows()
+    {
+        if (rows == null ||
+            rows.Length == 0)
+        {
+            rows =
+                GetComponentsInChildren<TraitRow>(true);
+        }
+    }
+
+    private void SetupRows()
+    {
+        if (traitManager == null ||
+            rows == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < rows.Length; i++)
+        {
+            TraitRow row = rows[i];
+
+            if (row == null)
+            {
+                continue;
+            }
+
+            row.SetManager(traitManager);
         }
     }
 }

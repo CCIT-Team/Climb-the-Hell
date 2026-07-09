@@ -7,6 +7,7 @@ using UnityEngine;
 /// - Configure 호출 시 목적지 표시 프리팹을 생성한다.
 /// - Destination Spawn Point의 월드 위치에 프리팹을 생성한다.
 /// - 문이 열리면 Scene Trigger를 활성화한다.
+/// - 플레이어가 들어오면 RunFlowManager에 다음 방 이동을 요청한다.
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public class DungeonDoor : MonoBehaviour
@@ -33,6 +34,23 @@ public class DungeonDoor : MonoBehaviour
     [Min(0f)]
     [SerializeField]
     private float triggerEnableDelay = 0.2f;
+
+    [Header("다음 씬 Player Spawn ID")]
+    [Tooltip(
+        "다음 씬에 있는 PlayerSpawnPoint의 Spawn ID와 같아야 합니다.\n" +
+        "보통 Default로 통일하면 됩니다."
+    )]
+    [SerializeField]
+    private string targetSpawnId = "Default";
+
+    [Header("Jakdu Entry Cost")]
+    [Min(0)]
+    [SerializeField]
+    private int jakduEntryHpCost = 10;
+
+    [Min(0)]
+    [SerializeField]
+    private int minimumHpAfterJakduEntry = 1;
 
     [Header("목적지 프리팹 생성 기준점")]
     [Tooltip(
@@ -92,9 +110,6 @@ public class DungeonDoor : MonoBehaviour
 
     private Coroutine doorRoutine;
 
-    /// <summary>
-    /// 현재 문에 유효한 이동 경로가 설정되어 있는지 확인한다.
-    /// </summary>
     public bool HasValidRoute
     {
         get
@@ -111,9 +126,6 @@ public class DungeonDoor : MonoBehaviour
         InitializeSceneTrigger();
     }
 
-    /// <summary>
-    /// 문 회전값을 초기화한다.
-    /// </summary>
     private void InitializeDoorRotation()
     {
         if (doorPivot == null)
@@ -139,9 +151,6 @@ public class DungeonDoor : MonoBehaviour
         doorPivot.localRotation = closedRotation;
     }
 
-    /// <summary>
-    /// 문 진입 Trigger를 초기화한다.
-    /// </summary>
     private void InitializeSceneTrigger()
     {
         if (sceneTrigger == null)
@@ -158,9 +167,6 @@ public class DungeonDoor : MonoBehaviour
         sceneTrigger.SetTriggerEnabled(false);
     }
 
-    /// <summary>
-    /// 문의 다음 경로를 설정하고 목적지 표시를 생성한다.
-    /// </summary>
     public void Configure(RoomRouteOption newRoute)
     {
         route = newRoute;
@@ -202,16 +208,13 @@ public class DungeonDoor : MonoBehaviour
                 $"[DungeonDoor] 문 경로 설정 완료 / " +
                 $"방={route.TargetRoom.DisplayName}, " +
                 $"타입={route.TargetRoom.RoomType}, " +
-                $"태그={route.RewardCategory}",
+                $"태그={route.RewardCategory}, " +
+                $"Spawn ID={targetSpawnId}",
                 this
             );
         }
     }
 
-    /// <summary>
-    /// 문을 잠그고 닫힌 상태로 되돌린다.
-    /// 목적지 표시는 유지한다.
-    /// </summary>
     public void Lock()
     {
         doorUnlocked = false;
@@ -232,9 +235,6 @@ public class DungeonDoor : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 기존 코드 호환용 함수.
-    /// </summary>
     public void SetDoorEnabled(bool value)
     {
         if (!value)
@@ -246,9 +246,6 @@ public class DungeonDoor : MonoBehaviour
         doorUnlocked = HasValidRoute;
     }
 
-    /// <summary>
-    /// 경로와 목적지 표시를 모두 제거한다.
-    /// </summary>
     public void ClearRoute()
     {
         route = null;
@@ -273,9 +270,6 @@ public class DungeonDoor : MonoBehaviour
         DestroyDestinationVisual();
     }
 
-    /// <summary>
-    /// 방 클리어 후 문을 연다.
-    /// </summary>
     public void Open()
     {
         if (!HasValidRoute)
@@ -288,7 +282,8 @@ public class DungeonDoor : MonoBehaviour
             return;
         }
 
-        if (opened || animating)
+        if (opened ||
+            animating)
         {
             return;
         }
@@ -307,9 +302,6 @@ public class DungeonDoor : MonoBehaviour
             StartCoroutine(OpenRoutine());
     }
 
-    /// <summary>
-    /// 플레이어가 문 Trigger에 들어오면 호출된다.
-    /// </summary>
     public bool TryEnter(Player player)
     {
         if (player == null)
@@ -341,9 +333,6 @@ public class DungeonDoor : MonoBehaviour
         return true;
     }
 
-    /// <summary>
-    /// 문을 연 뒤 이동 Trigger를 활성화한다.
-    /// </summary>
     private IEnumerator OpenRoutine()
     {
         yield return RotateDoor(
@@ -367,9 +356,6 @@ public class DungeonDoor : MonoBehaviour
         doorRoutine = null;
     }
 
-    /// <summary>
-    /// 문을 닫은 뒤 다음 방으로 이동을 요청한다.
-    /// </summary>
     private IEnumerator CloseAndMoveRoutine()
     {
         yield return RotateDoor(
@@ -382,14 +368,38 @@ public class DungeonDoor : MonoBehaviour
         RunFlowManager manager =
             RunFlowManager.Instance;
 
+        if (manager == null)
+        {
+            Debug.LogError(
+                "[DungeonDoor] RunFlowManager가 없습니다.",
+                this
+            );
+
+            changingScene = false;
+            opened = false;
+
+            Open();
+            yield break;
+        }
+
+        PlayerSpawnContext.SetSpawnId(targetSpawnId);
+
+        int consumedJakduEntryHp =
+            ApplyJakduEntryCost();
+
         bool requested =
-            manager != null &&
             manager.RequestRoute(route);
 
         if (requested)
         {
             yield break;
         }
+
+        PlayerSpawnContext.Clear();
+
+        RefundJakduEntryCost(
+            consumedJakduEntryHp
+        );
 
         Debug.LogError(
             "[DungeonDoor] 다음 방 이동 요청에 실패했습니다.",
@@ -402,9 +412,6 @@ public class DungeonDoor : MonoBehaviour
         Open();
     }
 
-    /// <summary>
-    /// 문 Pivot을 목표 회전값까지 부드럽게 회전시킨다.
-    /// </summary>
     private IEnumerator RotateDoor(
         Quaternion targetRotation,
         float duration
@@ -462,10 +469,6 @@ public class DungeonDoor : MonoBehaviour
         animating = false;
     }
 
-    /// <summary>
-    /// Destination Spawn Point의 월드 위치와 회전에
-    /// 목적지 프리팹을 생성한다.
-    /// </summary>
     private void RefreshDestinationVisual()
     {
         DestroyDestinationVisual();
@@ -478,8 +481,7 @@ public class DungeonDoor : MonoBehaviour
         if (destinationSpawnPoint == null)
         {
             Debug.LogError(
-                "[DungeonDoor] Destination Spawn Point가 비어 있습니다. " +
-                "Hierarchy에 있는 위치 기준 오브젝트를 연결하세요.",
+                "[DungeonDoor] Destination Spawn Point가 비어 있습니다. Hierarchy에 있는 위치 기준 오브젝트를 연결하세요.",
                 this
             );
 
@@ -507,10 +509,6 @@ public class DungeonDoor : MonoBehaviour
         Quaternion worldSpawnRotation =
             destinationSpawnPoint.rotation;
 
-        /*
-         * 기준 Transform의 월드 위치와 회전을 사용한다.
-         * 프리팹 원본 Transform 위치는 사용하지 않는다.
-         */
         currentDestinationVisual =
             Instantiate(
                 selectedPrefab,
@@ -521,18 +519,11 @@ public class DungeonDoor : MonoBehaviour
         currentDestinationVisual.name =
             $"{selectedPrefab.name}_Destination";
 
-        /*
-         * 위치 기준점의 자식으로 연결한다.
-         * true이므로 현재 월드 위치와 회전은 유지된다.
-         */
         currentDestinationVisual.transform.SetParent(
             destinationSpawnPoint,
             true
         );
 
-        /*
-         * 생성 직후 오차가 없도록 월드 위치와 회전을 다시 확정한다.
-         */
         currentDestinationVisual.transform.SetPositionAndRotation(
             worldSpawnPosition,
             worldSpawnRotation
@@ -549,17 +540,12 @@ public class DungeonDoor : MonoBehaviour
                 $"기준점 이름={destinationSpawnPoint.name}\n" +
                 $"기준점 월드 위치={destinationSpawnPoint.position}\n" +
                 $"생성된 월드 위치={currentDestinationVisual.transform.position}\n" +
-                $"기준점 월드 회전={destinationSpawnPoint.eulerAngles}\n" +
-                $"생성된 월드 회전={currentDestinationVisual.transform.eulerAngles}\n" +
                 $"프리팹={selectedPrefab.name}",
                 currentDestinationVisual
             );
         }
     }
 
-    /// <summary>
-    /// 목적지 표시 프리팹의 Collider를 비활성화한다.
-    /// </summary>
     private void DisableDestinationColliders()
     {
         if (currentDestinationVisual == null)
@@ -577,9 +563,6 @@ public class DungeonDoor : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 현재 경로에 맞는 목적지 프리팹을 반환한다.
-    /// </summary>
     private GameObject GetDestinationPrefab()
     {
         if (!HasValidRoute)
@@ -617,9 +600,86 @@ public class DungeonDoor : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 전투방 보상 계열에 맞는 프리팹을 반환한다.
-    /// </summary>
+    private int ApplyJakduEntryCost()
+    {
+        if (jakduEntryHpCost <= 0 ||
+            route == null ||
+            route.TargetRoom == null ||
+            route.TargetRoom.RoomType != RoomType.Jakdu)
+        {
+            return 0;
+        }
+
+        Player player =
+            PlayerSceneMover.Instance != null
+                ? PlayerSceneMover.Instance.CurrentPlayer
+                : null;
+
+        if (player == null)
+        {
+            player =
+                FindFirstObjectByType<Player>(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (player == null)
+        {
+            Debug.LogWarning(
+                "[DungeonDoor] Jakdu entry HP cost skipped because Player was not found.",
+                this
+            );
+
+            return 0;
+        }
+
+        int consumed =
+            player.ConsumeHp(
+                jakduEntryHpCost,
+                minimumHpAfterJakduEntry
+            );
+
+        if (showLogs)
+        {
+            Debug.Log(
+                $"[DungeonDoor] Jakdu entry HP cost consumed: {consumed}",
+                player
+            );
+        }
+
+        return consumed;
+    }
+
+    private void RefundJakduEntryCost(
+        int amount
+    )
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        Player player =
+            PlayerSceneMover.Instance != null
+                ? PlayerSceneMover.Instance.CurrentPlayer
+                : null;
+
+        if (player == null)
+        {
+            player =
+                FindFirstObjectByType<Player>(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (player == null)
+        {
+            return;
+        }
+
+        player.HealHp(amount);
+    }
+
     private GameObject GetCombatPrefab(
         BoonCategory category
     )
@@ -651,9 +711,6 @@ public class DungeonDoor : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 현재 생성된 목적지 표시를 제거한다.
-    /// </summary>
     private void DestroyDestinationVisual()
     {
         if (currentDestinationVisual == null)
@@ -666,9 +723,6 @@ public class DungeonDoor : MonoBehaviour
         currentDestinationVisual = null;
     }
 
-    /// <summary>
-    /// 실행 중인 문 코루틴을 중지한다.
-    /// </summary>
     private void StopDoorRoutine()
     {
         if (doorRoutine == null)
@@ -696,4 +750,14 @@ public class DungeonDoor : MonoBehaviour
     {
         DestroyDestinationVisual();
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (string.IsNullOrWhiteSpace(targetSpawnId))
+        {
+            targetSpawnId = "Default";
+        }
+    }
+#endif
 }

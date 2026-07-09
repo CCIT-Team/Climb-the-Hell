@@ -1,68 +1,186 @@
 using System.IO;
 using UnityEngine;
 
-// 게임 저장 및 불러오기를 담당하는 클래스
+/// <summary>
+/// 저장/불러오기 담당.
+///
+/// 주의:
+/// - TraitManager가 SaveManager.Instance를 사용하므로 Instance는 유지한다.
+/// - 하지만 여기서 DontDestroyOnLoad는 호출하지 않는다.
+/// - SaveManager가 GameManager 자식이면 GameManager가 유지될 때 같이 유지된다.
+/// </summary>
+[DefaultExecutionOrder(-1100)]
 public class SaveManager : MonoBehaviour
 {
-    // 싱글톤
     public static SaveManager Instance;
 
-    // 저장할 데이터
-    public SaveData saveData = new SaveData();
+    [Header("저장 데이터")]
+    public SaveData saveData;
 
-    // 저장 파일 경로
-    string savePath;
+    [Header("저장 파일")]
+    [SerializeField]
+    private string saveFileName = "save.json";
+
+    [Header("디버그")]
+    [SerializeField]
+    private bool showLogs = true;
+
+    private string SavePath
+    {
+        get
+        {
+            return Path.Combine(
+                Application.persistentDataPath,
+                saveFileName
+            );
+        }
+    }
 
     private void Awake()
     {
-        // 싱글톤 생성
         if (Instance == null)
         {
             Instance = this;
-
-            // 씬이 바뀌어도 유지
-            DontDestroyOnLoad(gameObject);
         }
-        else
+        else if (Instance != this)
         {
-            // 중복 생성 방지
             Destroy(gameObject);
+            return;
         }
 
-        // 저장 파일 경로 생성
-        savePath = Path.Combine(
-            Application.persistentDataPath,
-            "SaveData.json");
+        /*
+         * 여기서 DontDestroyOnLoad(gameObject)를 호출하면 안 됨.
+         * SaveManager가 GameManager 자식이면 Unity에서 아래 경고가 뜬다.
+         *
+         * DontDestroyOnLoad only works for root GameObjects...
+         *
+         * 전역 유지는 루트 오브젝트인 GameManager가 담당한다.
+         */
+        if (saveData == null)
+        {
+            saveData = new SaveData();
+        }
     }
 
-    // 저장
-    public void Save()
-    {
-        // SaveData를 JSON 문자열로 변환
-        string json =
-            JsonUtility.ToJson(saveData, true);
-
-        // JSON 파일 저장
-        File.WriteAllText(savePath, json);
-
-        Debug.Log("저장 완료");
-    }
-
-    // 불러오기
     public void Load()
     {
-        // 저장 파일이 없으면 종료
-        if (!File.Exists(savePath))
+        if (!File.Exists(SavePath))
+        {
+            saveData = new SaveData();
+
+            if (showLogs)
+            {
+                Debug.Log(
+                    $"[SaveManager] 저장 파일이 없어 새 데이터를 생성합니다. / 경로={SavePath}",
+                    this
+                );
+            }
+
             return;
+        }
 
-        // JSON 파일 읽기
-        string json =
-            File.ReadAllText(savePath);
+        try
+        {
+            string json =
+                File.ReadAllText(SavePath);
 
-        // JSON → SaveData 객체로 변환
-        saveData =
-            JsonUtility.FromJson<SaveData>(json);
+            saveData =
+                JsonUtility.FromJson<SaveData>(json);
 
-        Debug.Log("불러오기 완료");
+            if (saveData == null)
+            {
+                saveData = new SaveData();
+            }
+
+            if (showLogs)
+            {
+                Debug.Log(
+                    $"[SaveManager] 저장 데이터 로드 완료. / 경로={SavePath}",
+                    this
+                );
+            }
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError(
+                $"[SaveManager] 저장 데이터 로드 실패.\n{exception}",
+                this
+            );
+
+            saveData = new SaveData();
+        }
+    }
+
+    public void Save()
+    {
+        if (saveData == null)
+        {
+            saveData = new SaveData();
+        }
+
+        try
+        {
+            string json =
+                JsonUtility.ToJson(
+                    saveData,
+                    true
+                );
+
+            File.WriteAllText(
+                SavePath,
+                json
+            );
+
+            if (showLogs)
+            {
+                Debug.Log(
+                    $"[SaveManager] 저장 완료. / 경로={SavePath}",
+                    this
+                );
+            }
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError(
+                $"[SaveManager] 저장 실패.\n{exception}",
+                this
+            );
+        }
+    }
+
+    public void DeleteSave()
+    {
+        try
+        {
+            if (File.Exists(SavePath))
+            {
+                File.Delete(SavePath);
+            }
+
+            saveData = new SaveData();
+
+            if (showLogs)
+            {
+                Debug.Log(
+                    "[SaveManager] 저장 데이터 삭제 완료.",
+                    this
+                );
+            }
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError(
+                $"[SaveManager] 저장 데이터 삭제 실패.\n{exception}",
+                this
+            );
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 }
