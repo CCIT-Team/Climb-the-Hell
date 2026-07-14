@@ -5,10 +5,10 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Byungyun folder/Player Scenes/mixseen.unity
     guid: 2cda990e2423bbf4892e6590ba056729
-  - enabled: 1
+  - enabled: 0
     path: Assets/jihyeok folder/monster/monster ray/monsterScenes/monsterseen.unity
     guid: 9fc0d4010bbf28b4594072e72b8655ab
   - enabled: 1
@@ -37,13 +37,13 @@ EditorBuildSettings:
     guid: b24639a7788fd494ebf2d2f45b77d9c8
   - enabled: 1
     path: Assets/main Sences/CombatRoom_01.unity
-    guid: b8803b5a3191d334fa02c5b682a4bb04
+    guid: 35e0d8145a84f3246aa49b08c5846010
   - enabled: 1
     path: Assets/main Sences/CombatRoom_02.unity
-    guid: ebdb66d4aea756549b1e39b51b82d43c
+    guid: d621c40a97a71db40a2089804e2a0598
   - enabled: 1
     path: Assets/main Sences/CombatRoom_03.unity
-    guid: 97b327ca270cc9c49b646c150cef6063
+    guid: 97df039dc4ed81844b7df86b36d67a5e
   - enabled: 1
     path: Assets/main Sences/EventRoom.unity
     guid: f199969dc449f014eaf1685def3c00f3
