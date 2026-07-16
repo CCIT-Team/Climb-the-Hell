@@ -18,11 +18,21 @@ public class DamageNumberManager : MonoBehaviour
     private DamageNumber3D damageNumberPrefab;
 
     [Header("표시 설정")]
+    [Tooltip("호출자가 색을 지정하지 않았을 때 사용하는 기본 데미지 색상")]
     [SerializeField]
     private Color normalColor = Color.white;
 
     [SerializeField]
     private Color criticalColor = Color.yellow;
+
+    [SerializeField]
+    private Color healColor = new Color(0.4f, 1f, 0.4f);
+
+    [SerializeField]
+    private Color goldColor = new Color(1f, 0.84f, 0.1f);
+
+    [SerializeField]
+    private Color flowerColor = new Color(1f, 0.35f, 0.75f);
 
     [Min(0.001f)]
     [SerializeField]
@@ -73,12 +83,15 @@ public class DamageNumberManager : MonoBehaviour
     /// <summary>
     /// 지정된 슬롯 번호에 해당하는 포아송 위치에
     /// 데미지 숫자를 생성한다.
+    /// overrideColor를 지정하지 않으면 normalColor를 사용한다.
+    /// isCritical이 true면 overrideColor보다 criticalColor가 우선한다.
     /// </summary>
     public void ShowDamage(
         int damage,
         Vector3 basePosition,
         int slotIndex,
-        bool isCritical = false
+        bool isCritical = false,
+        Color? overrideColor = null
     )
     {
         if (damage <= 0 ||
@@ -114,15 +127,154 @@ public class DamageNumberManager : MonoBehaviour
                 Quaternion.identity
             );
 
-        number.Initialize(
-            damage,
+        Color resolvedColor =
             isCritical
                 ? criticalColor
-                : normalColor,
+                : (overrideColor ?? normalColor);
+
+        number.Initialize(
+            damage,
+            resolvedColor,
             isCritical
                 ? criticalScale
                 : normalScale,
             isCritical
+        );
+    }
+
+    /// <summary>
+    /// 지정된 슬롯 번호에 해당하는 포아송 위치에
+    /// 회복량 숫자를 생성한다.
+    /// </summary>
+    public void ShowHeal(
+        int amount,
+        Vector3 basePosition,
+        int slotIndex
+    )
+    {
+        if (amount <= 0 ||
+            damageNumberPrefab == null)
+        {
+            return;
+        }
+
+        if (poissonOffsets.Count == 0)
+        {
+            GeneratePoissonOffsets();
+        }
+
+        int safeIndex =
+            Mathf.Abs(slotIndex) %
+            poissonOffsets.Count;
+
+        Vector2 offset =
+            poissonOffsets[safeIndex];
+
+        Vector3 spawnPosition =
+            basePosition +
+            new Vector3(
+                offset.x,
+                offset.y,
+                0f
+            );
+
+        DamageNumber3D number =
+            Instantiate(
+                damageNumberPrefab,
+                spawnPosition,
+                Quaternion.identity
+            );
+
+        number.Initialize(
+            amount,
+            healColor,
+            normalScale,
+            false,
+            "+"
+        );
+    }
+
+    public void ShowGold(
+        int amount,
+        Vector3 basePosition,
+        int slotIndex
+    )
+    {
+        ShowPositive(
+            amount,
+            basePosition,
+            slotIndex,
+            goldColor,
+            "+",
+            "G"
+        );
+    }
+
+    public void ShowFlower(
+        int amount,
+        Vector3 basePosition,
+        int slotIndex
+    )
+    {
+        ShowPositive(
+            amount,
+            basePosition,
+            slotIndex,
+            flowerColor,
+            "+",
+            "F"
+        );
+    }
+
+    private void ShowPositive(
+        int amount,
+        Vector3 basePosition,
+        int slotIndex,
+        Color color,
+        string prefix,
+        string suffix
+    )
+    {
+        if (amount <= 0 ||
+            damageNumberPrefab == null)
+        {
+            return;
+        }
+
+        if (poissonOffsets.Count == 0)
+        {
+            GeneratePoissonOffsets();
+        }
+
+        int safeIndex =
+            Mathf.Abs(slotIndex) %
+            poissonOffsets.Count;
+
+        Vector2 offset =
+            poissonOffsets[safeIndex];
+
+        Vector3 spawnPosition =
+            basePosition +
+            new Vector3(
+                offset.x,
+                offset.y,
+                0f
+            );
+
+        DamageNumber3D number =
+            Instantiate(
+                damageNumberPrefab,
+                spawnPosition,
+                Quaternion.identity
+            );
+
+        number.Initialize(
+            amount,
+            color,
+            normalScale,
+            false,
+            prefix,
+            suffix
         );
     }
 
@@ -366,8 +518,7 @@ public class DamageNumberManager : MonoBehaviour
 
                 if ((candidate -
                      points[pointIndex])
-                    .sqrMagnitude <
-                    minimumDistanceSquared)
+                    .sqrMagnitude < minimumDistanceSquared)
                 {
                     return false;
                 }

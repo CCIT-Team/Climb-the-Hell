@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 /// <summary>
 /// 몬스터의 체력과 기본 능력치를 관리한다.
@@ -32,6 +33,8 @@ public class MonsterStats : MonoBehaviour
 
     protected virtual void Awake()
     {
+        EnsurePlayerPassThrough();
+
         currentHp = monsterhp;
 
         FindHealthBar();
@@ -45,10 +48,31 @@ public class MonsterStats : MonoBehaviour
         }
     }
 
+    private void EnsurePlayerPassThrough()
+    {
+        if (GetComponent<MonsterPlayerCollisionPassThrough>() != null)
+        {
+            return;
+        }
+
+        gameObject.AddComponent<MonsterPlayerCollisionPassThrough>();
+    }
+
+    public event Action<int, bool> OnDamaged;
+    public event Action<int> OnHealed;
+
     /// <summary>
     /// 몬스터에게 데미지를 적용한다.
     /// </summary>
     public virtual bool TakeDamage(int damage)
+    {
+        return TakeDamage(damage, false);
+    }
+
+    /// <summary>
+    /// 몬스터에게 데미지를 적용한다. 치명타 여부를 함께 전달한다.
+    /// </summary>
+    public virtual bool TakeDamage(int damage, bool isCritical)
     {
         if (damage <= 0)
         {
@@ -60,6 +84,8 @@ public class MonsterStats : MonoBehaviour
             return true;
         }
 
+        int previousHp = currentHp;
+
         currentHp =
             Mathf.Max(
                 0,
@@ -67,6 +93,14 @@ public class MonsterStats : MonoBehaviour
             );
 
         RefreshHealthBar();
+
+        int actualDamage =
+            previousHp - currentHp;
+
+        if (actualDamage > 0)
+        {
+            OnDamaged?.Invoke(actualDamage, isCritical);
+        }
 
         return currentHp <= 0;
     }
@@ -82,6 +116,8 @@ public class MonsterStats : MonoBehaviour
             return;
         }
 
+        int previousHp = currentHp;
+
         currentHp =
             Mathf.Min(
                 monsterhp,
@@ -89,6 +125,138 @@ public class MonsterStats : MonoBehaviour
             );
 
         RefreshHealthBar();
+
+        int actualHeal =
+            currentHp - previousHp;
+
+        if (actualHeal > 0)
+        {
+            OnHealed?.Invoke(actualHeal);
+        }
+    }
+
+    protected void GrantGoldToPlayer(
+        int rewardGold,
+        int defaultGold = 3
+    )
+    {
+        int gold =
+            rewardGold > 0
+                ? rewardGold
+                : defaultGold;
+
+        if (gold <= 0)
+        {
+            return;
+        }
+
+        Player player =
+            PlayerSceneMover.Instance != null
+                ? PlayerSceneMover.Instance.CurrentPlayer
+                : null;
+
+        if (player == null)
+        {
+            player =
+                FindFirstObjectByType<Player>(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (player == null ||
+            player.money == null)
+        {
+            return;
+        }
+
+        player.money.AddMoney(gold);
+    }
+
+    protected void GrantFlowerLeafToPlayer(
+        float rewardFlowerLeaf,
+        int defaultFlowerLeaf = 3
+    )
+    {
+        int flowerLeaf =
+            defaultFlowerLeaf;
+
+        if (flowerLeaf <= 0)
+        {
+            return;
+        }
+
+        Player player =
+            PlayerSceneMover.Instance != null
+                ? PlayerSceneMover.Instance.CurrentPlayer
+                : null;
+
+        if (player == null)
+        {
+            player =
+                FindFirstObjectByType<Player>(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (player == null)
+        {
+            return;
+        }
+
+        player.AddFlowerLeaf(flowerLeaf);
+    }
+
+    protected void ShowGoldNumber(
+        int rewardGold,
+        Vector3 position
+    )
+    {
+        DamageNumberManager manager =
+            DamageNumberManager.Instance;
+
+        if (manager == null)
+        {
+            return;
+        }
+
+        int gold =
+            rewardGold > 0
+                ? rewardGold
+                : 3;
+
+        manager.ShowGold(
+            gold,
+            position + Vector3.up * 1.6f,
+            UnityEngine.Random.Range(
+                0,
+                manager.GetSlotCount()
+            )
+        );
+    }
+
+    protected void ShowFlowerNumber(
+        float rewardFlowerLeaf,
+        Vector3 position
+    )
+    {
+        DamageNumberManager manager =
+            DamageNumberManager.Instance;
+
+        if (manager == null)
+        {
+            return;
+        }
+
+        int flowerLeaf = 3;
+
+        manager.ShowFlower(
+            flowerLeaf,
+            position + Vector3.up * 1.9f,
+            UnityEngine.Random.Range(
+                0,
+                manager.GetSlotCount()
+            )
+        );
     }
 
     /// <summary>

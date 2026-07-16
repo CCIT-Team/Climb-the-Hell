@@ -1,0 +1,124 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 696e5383fc7d3c2448ac7b226d5d4221, type: 3}
+  m_Name: JD - Gold 1
+  m_EditorClassIdentifier: 
+  boonId: jd2
+  displayName: jd2
+  description: jd2
+  icon: {fileID: 21300000, guid: a867d2efb4582604c988a690aa526a33, type: 3}
+  rewardTitle: Jagdu
+  rewardDescription: Damage taken +25% for 4 turns, but special attack damage +30%
+    afterward.
+  grade: 0
+  category: 5
+  stackable: 1
+  maxStack: 1
+  categoryRequirements: []
+  requiredBoonIds: []
+  instantStatBonus:
+    maxHp: 0
+    attack: 0
+    moveSpeed: 0
+    criticalChance: 0
+    criticalMultiplier: 0
+    dashDistance: 0
+    dashDuration: 0
+    dashCooldown: 0
+    dashCooldownRecoveryMultiplier: 0
+    extraDashCount: 0
+    dashInvincible: 0
+    deathResist: 0
+    goldMultiplier: 0
+    rerollCount: 0
+  attackEffect:
+    enableDashDamage: 0
+    dashDamage: 0
+    attackSpeedIncreaseRate: 0
+    additionalStaggerDuration: 0
+  defenseEffect:
+    damageReductionRate: 0
+  dashEffect:
+    enabled: 0
+    statBonus:
+      maxHp: 0
+      attack: 0
+      moveSpeed: 0
+      criticalChance: 0
+      criticalMultiplier: 0
+      dashDistance: 0
+      dashDuration: 0
+      dashCooldown: 0
+      dashCooldownRecoveryMultiplier: 0
+      extraDashCount: 0
+      dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
+  enemyReductionEffect:
+    enabled: 0
+    moveSpeedReductionRate: 0
+    attackReductionRate: 0
+    maxHpReductionRate: 0
+  debuffEffect:
+    enabled: 0
+    triggerType: 1
+    type: 0
+    duration: 3
+    applyChance: 1
+    maxStack: 1
+    damagePerTick: 0
+    tickInterval: 1
+    moveSpeedReductionRate: 0
+    attackReductionRate: 0
+    maxHpReductionRate: 0
+    stunDuration: 0
+  reflectEffect:
+    enabled: 0
+    triggerType: 0
+    reflectChance: 1
+    reflectedDamageMultiplier: 1
+    activeDuration: 0.25
+  jakduRideEffect:
+    enabled: 0
+    buffStats:
+      maxHp: 0
+      attack: 0
+      moveSpeed: 0
+      criticalChance: 0
+      criticalMultiplier: 0
+      dashDistance: 0
+      dashDuration: 0
+      dashCooldown: 0
+      dashCooldownRecoveryMultiplier: 0
+      extraDashCount: 0
+      dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
+    debuffStats:
+      maxHp: 0
+      attack: 0
+      moveSpeed: 0
+      criticalChance: 0
+      criticalMultiplier: 0
+      dashDistance: 0
+      dashDuration: 0
+      dashCooldown: 0
+      dashCooldownRecoveryMultiplier: 0
+      extraDashCount: 0
+      dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
+    duration: 5
+    permanent: 0

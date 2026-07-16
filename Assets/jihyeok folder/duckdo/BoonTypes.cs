@@ -20,7 +20,8 @@ public enum BoonCategory
     Attack,
     Defense,
     Mobility,
-    Debuff
+    Debuff,
+    Jakdu
 }
 
 /// <summary>

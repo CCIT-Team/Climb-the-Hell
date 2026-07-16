@@ -1,241 +1,530 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// 플레이어의 특성(업그레이드)을 관리하는 클래스
+// 플레이어의 특성 업그레이드를 관리하는 클래스
 public class TraitManager : MonoBehaviour
 {
-    // 특성을 적용할 플레이어
+    [Header("참조")]
     public Player player;
-
-    // 플레이어가 구매한 특성 목록
-    public List<PlayerTrait> playerTraits = new List<PlayerTrait>();
-
-    // 저장 관리
     public SaveManager saveManager;
 
-    // 게임에 존재하는 모든 특성 데이터
-    public List<TraitData> allTraits;
+    [Header("특성")]
+    public List<PlayerTrait> playerTraits =
+        new List<PlayerTrait>();
 
-    // 특성 구매
+    public List<TraitData> allTraits =
+        new List<TraitData>();
+
+    public event Action OnTraitChanged;
+
+    public void EnsureReferences()
+    {
+        if (playerTraits == null)
+        {
+            playerTraits =
+                new List<PlayerTrait>();
+        }
+
+        if (allTraits == null)
+        {
+            allTraits =
+                new List<TraitData>();
+        }
+
+        if (saveManager == null &&
+            GameManager.Instance != null)
+        {
+            saveManager =
+                GameManager.Instance.saveManager;
+        }
+
+        if (saveManager == null &&
+            SaveManager.Instance != null)
+        {
+            saveManager =
+                SaveManager.Instance;
+        }
+
+        if (saveManager == null)
+        {
+            saveManager =
+                FindObjectOfType<SaveManager>(true);
+        }
+
+        if (saveManager != null &&
+            saveManager.saveData == null)
+        {
+            saveManager.saveData =
+                new SaveData();
+        }
+
+        if (saveManager != null &&
+            saveManager.saveData.traits == null)
+        {
+            saveManager.saveData.traits =
+                new List<TraitSaveData>();
+        }
+
+        if (player == null &&
+            GameManager.Instance != null)
+        {
+            player =
+                GameManager.Instance.CurrentPlayer;
+        }
+
+        if (player == null)
+        {
+            player =
+                FindObjectOfType<Player>(true);
+        }
+    }
+
     public bool BuyTrait(TraitData trait)
     {
-        // 현재 특성이 이미 있는지 검색
-        PlayerTrait playerTrait = playerTraits.Find(x => x.trait == trait);
+        EnsureReferences();
 
-        // 처음 구매하는 특성이면 생성
+        if (trait == null)
+        {
+            Debug.LogWarning(
+                "[TraitManager] 구매할 TraitData가 없습니다.",
+                this
+            );
+            return false;
+        }
+
+        PlayerTrait playerTrait =
+            playerTraits.Find(
+                x => x != null &&
+                     x.trait == trait
+            );
+
         if (playerTrait == null)
         {
-            playerTrait = new PlayerTrait();
+            playerTrait =
+                new PlayerTrait();
+
             playerTrait.trait = trait;
             playerTrait.level = 0;
 
             playerTraits.Add(playerTrait);
         }
 
-        // 최대 레벨인지 확인
         if (playerTrait.level >= trait.maxLevel)
         {
             Debug.Log("최대 레벨입니다.");
             return false;
         }
 
-        // 현재 레벨의 구매 가격
-        int price = GetPrice(trait, playerTrait.level);
+        int price =
+            GetPrice(
+                trait,
+                playerTrait.level
+            );
 
-        // 영구 재화가 부족하면 구매 실패
+        if (GameManager.Instance == null)
+        {
+            Debug.LogError(
+                "[TraitManager] GameManager가 없어 구매할 수 없습니다.",
+                this
+            );
+            return false;
+        }
+
         if (!GameManager.Instance.TrySpendPermanentMoney(price))
         {
             Debug.Log("재화 부족");
             return false;
         }
 
-        // 레벨 증가
         playerTrait.level++;
 
-        // 시작 골드는 런 시작 시 적용하므로 제외
         if (trait.type != TraitType.StartGold)
         {
-            ApplyTrait(trait, playerTrait.level);
+            ApplyTrait(
+                trait,
+                playerTrait.level
+            );
         }
 
-        // 변경 내용 저장
         GameManager.Instance.SaveGame();
+
+        OnTraitChanged?.Invoke();
 
         return true;
     }
 
-    // 현재 레벨의 업그레이드 가격 반환
-    public int GetPrice(TraitData trait, int currentLevel)
+    public int GetPrice(
+        TraitData trait,
+        int currentLevel
+    )
     {
-        return Mathf.RoundToInt(trait.levelPrices[currentLevel]);
+        if (trait == null)
+        {
+            return 0;
+        }
+
+        if (currentLevel < 0)
+        {
+            currentLevel = 0;
+        }
+
+        try
+        {
+            return Mathf.RoundToInt(
+                trait.levelPrices[currentLevel] *
+                700f
+            );
+        }
+        catch
+        {
+            Debug.LogWarning(
+                $"[TraitManager] {trait.type}의 levelPrices가 비었거나 인덱스가 범위를 벗어났습니다. 현재 레벨={currentLevel}",
+                this
+            );
+
+            return 0;
+        }
     }
 
-    // 특성 효과를 플레이어에게 적용
-    public void ApplyTrait(TraitData trait, int level)
+    public void ApplyTrait(
+        TraitData trait,
+        int level
+    )
     {
+        EnsureReferences();
+
+        if (trait == null)
+        {
+            return;
+        }
+
+        if (player == null)
+        {
+            Debug.LogWarning(
+                $"[TraitManager] Player가 없어 {trait.type} 적용을 건너뜁니다.",
+                this
+            );
+            return;
+        }
+
+        if (player.stats == null)
+        {
+            Debug.LogWarning(
+                "[TraitManager] Player.stats가 없습니다.",
+                player
+            );
+            return;
+        }
+
         switch (trait.type)
         {
             case TraitType.StartGold:
-                // 시작 골드는 런 시작 시 사용
                 break;
 
             case TraitType.MaxHp:
+            {
+                int beforeMaxHp =
+                    player.stats.MaxHp;
+
                 player.stats.TraitBonusStats.maxHp =
-                    Mathf.RoundToInt(trait.valuePerLevel * level);
+                    Mathf.RoundToInt(
+                        player.stats.BaseStats.maxHp *
+                        trait.valuePerLevel *
+                        level
+                    );
+
+                int afterMaxHp =
+                    player.stats.MaxHp;
+
+                player.stats.AddCurrentHp(
+                    afterMaxHp - beforeMaxHp
+                );
+
                 break;
+            }
 
             case TraitType.Attack:
                 player.stats.TraitBonusStats.attack =
-                    Mathf.RoundToInt(trait.valuePerLevel * level);
+                    Mathf.RoundToInt(
+                        player.stats.BaseStats.attack *
+                        trait.valuePerLevel *
+                        level
+                    );
                 break;
 
             case TraitType.DeathResist:
-                player.stats.TraitBonusStats.deathResist = level;
+                player.stats.TraitBonusStats.deathResist =
+                    level;
                 break;
 
             case TraitType.CritChance:
                 player.stats.TraitBonusStats.criticalChance =
-                    trait.valuePerLevel * level;
+                    player.stats.BaseStats.criticalChance *
+                    trait.valuePerLevel *
+                    level;
                 break;
 
             case TraitType.CritDamage:
                 player.stats.TraitBonusStats.criticalMultiplier =
-                    trait.valuePerLevel * level;
+                    player.stats.BaseStats.criticalMultiplier *
+                    trait.valuePerLevel *
+                    level;
                 break;
 
             case TraitType.ExtraDash:
-                player.stats.TraitBonusStats.extraDashCount = level;
+                player.stats.TraitBonusStats.extraDashCount =
+                    level;
                 break;
 
             case TraitType.GoldMultiplier:
                 player.stats.TraitBonusStats.goldMultiplier =
-                    trait.valuePerLevel * level;
+                    player.stats.BaseStats.goldMultiplier *
+                    trait.valuePerLevel *
+                    level;
                 break;
 
             case TraitType.Reroll:
-                player.stats.TraitBonusStats.rerollCount = level;
+                player.stats.TraitBonusStats.rerollCount =
+                    level;
                 break;
         }
 
-        // 죽음 저항 수치 갱신
         player.RefreshDeathResist();
+        player.stats.Init(false);
+        player.stats.NotifyChange();
+
+        OnTraitChanged?.Invoke();
     }
 
-    // 구매한 모든 특성 적용
     public void ApplyAllTraits()
     {
-        foreach (PlayerTrait playerTrait in playerTraits)
+        EnsureReferences();
+
+        for (int i = 0; i < playerTraits.Count; i++)
         {
-            // 시작 골드는 제외
-            if (playerTrait.trait.type == TraitType.StartGold)
+            PlayerTrait playerTrait =
+                playerTraits[i];
+
+            if (playerTrait == null ||
+                playerTrait.trait == null)
+            {
+                continue;
+            }
+
+            if (playerTrait.trait.type ==
+                TraitType.StartGold)
             {
                 continue;
             }
 
             ApplyTrait(
                 playerTrait.trait,
-                playerTrait.level);
+                playerTrait.level
+            );
         }
     }
 
-    // 현재 특성 정보를 저장 데이터에 복사
     public void SaveTraits()
     {
+        EnsureReferences();
+
+        if (saveManager == null ||
+            saveManager.saveData == null)
+        {
+            Debug.LogWarning(
+                "[TraitManager] SaveManager 또는 SaveData가 없어 저장을 건너뜁니다.",
+                this
+            );
+            return;
+        }
+
         saveManager.saveData.traits.Clear();
 
-        foreach (PlayerTrait playerTrait in playerTraits)
+        for (int i = 0; i < playerTraits.Count; i++)
         {
-            TraitSaveData data = new TraitSaveData();
+            PlayerTrait playerTrait =
+                playerTraits[i];
 
-            data.type = playerTrait.trait.type;
-            data.level = playerTrait.level;
+            if (playerTrait == null ||
+                playerTrait.trait == null)
+            {
+                continue;
+            }
+
+            TraitSaveData data =
+                new TraitSaveData();
+
+            data.type =
+                playerTrait.trait.type;
+
+            data.level =
+                playerTrait.level;
 
             saveManager.saveData.traits.Add(data);
         }
     }
 
-    // 특정 특성 정보 가져오기
-    public PlayerTrait GetPlayerTrait(TraitData trait)
+    public PlayerTrait GetPlayerTrait(
+        TraitData trait
+    )
     {
-        return playerTraits.Find(x => x.trait == trait);
+        EnsureReferences();
+
+        if (trait == null)
+        {
+            return null;
+        }
+
+        return playerTraits.Find(
+            x => x != null &&
+                 x.trait == trait
+        );
     }
 
-    // 현재 특성 레벨 반환
-    public int GetTraitLevel(TraitData trait)
+    public int GetTraitLevel(
+        TraitData trait
+    )
     {
-        PlayerTrait playerTrait = GetPlayerTrait(trait);
+        PlayerTrait playerTrait =
+            GetPlayerTrait(trait);
 
         return playerTrait == null
             ? 0
             : playerTrait.level;
     }
 
-    // 구매 가능한지 확인
-    public bool CanBuyTrait(TraitData trait)
+    public bool CanBuyTrait(
+        TraitData trait
+    )
     {
-        int level = GetTraitLevel(trait);
+        EnsureReferences();
 
-        // 최대 레벨이면 구매 불가
+        if (trait == null)
+        {
+            return false;
+        }
+
+        int level =
+            GetTraitLevel(trait);
+
         if (level >= trait.maxLevel)
         {
             return false;
         }
 
-        // 현재 돈이 가격 이상인지 확인
-        return GameManager.Instance.permanentMoney.CurrentMoney >=
-            GetPrice(trait, level);
+        if (GameManager.Instance == null)
+        {
+            return false;
+        }
+
+        int price =
+            GetPrice(
+                trait,
+                level
+            );
+
+        return GameManager.Instance
+            .permanentMoney
+            .CurrentMoney >= price;
     }
 
-    // 저장된 특성 불러오기
     public void LoadTraits()
     {
-        // 기존 데이터 초기화
+        EnsureReferences();
+
         playerTraits.Clear();
 
-        // 저장된 특성 복원
-        foreach (TraitSaveData data in saveManager.saveData.traits)
+        if (saveManager == null ||
+            saveManager.saveData == null)
         {
-            // 같은 타입의 TraitData 찾기
+            Debug.LogWarning(
+                "[TraitManager] SaveData가 없어 특성 불러오기를 건너뜁니다.",
+                this
+            );
+            return;
+        }
+
+        if (saveManager.saveData.traits == null)
+        {
+            saveManager.saveData.traits =
+                new List<TraitSaveData>();
+        }
+
+        for (int i = 0;
+             i < saveManager.saveData.traits.Count;
+             i++)
+        {
+            TraitSaveData data =
+                saveManager.saveData.traits[i];
+
             TraitData trait =
-                allTraits.Find(x => x.type == data.type);
+                allTraits.Find(
+                    x => x != null &&
+                         x.type == data.type
+                );
 
             if (trait == null)
             {
+                Debug.LogWarning(
+                    $"[TraitManager] 저장된 특성 {data.type}에 맞는 TraitData가 allTraits에 없습니다.",
+                    this
+                );
                 continue;
             }
 
-            PlayerTrait playerTrait = new PlayerTrait();
+            PlayerTrait playerTrait =
+                new PlayerTrait();
 
             playerTrait.trait = trait;
-            playerTrait.level = data.level;
+            playerTrait.level =
+                Mathf.Clamp(
+                    data.level,
+                    0,
+                    trait.maxLevel
+                );
 
             playerTraits.Add(playerTrait);
         }
 
-        // 영구 재화 복원
-        GameManager.Instance.permanentMoney.SetMoney(
-            saveManager.saveData.permanentMoney);
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance
+                .permanentMoney
+                .SetMoney(
+                    saveManager.saveData.permanentMoney
+                );
+        }
 
-        // 특성 효과 다시 적용
         ApplyAllTraits();
     }
 
-    // 시작 골드 특성 값 반환
     public int GetStartGold()
     {
+        EnsureReferences();
+
         PlayerTrait playerTrait =
             playerTraits.Find(
-                x => x.trait.type == TraitType.StartGold);
+                x => x != null &&
+                     x.trait != null &&
+                     x.trait.type ==
+                     TraitType.StartGold
+            );
 
-        // 구매하지 않았다면 0
+        int baseStartGold = 100;
+
         if (playerTrait == null)
         {
-            return 0;
+            return baseStartGold;
         }
 
-        // 시작 골드 계산
+        float multiplier =
+            1f +
+            playerTrait.level *
+            playerTrait.trait.valuePerLevel;
+
         return Mathf.RoundToInt(
-            playerTrait.trait.valuePerLevel *
-            playerTrait.level);
+            baseStartGold * multiplier
+        );
     }
 }

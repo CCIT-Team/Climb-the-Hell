@@ -9,9 +9,15 @@ public class LavaPool : MonoBehaviour
     private HashSet<IDamageable> inside = new();
 
     private Dictionary<IDamageable, Coroutine> zoneCoroutines = new();
+    private bool stopped;
 
     private void OnTriggerEnter(Collider other)
     {
+        if (stopped)
+        {
+            return;
+        }
+
         if (other.TryGetComponent<IDamageable>(out var entity))
         {
             inside.Add(entity);
@@ -27,6 +33,11 @@ public class LavaPool : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
+        if (stopped)
+        {
+            return;
+        }
+
         if (other.TryGetComponent<IDamageable>(out var entity))
         {
             inside.Remove(entity);
@@ -46,7 +57,8 @@ public class LavaPool : MonoBehaviour
     {
         Debug.Log("▶ ZONE DOT START");
 
-        while (inside.Contains(entity))
+        while (!stopped &&
+               inside.Contains(entity))
         {
             Debug.Log("💥 ZONE DAMAGE");
 
@@ -63,7 +75,8 @@ public class LavaPool : MonoBehaviour
 
         float elapsed = 0f;
 
-        while (elapsed < effect.burnDuration)
+        while (!stopped &&
+               elapsed < effect.burnDuration)
         {
             Debug.Log("☠️ BURN DAMAGE");
 
@@ -75,5 +88,22 @@ public class LavaPool : MonoBehaviour
         }
 
         Debug.Log("✅ BURN END");
+    }
+
+    public void StopTrap()
+    {
+        stopped = true;
+
+        foreach (Coroutine coroutine in zoneCoroutines.Values)
+        {
+            if (coroutine != null)
+            {
+                StopCoroutine(coroutine);
+            }
+        }
+
+        zoneCoroutines.Clear();
+        inside.Clear();
+        StopAllCoroutines();
     }
 }

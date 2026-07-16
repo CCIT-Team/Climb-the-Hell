@@ -2,148 +2,249 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-// 특성 하나(한 줄)의 UI를 관리하는 클래스
+// 특성 UI 한 줄
 public class TraitRow : MonoBehaviour
 {
-    [Header("Manager")]
-    // 특성 구매 및 레벨 관리
-    public TraitManager traitManager;
-
-    // 전체 특성 UI
-    public TraitUI traitUI;
-
-    [Header("Data")]
-    // 이 Row가 표시할 특성 데이터
-    public TraitData trait;
+    [Header("특성 데이터")]
+    [SerializeField]
+    private TraitData trait;
 
     [Header("UI")]
-    // 특성 이름
-    public TMP_Text nameText;
+    [SerializeField]
+    private TMP_Text nameText;
 
-    // 현재 효과 → 다음 레벨 효과
-    public TMP_Text effectText;
+    [SerializeField]
+    private TMP_Text levelText;
 
-    // 현재 레벨 표시
-    public TMP_Text levelText;
+    [SerializeField]
+    private TMP_Text priceText;
 
-    // 업그레이드 비용
-    public TMP_Text priceText;
+    [SerializeField]
+    private TMP_Text stateText;
 
-    // 구매 버튼
-    public Button upgradeButton;
+    [SerializeField]
+    private Button buyButton;
 
-    // Row 초기화
-    public void Init(
-        TraitData traitData,
-        TraitManager manager,
-        TraitUI ui)
+    private TraitManager traitManager;
+    private bool buttonBound;
+
+    private void Awake()
     {
-        trait = traitData;
-        traitManager = manager;
-        traitUI = ui;
+        CacheUI();
+        BindButton();
+    }
 
-        // 초기 UI 갱신
+    public void Setup(
+        TraitData newTrait,
+        TraitManager manager
+    )
+    {
+        trait = newTrait;
+        traitManager = manager;
+
+        CacheUI();
+        BindButton();
         Refresh();
     }
 
-    // 구매 버튼이 눌렸을 때 호출
-    public void Buy()
+    public void SetManager(
+        TraitManager manager
+    )
     {
-        traitManager.BuyTrait(trait);
+        traitManager = manager;
+
+        CacheUI();
+        BindButton();
     }
 
-    // 현재 특성 정보를 UI에 표시
     public void Refresh()
     {
-        // 현재 특성 레벨
-        int level =
-            traitManager.GetTraitLevel(trait);
+        CacheUI();
 
-        // 이름 표시
-        nameText.text = trait.traitName;
-
-        // 레벨 표시
-        levelText.text =
-            $"Lv. {level}/{trait.maxLevel}";
-
-        // 현재 효과
-        float currentValue =
-            trait.valuePerLevel * level;
-
-        // 다음 레벨 효과
-        float nextValue =
-            trait.valuePerLevel *
-            Mathf.Min(
-                level + 1,
-                trait.maxLevel);
-
-        // 최대 레벨인 경우
-        if (level >= trait.maxLevel)
+        if (traitManager == null)
         {
-            // 현재 효과만 표시
-            effectText.text = GetValueText(currentValue);
+            ResolveManager();
+        }
 
-            // 가격 대신 MAX 표시
-            priceText.text = "MAX";
+        if (trait == null)
+        {
+            SetText(nameText, "Trait 없음");
+            SetText(levelText, "-");
+            SetText(priceText, "-");
+            SetText(stateText, "데이터 없음");
 
-            // 버튼 비활성화
-            upgradeButton.interactable = false;
+            if (buyButton != null)
+            {
+                buyButton.interactable = false;
+            }
 
             return;
         }
 
-        // 현재 효과 → 다음 효과 표시
-        effectText.text =
-            $"{GetValueText(currentValue)} → {GetValueText(nextValue)}";
+        int level = 0;
+        int maxLevel =
+            Mathf.Max(0, trait.maxLevel);
 
-        // 현재 레벨의 업그레이드 가격
-        int price =
-            traitManager.GetPrice(trait, level);
+        if (traitManager != null)
+        {
+            level =
+                traitManager.GetTraitLevel(trait);
+        }
 
-        // 실제 값(5)을 화면에서는 0.5로 표시
-        priceText.text = $"{price / 10f:F1}p";
+        bool isMaxLevel =
+            level >= maxLevel;
 
-        // 구매 가능한지 확인
-        bool canBuy =
-            traitManager.CanBuyTrait(trait);
+        SetText(
+            nameText,
+            trait.type.ToString()
+        );
 
-        // 가능하면 버튼 활성화
-        upgradeButton.interactable =
-            canBuy;
+        SetText(
+            levelText,
+            $"{level} / {maxLevel}"
+        );
 
-        // 돈이 부족하면 빨간색
-        priceText.color =
-            canBuy
-                ? Color.white
-                : Color.red;
+        if (isMaxLevel)
+        {
+            SetText(priceText, "MAX");
+            SetText(stateText, "최대 레벨");
+
+            if (buyButton != null)
+            {
+                buyButton.interactable = false;
+            }
+
+            return;
+        }
+
+        int price = 0;
+        bool canBuy = false;
+
+        if (traitManager != null)
+        {
+            price =
+                traitManager.GetPrice(
+                    trait,
+                    level
+                );
+
+            canBuy =
+                traitManager.CanBuyTrait(trait);
+        }
+
+        SetText(
+            priceText,
+            price.ToString()
+        );
+
+        SetText(
+            stateText,
+            canBuy ? "구매 가능" : "재화 부족"
+        );
+
+        if (buyButton != null)
+        {
+            buyButton.interactable = canBuy;
+        }
     }
 
-    // 특성 종류에 맞게 수치를 문자열로 변환
-    private string GetValueText(
-        float value)
+    private void Buy()
     {
-        switch (trait.type)
+        if (traitManager == null)
         {
-            // 치명타 확률(%)
-            case TraitType.CritChance:
-                return $"{value * 100:F0}%";
-
-            // 치명타 데미지(배율)
-            case TraitType.CritDamage:
-                return $"X{value:F1}";
-
-            // 골드 획득 배율
-            case TraitType.GoldMultiplier:
-                return $"X{value:F1}";
-
-            // 나머지는 일반 숫자
-            default:
-                if (value % 1 == 0)
-                {
-                    return ((int)value).ToString();
-                }
-
-                return value.ToString("F1");
+            ResolveManager();
         }
+
+        if (traitManager == null ||
+            trait == null)
+        {
+            return;
+        }
+
+        bool bought =
+            traitManager.BuyTrait(trait);
+
+        if (bought)
+        {
+            Refresh();
+        }
+    }
+
+    private void ResolveManager()
+    {
+        if (GameManager.Instance != null)
+        {
+            traitManager =
+                GameManager.Instance.traitManager;
+        }
+
+        if (traitManager == null)
+        {
+            traitManager =
+                FindObjectOfType<TraitManager>(true);
+        }
+    }
+
+    private void CacheUI()
+    {
+        if (buyButton == null)
+        {
+            buyButton =
+                GetComponentInChildren<Button>(true);
+        }
+
+        TMP_Text[] texts =
+            GetComponentsInChildren<TMP_Text>(true);
+
+        if (nameText == null &&
+            texts.Length > 0)
+        {
+            nameText = texts[0];
+        }
+
+        if (levelText == null &&
+            texts.Length > 1)
+        {
+            levelText = texts[1];
+        }
+
+        if (priceText == null &&
+            texts.Length > 2)
+        {
+            priceText = texts[2];
+        }
+
+        if (stateText == null &&
+            texts.Length > 3)
+        {
+            stateText = texts[3];
+        }
+    }
+
+    private void BindButton()
+    {
+        if (buyButton == null ||
+            buttonBound)
+        {
+            return;
+        }
+
+        buyButton.onClick.RemoveListener(Buy);
+        buyButton.onClick.AddListener(Buy);
+
+        buttonBound = true;
+    }
+
+    private void SetText(
+        TMP_Text target,
+        string value
+    )
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        target.text = value;
     }
 }

@@ -1,0 +1,688 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// 작두방에서 플레이어가 E키로 상호작용하면
+/// BoonData에 저장된 월드 프리팹을
+/// 기존 득도 보상처럼 낙하시켜 등장시킨다.
+///
+/// 현재 적용하지 않는 것:
+/// - 득도 획득
+/// - 저주/축복
+/// - HP 소모
+/// - 선택 UI
+/// </summary>
+[RequireComponent(typeof(BoxCollider))]
+[RequireComponent(typeof(Rigidbody))]
+public class JakduSpawnInteractable :
+    InteractableBase
+{
+    [Header("작두 데이터")]
+
+    [Tooltip(
+        "Use World Object가 체크된 BoonData를 연결"
+    )]
+    [SerializeField]
+    private BoonData jakduData;
+
+    [Header("작두 착지 위치")]
+
+    [Tooltip(
+        "비워두면 이 오브젝트 위치를 사용"
+    )]
+    [SerializeField]
+    private Transform spawnPoint;
+
+    [SerializeField]
+    private Vector3 spawnOffset;
+
+    [Header("낙하 연출")]
+
+    [Min(0f)]
+    [SerializeField]
+    private float dropHeight = 5f;
+
+    [Min(0.01f)]
+    [SerializeField]
+    private float dropDuration = 0.28f;
+
+    [Min(0f)]
+    [SerializeField]
+    private float landingBounceHeight = 0.18f;
+
+    [Min(0.01f)]
+    [SerializeField]
+    private float landingBounceDuration = 0.1f;
+
+    [Header("착지 발광")]
+
+    [Tooltip(
+        "비워두면 런타임에 Point Light 생성"
+    )]
+    [SerializeField]
+    private Light landingLight;
+
+    [Min(0f)]
+    [SerializeField]
+    private float flashIntensity = 12f;
+
+    [Min(0f)]
+    [SerializeField]
+    private float flashRange = 5f;
+
+    [Min(0.01f)]
+    [SerializeField]
+    private float flashDuration = 0.18f;
+
+    [Min(1f)]
+    [SerializeField]
+    private float flashScaleMultiplier = 1.18f;
+
+    [Header("사용 설정")]
+
+    [SerializeField]
+    private bool oneTimeUse = true;
+
+    [Tooltip(
+        "작두 생성 후 숨길 제단 또는 표시 오브젝트"
+    )]
+    [SerializeField]
+    private GameObject interactionVisual;
+
+    [Header("디버그")]
+
+    [SerializeField]
+    private bool showLogs = true;
+
+    private readonly HashSet<Collider>
+        playerColliders =
+            new HashSet<Collider>();
+
+    private BoxCollider triggerCollider;
+
+    private Player currentPlayer;
+
+    private PlayerInteraction
+        currentPlayerInteraction;
+
+    private GameObject spawnedObject;
+
+    private Coroutine spawnRoutine;
+
+    private bool isSpawning;
+    private bool hasSpawned;
+
+    private void Awake()
+    {
+        triggerCollider =
+            GetComponent<BoxCollider>();
+
+        triggerCollider.isTrigger = true;
+
+        Rigidbody body =
+            GetComponent<Rigidbody>();
+
+        body.isKinematic = true;
+        body.useGravity = false;
+        body.detectCollisions = true;
+
+        EnsureLandingLight();
+    }
+
+    private void OnValidate()
+    {
+        BoxCollider box =
+            GetComponent<BoxCollider>();
+
+        if (box != null)
+        {
+            box.isTrigger = true;
+        }
+
+        Rigidbody body =
+            GetComponent<Rigidbody>();
+
+        if (body != null)
+        {
+            body.isKinematic = true;
+            body.useGravity = false;
+        }
+    }
+
+    public override bool CanInteract()
+    {
+        if (isSpawning)
+        {
+            return false;
+        }
+
+        if (oneTimeUse &&
+            hasSpawned)
+        {
+            return false;
+        }
+
+        return
+            currentPlayer != null &&
+            currentPlayerInteraction != null &&
+            jakduData != null &&
+            jakduData.HasWorldObject;
+    }
+
+    public override void Interact(
+        Player player)
+    {
+        if (!CanInteract() ||
+            player == null ||
+            player != currentPlayer)
+        {
+            return;
+        }
+
+        spawnRoutine =
+            StartCoroutine(
+                SpawnRoutine()
+            );
+    }
+
+    private IEnumerator SpawnRoutine()
+    {
+        isSpawning = true;
+
+        if (currentPlayerInteraction != null)
+        {
+            currentPlayerInteraction
+                .SetInteractionBlocked(true);
+        }
+
+        Transform target =
+            spawnPoint != null
+                ? spawnPoint
+                : transform;
+
+        Vector3 landingPosition =
+            target.position +
+            spawnOffset;
+
+        Vector3 startPosition =
+            landingPosition +
+            Vector3.up *
+            dropHeight;
+
+        Quaternion rotation =
+            target.rotation *
+            Quaternion.Euler(
+                jakduData
+                    .worldObjectRotationOffset
+            );
+
+        spawnedObject =
+            Instantiate(
+                jakduData.worldObjectPrefab,
+                startPosition,
+                rotation
+            );
+
+        spawnedObject.name =
+            $"{jakduData.worldObjectPrefab.name}_Spawned";
+
+        Vector3 baseScale =
+            Vector3.Scale(
+                spawnedObject.transform.localScale,
+                jakduData
+                    .worldObjectScaleMultiplier
+            );
+
+        spawnedObject.transform.localScale =
+            baseScale;
+
+        Collider[] colliders =
+            spawnedObject
+                .GetComponentsInChildren<
+                    Collider
+                >(true);
+
+        for (int i = 0;
+             i < colliders.Length;
+             i++)
+        {
+            colliders[i].enabled = false;
+        }
+
+        float elapsed = 0f;
+
+        while (elapsed < dropDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed /
+                    dropDuration
+                );
+
+            float fallRatio =
+                ratio * ratio;
+
+            spawnedObject
+                .transform
+                .position =
+                    Vector3.LerpUnclamped(
+                        startPosition,
+                        landingPosition,
+                        fallRatio
+                    );
+
+            yield return null;
+        }
+
+        spawnedObject.transform.position =
+            landingPosition;
+
+        if (landingBounceHeight > 0f)
+        {
+            yield return
+                BounceRoutine(
+                    landingPosition
+                );
+        }
+
+        yield return
+            FlashRoutine(baseScale);
+
+        for (int i = 0;
+             i < colliders.Length;
+             i++)
+        {
+            if (colliders[i] != null)
+            {
+                colliders[i].enabled =
+                    true;
+            }
+        }
+
+        hasSpawned = true;
+        isSpawning = false;
+        spawnRoutine = null;
+
+        if (interactionVisual != null)
+        {
+            interactionVisual.SetActive(
+                false
+            );
+        }
+
+        if (oneTimeUse &&
+            triggerCollider != null)
+        {
+            triggerCollider.enabled =
+                false;
+        }
+
+        if (currentPlayerInteraction != null)
+        {
+            currentPlayerInteraction
+                .SetInteractionBlocked(false);
+
+            currentPlayerInteraction
+                .UnregisterInteractable(this);
+        }
+
+        if (showLogs)
+        {
+            Debug.Log(
+                "[JakduSpawnInteractable] " +
+                $"BoonData 기반 작두 생성 완료 / " +
+                $"데이터={jakduData.displayName}, " +
+                $"위치={landingPosition}",
+                spawnedObject
+            );
+        }
+    }
+
+    private IEnumerator BounceRoutine(
+        Vector3 landingPosition)
+    {
+        float halfDuration =
+            landingBounceDuration *
+            0.5f;
+
+        if (halfDuration <= 0f)
+        {
+            yield break;
+        }
+
+        Vector3 bouncePosition =
+            landingPosition +
+            Vector3.up *
+            landingBounceHeight;
+
+        float elapsed = 0f;
+
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed /
+                    halfDuration
+                );
+
+            spawnedObject.transform.position =
+                Vector3.Lerp(
+                    landingPosition,
+                    bouncePosition,
+                    SmoothStep(ratio)
+                );
+
+            yield return null;
+        }
+
+        elapsed = 0f;
+
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed /
+                    halfDuration
+                );
+
+            spawnedObject.transform.position =
+                Vector3.Lerp(
+                    bouncePosition,
+                    landingPosition,
+                    SmoothStep(ratio)
+                );
+
+            yield return null;
+        }
+
+        spawnedObject.transform.position =
+            landingPosition;
+    }
+
+    private IEnumerator FlashRoutine(
+        Vector3 baseScale)
+    {
+        EnsureLandingLight();
+
+        if (landingLight != null)
+        {
+            landingLight.transform.position =
+                spawnedObject.transform.position +
+                Vector3.up * 0.5f;
+
+            landingLight.range =
+                flashRange;
+
+            landingLight.intensity =
+                flashIntensity;
+
+            landingLight.enabled = true;
+        }
+
+        Vector3 flashScale =
+            baseScale *
+            flashScaleMultiplier;
+
+        spawnedObject.transform.localScale =
+            flashScale;
+
+        float elapsed = 0f;
+
+        while (elapsed < flashDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            float ratio =
+                Mathf.Clamp01(
+                    elapsed /
+                    flashDuration
+                );
+
+            float smoothRatio =
+                SmoothStep(ratio);
+
+            spawnedObject.transform.localScale =
+                Vector3.Lerp(
+                    flashScale,
+                    baseScale,
+                    smoothRatio
+                );
+
+            if (landingLight != null)
+            {
+                landingLight.intensity =
+                    Mathf.Lerp(
+                        flashIntensity,
+                        0f,
+                        smoothRatio
+                    );
+            }
+
+            yield return null;
+        }
+
+        spawnedObject.transform.localScale =
+            baseScale;
+
+        if (landingLight != null)
+        {
+            landingLight.intensity = 0f;
+            landingLight.enabled = false;
+        }
+    }
+
+    private void OnTriggerEnter(
+        Collider other)
+    {
+        TryRegisterPlayer(other);
+    }
+
+    private void OnTriggerStay(
+        Collider other)
+    {
+        TryRegisterPlayer(other);
+    }
+
+    private void TryRegisterPlayer(
+        Collider other)
+    {
+        if (other == null ||
+            isSpawning ||
+            (oneTimeUse && hasSpawned))
+        {
+            return;
+        }
+
+        Player player =
+            other.GetComponentInParent<
+                Player
+            >();
+
+        if (player == null)
+        {
+            return;
+        }
+
+        if (currentPlayer != null &&
+            currentPlayer != player)
+        {
+            return;
+        }
+
+        playerColliders.Add(other);
+
+        if (currentPlayer == player &&
+            currentPlayerInteraction != null)
+        {
+            return;
+        }
+
+        PlayerInteraction interaction =
+            player.GetComponent<
+                PlayerInteraction
+            >();
+
+        if (interaction == null)
+        {
+            interaction =
+                player.GetComponentInChildren<
+                    PlayerInteraction
+                >(true);
+        }
+
+        if (interaction == null)
+        {
+            Debug.LogError(
+                "[JakduSpawnInteractable] " +
+                "PlayerInteraction이 필요합니다.",
+                player
+            );
+
+            return;
+        }
+
+        currentPlayer = player;
+
+        currentPlayerInteraction =
+            interaction;
+
+        currentPlayerInteraction
+            .RegisterInteractable(this);
+    }
+
+    private void OnTriggerExit(
+        Collider other)
+    {
+        Player player =
+            other.GetComponentInParent<
+                Player
+            >();
+
+        if (player == null ||
+            player != currentPlayer)
+        {
+            return;
+        }
+
+        playerColliders.Remove(other);
+
+        if (playerColliders.Count > 0 ||
+            isSpawning)
+        {
+            return;
+        }
+
+        ClearPlayerReference();
+    }
+
+    private void ClearPlayerReference()
+    {
+        if (currentPlayerInteraction != null)
+        {
+            currentPlayerInteraction
+                .UnregisterInteractable(this);
+
+            currentPlayerInteraction
+                .SetInteractionBlocked(false);
+        }
+
+        playerColliders.Clear();
+
+        currentPlayer = null;
+        currentPlayerInteraction = null;
+    }
+
+    private void EnsureLandingLight()
+    {
+        if (landingLight != null)
+        {
+            return;
+        }
+
+        Transform found =
+            transform.Find(
+                "RuntimeJakduLandingLight"
+            );
+
+        GameObject lightObject;
+
+        if (found != null)
+        {
+            lightObject =
+                found.gameObject;
+        }
+        else
+        {
+            lightObject =
+                new GameObject(
+                    "RuntimeJakduLandingLight"
+                );
+
+            lightObject.transform.SetParent(
+                transform,
+                false
+            );
+        }
+
+        landingLight =
+            lightObject.GetComponent<Light>();
+
+        if (landingLight == null)
+        {
+            landingLight =
+                lightObject.AddComponent<
+                    Light
+                >();
+        }
+
+        landingLight.type =
+            LightType.Point;
+
+        landingLight.shadows =
+            LightShadows.None;
+
+        landingLight.intensity = 0f;
+        landingLight.enabled = false;
+    }
+
+    private static float SmoothStep(
+        float value)
+    {
+        value =
+            Mathf.Clamp01(value);
+
+        return
+            value *
+            value *
+            (3f - 2f * value);
+    }
+
+    private void OnDisable()
+    {
+        if (spawnRoutine != null)
+        {
+            StopCoroutine(
+                spawnRoutine
+            );
+
+            spawnRoutine = null;
+        }
+
+        isSpawning = false;
+
+        if (landingLight != null)
+        {
+            landingLight.intensity = 0f;
+            landingLight.enabled = false;
+        }
+
+        ClearPlayerReference();
+    }
+}

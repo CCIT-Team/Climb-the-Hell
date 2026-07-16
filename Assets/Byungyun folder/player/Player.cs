@@ -15,6 +15,15 @@ public class Player : MonoBehaviour, IDamageable
     public MoneyData money =
         new MoneyData();
 
+    [SerializeField]
+    [Min(0)]
+    private int flowerLeaf;
+
+    public int FlowerLeaf =>
+        flowerLeaf;
+
+    public event Action<int> OnFlowerLeafChanged;
+
     [Header("플레이어 상태")]
     // 현재 위치
     public Vector3 playerPosition;
@@ -42,8 +51,16 @@ public class Player : MonoBehaviour, IDamageable
     // HP가 변경될 때 UI 등에 알리는 이벤트
     public event Action<int> OnHpChanged;
 
+    public event Action<int> OnDamaged;
+    public event Action<int> OnHealed;
+
     // 남은 부활 횟수(죽음 저항)
     private int remainDeathResist;
+
+    // 득도(수비 계열) 피해 감소율을 읽기 위한 참조
+    private BoonInfo boonInfo;
+    private PlayerFeedback feedback;
+    private bool deathSequenceStarted;
 
     private void Awake()
     {
@@ -52,6 +69,21 @@ public class Player : MonoBehaviour, IDamageable
 
         // 죽음 저항 횟수 초기화
         remainDeathResist = stats.DeathResist;
+
+        // 득도 피해 감소를 적용하려면 BoonInfo 참조가 필요
+        boonInfo = GetComponent<BoonInfo>();
+
+        if (boonInfo == null)
+        {
+            boonInfo = GetComponentInChildren<BoonInfo>(true);
+        }
+
+        feedback = GetComponent<PlayerFeedback>();
+
+        if (feedback == null)
+        {
+            feedback = gameObject.AddComponent<PlayerFeedback>();
+        }
     }
 
     private void Update()
@@ -73,12 +105,43 @@ public class Player : MonoBehaviour, IDamageable
             return;
         }
 
+        // 수비 계열 득도의 피해 감소율 적용
+        if (boonInfo != null)
+        {
+            float reductionRate =
+                boonInfo.GetTotalDamageReductionRate();
+
+            if (reductionRate > 0f)
+            {
+                damage =
+                    Mathf.RoundToInt(
+                        damage * (1f - reductionRate)
+                    );
+            }
+        }
+
         // 실제 HP 감소
+        int previousHp =
+            stats.CurrentHp;
+
         bool dead =
             stats.TakeDamage(damage);
 
+        int actualDamage =
+            previousHp - stats.CurrentHp;
+
         // UI 갱신
         OnHpChanged?.Invoke(stats.CurrentHp);
+
+        if (actualDamage > 0)
+        {
+            OnDamaged?.Invoke(actualDamage);
+
+            if (feedback != null)
+            {
+                feedback.ShowDamage(actualDamage);
+            }
+        }
 
         Debug.Log(
             $"[Player] 피격 {damage} / " +
@@ -135,12 +198,67 @@ public class Player : MonoBehaviour, IDamageable
             return;
         }
 
+        int previousHp =
+            stats.CurrentHp;
+
         stats.Heal(amount);
 
+        int actualHeal =
+            stats.CurrentHp - previousHp;
+
         OnHpChanged?.Invoke(stats.CurrentHp);
+
+        if (actualHeal > 0)
+        {
+            OnHealed?.Invoke(actualHeal);
+
+            if (feedback != null)
+            {
+                feedback.ShowHeal(actualHeal);
+            }
+        }
     }
 
     // 대시 무적 설정
+    public int ConsumeHp(
+        int amount,
+        int minimumHp = 1
+    )
+    {
+        if (amount <= 0 ||
+            stats.IsDead())
+        {
+            return 0;
+        }
+
+        int safeMinimum =
+            Mathf.Clamp(
+                minimumHp,
+                0,
+                stats.CurrentHp
+            );
+
+        int consumed =
+            Mathf.Min(
+                amount,
+                Mathf.Max(
+                    0,
+                    stats.CurrentHp - safeMinimum
+                )
+            );
+
+        if (consumed <= 0)
+        {
+            return 0;
+        }
+
+        stats.AddCurrentHp(-consumed);
+
+        OnHpChanged?.Invoke(stats.CurrentHp);
+
+        return consumed;
+    }
+
     public void SetInvincible(bool value)
     {
         isDashInvincible = value;
@@ -167,6 +285,8 @@ public class Player : MonoBehaviour, IDamageable
     // 외부에서 호출하는 일반 부활
     public void Revive()
     {
+        deathSequenceStarted = false;
+
         StopHitInvincible();
 
         isDashInvincible = false;
@@ -176,6 +296,53 @@ public class Player : MonoBehaviour, IDamageable
         Debug.Log($"남은 부활 횟수 : {remainDeathResist}");
 
         OnHpChanged?.Invoke(stats.CurrentHp);
+    }
+
+    public void ResetRunGoldAndHeal()
+    {
+        StopHitInvincible();
+
+        isDashInvincible = false;
+        deathSequenceStarted = false;
+
+        stats.Init(true);
+
+        if (money != null)
+        {
+            money.SetMoney(0);
+        }
+
+        OnHpChanged?.Invoke(stats.CurrentHp);
+    }
+
+    public void RefreshHpUI()
+    {
+        if (stats == null)
+        {
+            return;
+        }
+
+        OnHpChanged?.Invoke(stats.CurrentHp);
+    }
+
+    public void AddFlowerLeaf(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        flowerLeaf += amount;
+
+        OnFlowerLeafChanged?.Invoke(flowerLeaf);
+    }
+
+    public void SetFlowerLeaf(int amount)
+    {
+        flowerLeaf =
+            Mathf.Max(0, amount);
+
+        OnFlowerLeafChanged?.Invoke(flowerLeaf);
     }
 
     // 피격 무적 시작
@@ -225,12 +392,28 @@ public class Player : MonoBehaviour, IDamageable
 
         isDashInvincible = false;
 
+        if (deathSequenceStarted)
+        {
+            return;
+        }
+
+        deathSequenceStarted = true;
+
         Debug.Log(
             "[Player] 사망",
             this
         );
 
         // GameManager 등이 이 이벤트를 받아 게임 오버 처리
+        if (feedback != null)
+        {
+            feedback.PlayDeathAndReturnToLobby(
+                () => OnDeath?.Invoke()
+            );
+
+            return;
+        }
+
         OnDeath?.Invoke();
     }
 

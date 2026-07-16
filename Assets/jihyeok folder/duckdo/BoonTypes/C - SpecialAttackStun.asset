@@ -15,9 +15,9 @@ MonoBehaviour:
   boonId: SpecialAttackStun
   displayName: SpecialAttackStun
   description: SpecialAttackStun
-  icon: {fileID: 21300000, guid: c6ecda9a6e96a2a4282907f88b27731c, type: 3}
-  rewardTitle: SpecialAttackStun
-  rewardDescription: SpecialAttackStun
+  icon: {fileID: 21300000, guid: db0e4dad922b34d48a54a4310d9e9307, type: 3}
+  rewardTitle: Honjeolsal
+  rewardDescription: Special attacks stun the enemy for 0.7 seconds.
   grade: 0
   category: 4
   stackable: 1
@@ -28,7 +28,6 @@ MonoBehaviour:
     maxHp: 0
     attack: 0
     moveSpeed: 0
-    mana: 0
     criticalChance: 0
     criticalMultiplier: 0
     dashDistance: 0
@@ -37,6 +36,9 @@ MonoBehaviour:
     dashCooldownRecoveryMultiplier: 0
     extraDashCount: 0
     dashInvincible: 0
+    deathResist: 0
+    goldMultiplier: 0
+    rerollCount: 0
   attackEffect:
     enableDashDamage: 0
     dashDamage: 0
@@ -50,7 +52,6 @@ MonoBehaviour:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -59,6 +60,9 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
   enemyReductionEffect:
     enabled: 0
     moveSpeedReductionRate: 0
@@ -76,7 +80,7 @@ MonoBehaviour:
     moveSpeedReductionRate: 0
     attackReductionRate: 0
     maxHpReductionRate: 0
-    stunDuration: 0.12
+    stunDuration: 0.7
   reflectEffect:
     enabled: 0
     triggerType: 0
@@ -89,7 +93,6 @@ MonoBehaviour:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -98,11 +101,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     debuffStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -111,5 +116,8 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     duration: 5
     permanent: 0

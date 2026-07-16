@@ -15,9 +15,9 @@ MonoBehaviour:
   boonId: Critical%
   displayName: Critical%
   description: increase Critical%
-  icon: {fileID: 21300000, guid: 3492cfac868231c4dbea2d44f968fea4, type: 3}
-  rewardTitle: Critical%
-  rewardDescription: increase Critical%
+  icon: {fileID: 21300000, guid: aa0747d6df20d4f42a579266fb137c03, type: 3}
+  rewardTitle: Myeolgwian
+  rewardDescription: Critical hit chance increases by 10%.
   grade: 0
   category: 1
   stackable: 1
@@ -28,7 +28,6 @@ MonoBehaviour:
     maxHp: 0
     attack: 0
     moveSpeed: 0
-    mana: 0
     criticalChance: 0.1
     criticalMultiplier: 0
     dashDistance: 0
@@ -37,6 +36,9 @@ MonoBehaviour:
     dashCooldownRecoveryMultiplier: 0
     extraDashCount: 0
     dashInvincible: 0
+    deathResist: 0
+    goldMultiplier: 0
+    rerollCount: 0
   attackEffect:
     enableDashDamage: 0
     dashDamage: 0
@@ -50,7 +52,6 @@ MonoBehaviour:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -59,6 +60,9 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
   enemyReductionEffect:
     enabled: 0
     moveSpeedReductionRate: 0
@@ -89,7 +93,6 @@ MonoBehaviour:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -98,11 +101,13 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     debuffStats:
       maxHp: 0
       attack: 0
       moveSpeed: 0
-      mana: 0
       criticalChance: 0
       criticalMultiplier: 0
       dashDistance: 0
@@ -111,5 +116,8 @@ MonoBehaviour:
       dashCooldownRecoveryMultiplier: 0
       extraDashCount: 0
       dashInvincible: 0
+      deathResist: 0
+      goldMultiplier: 0
+      rerollCount: 0
     duration: 5
     permanent: 0

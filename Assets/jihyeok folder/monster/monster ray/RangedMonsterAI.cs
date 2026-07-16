@@ -88,8 +88,31 @@ public class RangedMonsterAI : MonsterStats
     private float attackCooldown;
     private float lastAttackTime;
     private float distanceToPlayer;
+    private Vector3 lastStuckCheckPosition;
+    private float nextStuckCheckTime;
+    private int stuckCheckCount;
 
     private bool isAttacking;
+
+    [Header("NavMesh Stuck Recovery")]
+    [SerializeField]
+    private bool useStuckRecovery = true;
+
+    [Min(0.1f)]
+    [SerializeField]
+    private float stuckCheckInterval = 0.6f;
+
+    [Min(0.01f)]
+    [SerializeField]
+    private float stuckMoveThreshold = 0.08f;
+
+    [Min(1)]
+    [SerializeField]
+    private int stuckChecksBeforeRecovery = 3;
+
+    [Min(0.5f)]
+    [SerializeField]
+    private float stuckRecoveryRadius = 2.5f;
 
     protected override void Awake()
     {
@@ -141,6 +164,9 @@ public class RangedMonsterAI : MonsterStats
 
     private void Start()
     {
+        lastStuckCheckPosition =
+            transform.position;
+
         FindPlayer();
     }
 
@@ -174,6 +200,8 @@ public class RangedMonsterAI : MonsterStats
                 transform.position,
                 player.position
             );
+
+        MonitorNavigationHealth();
 
         UpdateState();
         UpdateAction();
@@ -297,6 +325,125 @@ public class RangedMonsterAI : MonsterStats
                 }
 
                 break;
+        }
+    }
+
+    private void MonitorNavigationHealth()
+    {
+        if (!useStuckRecovery ||
+            agent == null ||
+            !agent.isOnNavMesh ||
+            currentState == State.Idle ||
+            currentState == State.Dead ||
+            isAttacking)
+        {
+            return;
+        }
+
+        if (agent.pathPending)
+        {
+            return;
+        }
+
+        if (agent.hasPath &&
+            agent.pathStatus !=
+            NavMeshPathStatus.PathComplete)
+        {
+            RecoverFromStuck();
+            return;
+        }
+
+        if (Time.time < nextStuckCheckTime)
+        {
+            return;
+        }
+
+        nextStuckCheckTime =
+            Time.time + stuckCheckInterval;
+
+        float movedDistance =
+            Vector3.Distance(
+                transform.position,
+                lastStuckCheckPosition
+            );
+
+        lastStuckCheckPosition =
+            transform.position;
+
+        if (!agent.hasPath ||
+            agent.remainingDistance <=
+            agent.stoppingDistance + 0.4f)
+        {
+            stuckCheckCount = 0;
+            return;
+        }
+
+        if (movedDistance >
+            stuckMoveThreshold)
+        {
+            stuckCheckCount = 0;
+            return;
+        }
+
+        stuckCheckCount++;
+
+        if (stuckCheckCount >=
+            stuckChecksBeforeRecovery)
+        {
+            RecoverFromStuck();
+        }
+    }
+
+    private void RecoverFromStuck()
+    {
+        if (agent == null ||
+            !agent.isOnNavMesh)
+        {
+            return;
+        }
+
+        stuckCheckCount = 0;
+
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
+
+        if (player != null &&
+            NavMesh.SamplePosition(
+                player.position,
+                out NavMeshHit targetHit,
+                stuckRecoveryRadius * 2f,
+                NavMesh.AllAreas
+            ))
+        {
+            agent.isStopped = false;
+            agent.SetDestination(targetHit.position);
+            return;
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            Vector2 randomCircle =
+                UnityEngine.Random.insideUnitCircle *
+                stuckRecoveryRadius;
+
+            Vector3 samplePosition =
+                transform.position +
+                new Vector3(
+                    randomCircle.x,
+                    0f,
+                    randomCircle.y
+                );
+
+            if (NavMesh.SamplePosition(
+                    samplePosition,
+                    out NavMeshHit nearbyHit,
+                    stuckRecoveryRadius,
+                    NavMesh.AllAreas
+                ))
+            {
+                agent.Warp(nearbyHit.position);
+                return;
+            }
         }
     }
 
@@ -1377,6 +1524,19 @@ public class RangedMonsterAI : MonsterStats
 
     private void DropReward()
     {
+        GrantGoldToPlayer(rewardGold);
+        GrantFlowerLeafToPlayer(rewardflowerleaf);
+
+        ShowGoldNumber(
+            rewardGold,
+            transform.position
+        );
+
+        ShowFlowerNumber(
+            rewardflowerleaf,
+            transform.position
+        );
+
         Debug.Log(
             $"[Monster:{MonsterName}] " +
             $"골드 {rewardGold}개, " +
